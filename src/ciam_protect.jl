@@ -84,8 +84,6 @@ using Mimi
 
     # ---Sea Level Rise Parameters---
     lslr = Parameter(index = [time])         # Local sea level rise (m) 
-    lslrPlan = Parameter(index = [time])     # Planned-for sea level rise (m)
-                                             # FLAG_3: Still confused about lslr vs lslrPlan                   
     slr10 = Parameter()                                           
     slr100 = Parameter()
     slr1000 = Parameter()
@@ -176,6 +174,8 @@ function run_timestep(s::ciam_protect, t::Int)
         v.AdaptationCost[t] = 0
         v.AdaptationOption[t] = -9  # Using -9 for "N/A" code for now
         v.AdaptationLevel[t] = -9 
+        v.ProtectCost[t] = 0
+        v.ProtectLevel[t] = -9
                
     # Case 2: In the middle of adaptation period
     #   Cost already computed for time t, so do nothing
@@ -191,10 +191,12 @@ function run_timestep(s::ciam_protect, t::Int)
         if at_next <= length(p.at)
             atstep = (p.at[at_next] - p.at[at_index])*p.tstep   # years
             next = Int(p.at[at_next])                           # index  
+            last_t = next-1
         else
             # Deal with special case of last adaptation period
             atstep = p.tstep*p.ntsteps - (p.at[at_index] * p.tstep) 
-            next = p.ntsteps # Flag this assumes timesteps are indices not years (1:20 not 2010:2100)
+            next = Int(p.ntsteps) # Flag this assumes timesteps are indices not years (1:20 not 2010:2100)
+            last_t = next
         end
 
         if atstep==0
@@ -210,12 +212,11 @@ function run_timestep(s::ciam_protect, t::Int)
         
         else     
             # Begin optimization calculation 
-            t_range = collect(t:(next-1))
-            print(t_range)
+            t_range = collect(t:last_t)
 
             # Calculate intermediate values for all future time periods in atstep
             #   First time period was already calculated
-            for i in collect((t+1):(next-1))
+            for i in collect((t+1):last_t)
                 v.land_appr[i] = v.land_appr[i-1] * exp(0.565 * growthrate(p.ypc_country[i-1], p.ypc_country[i]) + 0.313 * growthrate(p.pop_country[i-1], p.pop_country[i]))
                 v.wetlandservice[i] = v.land_appr[i] * v.wetlandservice[1]
                 v.popdens[i] = v.popdens[i-1] * (1 + growthrate(p.pop_country[i-1], p.pop_country[i]))
@@ -232,9 +233,9 @@ function run_timestep(s::ciam_protect, t::Int)
             end
         
             # ---Decision Variables---
-            # Planned for sea level rise (slrPlan)
-            # FLAG_3: do not know how this works in GAMS code; just guessing right now
-            lslrPlan_at = sum([ p.lslrPlan[i] for i in t_range ])
+            # Planned for sea level rise (lslrPlan); equivalent to level of slr reached by start of next 
+            #   adaptation period. SLR is assumed to be cumulative in m relative to a t=0 starting position.
+            lslrPlan_at = p.lslr[next]
 
         
             # Get previous construction height and retreat radius
