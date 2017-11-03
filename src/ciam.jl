@@ -41,8 +41,7 @@ using Mimi
 
     ypc_country = Parameter(index = [regions, time]) # GDP per capita per country ($2010 per capita)
     ypc_usa = Parameter(index = [time])     # GDP per capita in USA; used as benchmark ($2010 per capita)
-    ypc_seg = Variable(index = [segments, time])      # GDP per capita by segment ($2010 per capita)
-    ypc_scale = Variable( index = [segments])                  # Scaling factor to scale country to segment ypc
+    ypc_seg = Variable(index = [segments, time])      # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
 
 
     # ---Land Parameters---  
@@ -55,11 +54,10 @@ using Mimi
                                             #   Q maybe import directly? 
     dvbm = Parameter()                      # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     land_appr = Variable(index = [regions, time])    # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott) 
-    coastland_scale = Variable(index = [segments, time]) # Scaling factor to scale from interior land value to coast land value
     interior = Variable(index = [regions, time])        # Value of interior land (function of land value and appreciation rate) ($2010M per sqkm)
-    coastland = Variable(index = [segments, time])       # Coastal land value (function of interior land and scaling factor) ($2010M per sqkm)
+    coastland = Variable(index = [segments, time])       # Coastal land value (function of interior land * scaling factor) ($2010M per sqkm)
     landvalue = Variable(index = [segments, time])    # Total endowment value of land ($2010M per sqkm)
-    landrent = Variable(index = [segments, time])     # Annual rental value of land (equal to landvalue * 0.04)
+
 
     ρ = Variable(index = [regions, time])            # Country-wide resilience parameter (logistic function related to GDP)
     capital = Variable(index = [segments, time])      # Total endowment value of capital stock (million $2010 / km^2)
@@ -98,8 +96,8 @@ using Mimi
     
 
     # ---Storm damage parameters---
-    floodmortality = Parameter()            # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01) 
-    vsl = Variable(index = [regions, time])          # Value of statistica life (million 2010$)
+    floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01) 
+    vsl = Variable(index = [regions, time])     # Value of statistica life (million 2010$)
                                            
     # ---Wetland Loss Parameters---
     wbvm = Parameter()                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376) 
@@ -115,7 +113,7 @@ using Mimi
     adaptOptions = Parameter( index = [level])      # Index of available adaptation levels for protect and retreat (0 is no adaptation)
     surgeExposure::Float64 = Parameter( index = [level])     # Storm surge exposure levels (for each designated adaptation option)
     
-    R = Variable( index = [level, time] )  # Matrix of retreat radii for each adaptation option/exposure level
+    R = Variable( index = [level, time] )   # Matrix of retreat radii for each adaptation option/exposure level
     H = Variable( index = [level, time] )   # Matrix of construction heights for each adaptation option
 
     # ---Coastal Area Parameters---
@@ -158,7 +156,7 @@ function run_timestep(s::ciam, t::Int)
     p = s.Parameters
     v = s.Variables
     d = s.Dimensions
-    
+
     # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
     if t==1
       #  1. Initialize non-region dependent intermediate variables
@@ -198,23 +196,18 @@ function run_timestep(s::ciam, t::Int)
             rgn_ind = getregion(m, p.xsc)
      
             v.popdens[m, t] = p.popdens1_seg[m]
-            v.ypc_scale[m] = max(0.9, (p.popdens1_seg[m]/250.)^0.05)
-            v.ypc_seg[m, t] = p.ypc_country[rgn_ind, t] * v.ypc_scale[m]
+            v.ypc_seg[m, t] = p.ypc_country[rgn_ind, t] * max(0.9, (p.popdens1_seg[m]/250.)^0.05)
             v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens[m, t] * 1e-6
-            v.coastland_scale[m, t] = max(0.5, log(1+v.popdens[m, t])/log(25))
-            v.coastland[m, t] = v.coastland_scale[m, t] * v.interior[rgn_ind, t]
+            v.coastland[m, t] = max(0.5, log(1+v.popdens[m, t])/log(25)) * v.interior[rgn_ind, t] # Interior * scaling factor
             v.landvalue[m, t] = min(v.coastland[m, t], v.interior[rgn_ind, t])
-            v.landrent[m, t] = v.landvalue[m, t] * 0.04
             v.coastArea[m, t] = calcCoastArea(p.areaparams[m,:], p.lslr[m, t])  
             
             for i in collect(2:Int(p.ntsteps))
                 v.popdens[m,i] = v.popdens[m, i-1] * (1 + growthrate(p.pop_country[rgn_ind, i-1], p.pop_country[rgn_ind, i])) 
-                v.ypc_seg[m, i] = p.ypc_country[rgn_ind, i] * v.ypc_scale[m]
+                v.ypc_seg[m, i] = p.ypc_country[rgn_ind, i] * max(0.9, (p.popdens1_seg[m]/250.)^0.05) # ypc_country * popdens scaling factor
                 v.capital[m, i] = p.kgdp * v.ypc_seg[m, i] * v.popdens[m, i] * 1e-6 
-                v.coastland_scale[m, i] = max(0.5, log(1+v.popdens[m, i])/log(25))
-                v.coastland[m, i] = v.coastland_scale[m, i] * v.interior[rgn_ind, i]
+                v.coastland[m, i] = max(0.5, log(1+v.popdens[m, i])/log(25)) * v.interior[rgn_ind, i]
                 v.landvalue[m, i] = min(v.coastland[m, i], v.interior[rgn_ind, i])
-                v.landrent[m, i] = v.landvalue[m, i] * 0.04
                 v.coastArea[m, i] = calcCoastArea(p.areaparams[m,:], p.lslr[m, i])
                 v.wetlandloss[m, i-1] = min(1, (localrate(p.lslr[m, i-1], p.lslr[m, i], p.tstep)/p.wmaxrate)^2)
             end
@@ -246,12 +239,13 @@ function run_timestep(s::ciam, t::Int)
             last_t = next
             last = 1
         end
+        t_range = collect(t:last_t)
 
         # Calculate Adaptation Cost and Decision for each segment
         for m in d.segments
+            rgn_ind = getregion(m, p.xsc)
             # ** Calculate No Adaptation Costs **
             for i in t_range
-                rgn_ind = getregion(m, p.xsc)
                 v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rσ₀[m] / (1 + p.rσ₁[m] )) * 
                                          (v.capital[m, i] + v.popdens[m, i] * v.vsl[rgn_ind, i] * p.floodmortality)
                 
@@ -259,10 +253,40 @@ function run_timestep(s::ciam, t::Int)
 
 
             end
+            if last==1
+                for i in collect(t:last_t - 1)
+                    v.FloodNoAdapt[m, i] = p.tstep * v.landvalue[m,i]*.04 * max(0, v.coastArea[m, i+1]) + (max(0, v.coastArea[m, i+1]) - max(0, v.coastArea[m, i])) * 
+                                         (1 - p.mobcapfrac) * v.capital[m, i]                    
+                        
+                    v.RelocateNoAdapt[m, i] = (max(0, v.coastArea[m, i+1]) - max(0,v.coastArea[m, i])) * (5 * p.movefactor * p.ypc_country[rgn_ind, i]*1e-6*v.popdens[m, i] +
+                                         p.capmovefactor * p.mobcapfrac * v.capital[m, i] + p.democost * (1 - p.mobcapfrac) * v.capital[m, i])
+                        
+                    v.NoAdaptCost[m, i] = v.WetlandRetreatNoAdapt[m, i] + v.FloodNoAdapt[m, i] + v.RelocateNoAdapt[m, i] + v.StormNoAdapt[m, i]
+                end
+                
+                v.FloodNoAdapt[m, last_t] = v.FloodNoAdapt[m, last_t - 1]
+                v.RelocateNoAdapt[m, last_t] = v.RelocateNoAdapt[m, last_t - 1]
+                v.NoAdaptCost[m, last_t] = v.NoAdaptCost[m, last_t - 1]
+            else
+                for i in t_range
+                    v.FloodNoAdapt[m, i] = p.tstep * v.landvalue[m,i]*.04 * max(0, v.coastArea[m, i+1]) + (max(0, v.coastArea[m, i+1]) - max(0, v.coastArea[m,i])) * 
+                                         (1 - p.mobcapfrac) * v.capital[m,i]                    
+                                    
+                    v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m,i+1]) - max(0,v.coastArea[m,i])) * (5 * p.movefactor * p.ypc_country[rgn_ind,i]*1e-6*v.popdens[m,i] +
+                                         p.capmovefactor * p.mobcapfrac * v.capital[m,i] + p.democost * (1 - p.mobcapfrac) * v.capital[m,i])
+                        
+                    v.NoAdaptCost[m,i] = v.WetlandRetreatNoAdapt[m,i] + v.FloodNoAdapt[m,i] + v.RelocateNoAdapt[m,i] + v.StormNoAdapt[m,i]
+                
+                end
+            end
 
         end
 
-        
+    end
+
+
+
+
 #         if atstep==0
 #          # Cost in last period same as cost in previous period if last period starts new adaptation period
 #             v.ProtectCost[adapt_range, t] = v.ProtectCost[adapt_range, t-1]
@@ -464,7 +488,7 @@ function run_timestep(s::ciam, t::Int)
 #             end
             
 #        end
-    end
+
 end
 
     

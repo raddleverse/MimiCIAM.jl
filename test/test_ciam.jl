@@ -10,7 +10,7 @@
 #-------------------------------------------------------------------------------
 
 using Mimi
-include("../src/ciam_rgn.jl")
+include("../src/ciam.jl")
 
 # For now, evaluating single segment coastal protection option as proof of concept
 # Still not implemented: 
@@ -93,16 +93,16 @@ setparameter(m, :ciam, :pσ₀, 2.05)
 setparameter(m, :ciam, :pσ₀coef, 26.4)
 setparameter(m, :ciam, :pσ₁, 0.06)
 setparameter(m, :ciam, :pσ₂, 18.5)
-setparameter(m, :ciam, :rσ₀, [26.4 26.4 26.4 26.4])
-setparameter(m, :ciam, :rσ₁, [0.06 .06 .06 .06])
-setparameter(m, :ciam, :rσ₂, [18.5 18.5 18.5 18.5])
+setparameter(m, :ciam, :rσ₀, [26.4, 26.4, 26.4, 26.4])
+setparameter(m, :ciam, :rσ₁, [0.06, .06, .06, .06])
+setparameter(m, :ciam, :rσ₂, [18.5, 18.5, 18.5, 18.5])
 
 
 setparameter(m, :ciam, :floodmortality, 0.01)
 
 # Wetland params
 setparameter(m, :ciam, :wbvm, 0.376)
-setparameter(m, :ciam, :wetlandarea, [30. 30. 30. 30.])
+setparameter(m, :ciam, :wetlandarea, [30., 30., 30., 30.])
 setparameter(m, :ciam, :wmaxrate, 0.01)
 
 # Coast area params
