@@ -72,7 +72,7 @@ setparameter(m, :ciam, :gtapland, [0.13; 0.12])
 setparameter(m, :ciam, :dvbm, 5.376)
 setparameter(m, :ciam, :kgdp, 3.)
 setparameter(m, :ciam, :discountrate, 0.04)
-setparameter(m, :ciam, :length, 86.08)
+setparameter(m, :ciam, :length, [86.08; 80.; 80.; 80.])
 setparameter(m, :ciam, :depr, 1.)
 
 # Retreat Params
@@ -83,16 +83,16 @@ setparameter(m, :ciam, :democost, .05)
 
 
 # Protection params
-setparameter(m, :ciam, :pc, 2.)
+setparameter(m, :ciam, :pc, [2.; 2.; 2.; 2.])
 setparameter(m, :ciam, :pcfixed, 0.3)
 setparameter(m, :ciam, :mc, 0.02)
 setparameter(m, :ciam, :pc0, 6.02)
 
 # Surge exposure params
-setparameter(m, :ciam, :pσ₀, 2.05)
-setparameter(m, :ciam, :pσ₀coef, 26.4)
-setparameter(m, :ciam, :pσ₁, 0.06)
-setparameter(m, :ciam, :pσ₂, 18.5)
+setparameter(m, :ciam, :pσ₀, [2.05; 2.05; 2.05; 2.05])
+setparameter(m, :ciam, :pσ₀coef, [26.4;26.4;26.4;26.4])
+setparameter(m, :ciam, :pσ₁, [0.06; 0.06; 0.06; 0.06])
+setparameter(m, :ciam, :pσ₂, [18.5; 18.5; 18.5; 18.5])
 setparameter(m, :ciam, :rσ₀, [26.4, 26.4, 26.4, 26.4])
 setparameter(m, :ciam, :rσ₁, [0.06, .06, .06, .06])
 setparameter(m, :ciam, :rσ₂, [18.5, 18.5, 18.5, 18.5])
@@ -102,7 +102,7 @@ setparameter(m, :ciam, :floodmortality, 0.01)
 
 # Wetland params
 setparameter(m, :ciam, :wbvm, 0.376)
-setparameter(m, :ciam, :wetlandarea, [30., 30., 30., 30.])
+setparameter(m, :ciam, :wetlandarea, [30.; 30.; 30.; 30.])
 setparameter(m, :ciam, :wmaxrate, 0.01)
 
 # Coast area params
@@ -112,7 +112,10 @@ setparameter(m, :ciam, :areaparams, areaparams_all)
 
 # Slr params
 setparameter(m, :ciam, :lslr, lslr)
-setparameter(m, :ciam, :surgeExposure, [0., 0.1, 0.2, 0.3, 3.3] )
+surgeExposure = [0., 0.1, 0.2, 0.3, 3.3]
+surgeExposureAll = [transpose(surgeExposure); transpose(surgeExposure); transpose(surgeExposure); transpose(surgeExposure)]
+
+setparameter(m, :ciam, :surgeExposure, surgeExposureAll )
 setparameter(m, :ciam, :xsc, xsc_ind)
 
 @time run(m)
