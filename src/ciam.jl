@@ -25,7 +25,9 @@
 #   Current status 11/17: 
 #   Think I've changed everything. Changed areaparams back to 1-15 area; using variable container (may rethink this) 
 #   Changed to time x region for at least 2 params in defcomp but haven't changed in code yet, to do
-#   In process of changing surgeExposure to variable container  / removing level index (unnecessary) - Done 
+#   In process of changing surgeExposure to variable container  / removing level index (unnecessary) - Done
+# TO DO
+#   Standardize -- why are somethings time,region and others region,time? That's really dumb.  
 #------------
 
 using Mimi
