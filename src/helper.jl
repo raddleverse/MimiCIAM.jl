@@ -5,7 +5,7 @@ using Distributions
 
 function loadparametersciam(datadir=joinpath(dirname(@__FILE__), "..", "data"))
     files = readdir(datadir)
-    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
+    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv" && i!="globalparams.csv" ), files)
     parameters = Dict{Any, Any}(lowercase(splitext(file)[1]) => readdlm(joinpath(datadir,file), ',' ) for file in files)
 
     #prepparameters!(parameters)
@@ -47,7 +47,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             p_tup = sort([ (p[j,1], p[j,2]) for j in collect(1:size(p,1))])
 
             if collect([j[1] for j in p_tup])!=rgn_order
-                error("Regions in dictionary do not match supplied regions")                
+                error("Regions in dictionary do not match supplied regions, ", keyname)                
             else
                 newvals = [ j[2] for j in p_tup ]
                 params[keyname] = newvals

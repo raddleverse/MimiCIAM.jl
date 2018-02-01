@@ -27,7 +27,9 @@
 #   Changed to time x region for at least 2 params in defcomp but haven't changed in code yet, to do
 #   In process of changing surgeExposure to variable container  / removing level index (unnecessary) - Done
 # TO DO
-#   Standardize -- why are somethings time,region and others region,time? That's really dumb.  
+#   Standardize -- why are somethings time,region and others region,time? That's really dumb. 
+#   NA treatment
+#   GSL, YM and other missing params? 
 #------------
 
 using Mimi
