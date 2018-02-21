@@ -225,14 +225,14 @@ function run_timestep(s::ciam, t::Int)
             v.land_appr[r, t] = 1.
             v.wetlandservice[r, t] = p.wbvm * ((p.ypcc[t,r] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
             v.ρ[r, t] = p.ypcc[t,r] / (p.ypcc[t,r] + p.ypc_usa[1])
-            v.vsl[r, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[t,r]/p.ypc_usa[t])^0.05
+            v.vsl[r, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[t,r]/p.ypc_usa[t])^0.5
 
             
             for i in collect(2:Int(p.ntsteps))
                 v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[i-1,r], p.ypcc[i,r]) + 0.313 * growthrate(p.pop[i-1,r], p.pop[i,r]))
                 v.wetlandservice[r,i] = v.land_appr[r,i] * v.wetlandservice[r,1]
                 v.ρ[r, i] = p.ypcc[i,r] / (p.ypcc[i,r] + p.ypc_usa[1]) 
-                v.vsl[r, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[i,r]/p.ypc_usa[i])^0.05  
+                v.vsl[r, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[i,r]/p.ypc_usa[i])^0.5  
             end    
         end
 
@@ -520,7 +520,7 @@ function calcCoastArea(areaparams, var)
     +areaparams[13]*max(0,min(1,var-12))
     +areaparams[14]*max(0,min(1,var-13))
     +areaparams[15]*max(0,var-14))
-    
+
     return area
 
 end
