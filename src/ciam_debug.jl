@@ -36,7 +36,7 @@
 
 using Mimi
 
-@defcomp ciam begin
+@defcomp ciam_debug begin
     # --- Indices ---
     regions = Index()
     segments = Index()                      # Q: Have all the segments upfront?
@@ -316,7 +316,7 @@ function run_timestep(s::ciam, t::Int)
                     if header != false
                         println(f, "$(header)")
                     end
-                    
+                    # ** Calculate No Adaptation Costs **
                     for i in t_range
                         v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] )) * 
                                 (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[rgn_ind, i] * p.floodmortality)
@@ -391,10 +391,10 @@ function run_timestep(s::ciam, t::Int)
                                                         (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
                                                         p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
                             
-                                                                                    
-                                FloodRetreat = (p.tstep/atstep) * atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,at_index]) + 
+                                                                         
+                                FloodRetreat = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,at_index]) + 
                                                     max(0,calcCoastArea(v.areaparams[m,:], v.R[m,at_index]) - calcCoastArea(v.areaparams[m,:], v.R[m,at_index_prev]))* 
-                                                    (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t] # todo check this summation
+                                                    (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t]) # todo check this summation
                                                     
                                 
                                 for i in t_range
@@ -402,7 +402,7 @@ function run_timestep(s::ciam, t::Int)
                                     println(f, "rcp0_p50,retreat$(convert(Int64,v.AdaptationLevel[m,at_prev])),Philippines10615,relocation,$(i),$(RelocateRetreat)")
                                     println(f, "rcp0_p50,retreat$(convert(Int64,v.AdaptationLevel[m,at_prev])),Philippines10615,inundation,$(i),$(FloodRetreat)")
 
-
+                                    println("t: $(i) R: $(v.R[m,at_index]); R_prev: $(v.R[m,at_index_prev])")   
                                     v.WetlandRetreat[m,i] = p.tstep * v.wetlandservice[rgn_ind, i] * v.wetlandloss[m, i] * 
                                         min(v.coastArea[m, i], p.wetland[m])
 
@@ -444,15 +444,17 @@ function run_timestep(s::ciam, t::Int)
                             for i in 1:length(p.adaptOptions)
                                 # ** Calculate Retreat Costs by Adaptation Level **
                                 R = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
-                                println("lslrplan: ", lslrPlan_at, ", adaptoption: ", )
+                                println("lslrplan: ", lslrPlan_at, ", adaptoption: ", p.adaptOptions[i])
 
-                                FloodRetreat = (p.tstep/atstep) * atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], R) +          
+                                FloodRetreat = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], R) +          
                                     max(0,calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], v.R[m,at_index_prev]))* 
-                                    (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t]
+                                    (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t])
             
                                 RelocateRetreat = (p.tstep / atstep) * max(0, calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], v.R[m,at_index_prev])) * 
                                     (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
                                     p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
+
+                                
                                 
                                 #rcp,level,seg,costtype,time,value                            
                                 for j in t_range
@@ -463,6 +465,7 @@ function run_timestep(s::ciam, t::Int)
                                             (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R - p.lslr[m, j])))) * 
                                             (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality) 
                                         
+                                        println("t: $(j) R: $(R); R_prev: $(v.R[m,at_index_prev])")
                                         RetreatTot[i,j] = FloodRetreat + RelocateRetreat + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
                                         
                                         println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
