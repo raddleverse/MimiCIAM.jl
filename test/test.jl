@@ -19,7 +19,6 @@ function compare_outputs(A, B, metadata, file)
     if length(A)==length(B)
         pctdiff = abs.((B - A)./B) 
     else
-        print("Exiting")
         return nothing
     end
    
@@ -31,7 +30,6 @@ function compare_outputs(A, B, metadata, file)
 
     if isfile(file)
         option = "a"
-        println("file exists")
         header= false
     else
         option = "w"
@@ -212,11 +210,10 @@ function import_comparison_data(datadir, file)
 end
 
 function make_plots(plotlist,title)
-
     if length(plotlist)==3
-        p = plot(plotlist[1],plotlist[2],plotlist[3], layout=(3,1),legend=true)
+         p = plot(plotlist[1],plotlist[2],plotlist[3],layout=(3,1),legend=(:bottom))
     else
-        p = plot(plotlist[1],plotlist[2],plotlist[3],plotlist[4], layout=(2,2),legend=true)
+        p = plot(plotlist[1],plotlist[2],plotlist[3],plotlist[4], layout=(2,2),legend=(:bottom))
     end
     savefig(p, "$(title)_plot.pdf")
 end
@@ -261,8 +258,8 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
         # Compare and ouptut results
         jldata = import_comparison_data(datadir, jlfile) # TODO - distinct outputs for each model run
 
-        cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation"]#,"protect10",
-                 #   "protect100","protect1000","protect10000"]                     # Todo variable-length
+        cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation","protect10",
+                    "protect100","protect1000","protect10000"]                     # Todo variable-length
         variables = ["protection","inundation","relocation","storms","total"]    # Todo hardcoded 
         
 
@@ -288,7 +285,6 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
                 end
             
              end
-
              make_plots(plotlist,cases[j])
         end
 

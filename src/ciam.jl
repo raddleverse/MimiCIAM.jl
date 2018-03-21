@@ -382,7 +382,7 @@ function run_timestep(s::ciam, t::Int)
                                 ProtectTot[i,findind(j,t_range)] = Construct + v.WetlandProtect[m,j] + v.StormProtect[m,j]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,construction,$(j),$(Construct)")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(Construct)")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j])")  
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(ProtectTot[i,findind(j,t_range)])")                                   
