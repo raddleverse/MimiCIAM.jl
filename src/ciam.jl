@@ -248,7 +248,7 @@ function run_timestep(s::ciam, t::Int)
             last = 0
         else
             # Deal with special case of last adaptation period
-            atstep = p.tstep*p.ntsteps - (p.at[at_index] * p.tstep) 
+            atstep = p.tstep*p.ntsteps - ((p.at[at_index]-1) * p.tstep) 
             at_next = p.ntsteps # Flag this assumes timesteps are indices not years (1:20 not 2010:2100)
             last_t = at_next
             last = 1
@@ -346,7 +346,6 @@ function run_timestep(s::ciam, t::Int)
                             (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
                             p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
                         
-                        println("$(t), $(calcCoastArea(v.areaparams[m,:], R)), $(calcCoastArea(v.areaparams[m,:], Rprev)), $(calcCoastArea(v.areaparams[m,:], 0.014245))")
 
                         if p.adaptOptions[i] >= 10
                             Construct = (p.tstep/atstep) * 
