@@ -329,8 +329,8 @@ function run_timestep(s::ciam, t::Int)
                         H = calcHorR(-1, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
 
                         if t==1
-                            Rprev = 0
-                            Hprev = 0
+                            Rprev = calcHorR(-2, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions) 
+                            Hprev = calcHorR(-1, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions)
                         else
                             Rprev = calcHorR(-2, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
                             Hprev = calcHorR(-2, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
@@ -345,6 +345,8 @@ function run_timestep(s::ciam, t::Int)
                             max(0, calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
                             (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
                             p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
+                        
+                        println("$(t), $(calcCoastArea(v.areaparams[m,:], R)), $(calcCoastArea(v.areaparams[m,:], Rprev)), $(calcCoastArea(v.areaparams[m,:], 0.014245))")
 
                         if p.adaptOptions[i] >= 10
                             Construct = (p.tstep/atstep) * 

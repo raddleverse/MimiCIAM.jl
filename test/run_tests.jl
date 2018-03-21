@@ -23,7 +23,7 @@ gamsfile = "../results-gams/test.csv"
 jlfile = "../results-jl/results.csv"
 resultsdir = "test_phil/comparison"
 
-m = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
+n = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
 
 m = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"])
 

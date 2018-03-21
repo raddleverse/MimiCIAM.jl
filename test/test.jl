@@ -247,12 +247,14 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
     # Run model for desired RCPs and output results
     # TODO 
     # if julia results file exists already will append to it; need to distinguish
+    modellist = []
     for i in 1:length(rcps)
 
         # Run model if specified
         if model!= false
             params["lslr"] = lslrall[rcps[i]]
             m = run_model(params, xsc, model)
+            push!(modellist,m)
         end
 
         # Compare and ouptut results
@@ -293,7 +295,8 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
   #  summary_report(resultsdir, "comparison.csv", resultsdir)
 
     if model != false
-        return m 
+        println("returning model")
+        return modellist 
     else 
         return nothing
     end
