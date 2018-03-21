@@ -20,10 +20,13 @@ data_dir = joinpath("test_phil/input-data")
 paramfiles =  ["philinput.csv", "globalparams.csv","pop.csv","ypcc.csv","ypc_usa.csv"]
 lsldata = "philinputlsl_reshape.csv"
 gamsfile = "../results-gams/test.csv" 
-jlfile = "../results-jl/results_simple.csv"
+jlfile = "../results-jl/results.csv"
 resultsdir = "test_phil/comparison"
 
 m = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
+
+m = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"])
+
 
 d = import_comparison_data(resultsdir, "comparison.csv")
 

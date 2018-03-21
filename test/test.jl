@@ -9,6 +9,9 @@
 ##  metadata - rcp,level,seg,costtype
 ## file is file to write to
 using DataFrames
+using Plots
+using StatPlots
+gr()
 
 function compare_outputs(A, B, metadata, file)
 
@@ -208,6 +211,25 @@ function import_comparison_data(datadir, file)
     return(data)
 end
 
+function make_plots(plotlist,title)
+
+    if length(plotlist)==3
+        p = plot(plotlist[1],plotlist[2],plotlist[3], layout=(3,1),legend=true)
+    else
+        p = plot(plotlist[1],plotlist[2],plotlist[3],plotlist[4], layout=(2,2),legend=true)
+    end
+    savefig(p, "$(title)_plot.pdf")
+end
+
+function line_plot(gams, jl, title)
+    x = 1:20
+    p = plot(x, gams, label="GAMS",yaxis=("billion2010USD"))
+    plot!(p, x, jl, title = title, label = "Julia")
+
+    return p
+
+end
+
 # Function to run tests for model
 # WIP - hardcoded strings 
 # Output - 
@@ -239,12 +261,13 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
         # Compare and ouptut results
         jldata = import_comparison_data(datadir, jlfile) # TODO - distinct outputs for each model run
 
-        cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation","protect10",
-                    "protect100","protect1000","protect10000"]                     # Todo variable-length
+        cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation"]#,"protect10",
+                 #   "protect100","protect1000","protect10000"]                     # Todo variable-length
         variables = ["protection","inundation","relocation","storms","total"]    # Todo hardcoded 
+        
 
         for j in 1:length(cases)
-
+            plotlist = []
             for k in 1:length(variables)
 
                 # Skip incompatible combinations
@@ -257,10 +280,18 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
                     A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== variables[k]), :value] / 10 * .001
                     B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== variables[k]), :value][2:end]
                     compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
+
+                    # Make plots
+                    title = string(cases[j], " ", variables[k])
+                    p = line_plot(B, A, title)
+                    push!(plotlist, p)
                 end
+            
              end
 
+             make_plots(plotlist,cases[j])
         end
+
 
     end
   #  summary_report(resultsdir, "comparison.csv", resultsdir)

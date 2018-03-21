@@ -157,7 +157,7 @@ using Mimi
 
 end
 
-function run_timestep(s::ciam_simple, t::Int)
+function run_timestep(s::ciam, t::Int)
     p = s.Parameters
     v = s.Variables
     d = s.Dimensions
@@ -265,7 +265,7 @@ function run_timestep(s::ciam_simple, t::Int)
                 
                 # ** Calculate No Adaptation Costs **
                 dir = "/Users/catherineledna/Desktop/ERG/Research/AnthoffGSR/mimi-ciam.jl/test/test_phil/results-jl"
-                file = "results_simple.csv"
+                file = "results.csv"
                 if isfile(joinpath(dir,file))
                     println("isfile")
                     handle = "a"
