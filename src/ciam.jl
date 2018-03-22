@@ -179,7 +179,7 @@ function run_timestep(s::ciam, t::Int)
             # Determine land input value (true = FUND, false = GTAP)
             # TODO switch to importing fund land values as param
             if p.landinput 
-                v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[1,r] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens[r])))
+                v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[1,r] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
                 v.landdata[r] = v.fundland[r]
             else
                 v.landdata[r] = p.gtapland[r]
@@ -340,6 +340,7 @@ function run_timestep(s::ciam, t::Int)
                         FloodRetreat = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], R) +          
                             max(0,calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev))* 
                             (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t])
+                        println("$(t), $(p.adaptOptions[i]), $(calcCoastArea(v.areaparams[m,:], R)), $(calcCoastArea(v.areaparams[m,:], Rprev))")
 
                         RelocateRetreat = (p.tstep / atstep) * 
                             max(0, calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
