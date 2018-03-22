@@ -263,14 +263,12 @@ function run_timestep(s::ciam, t::Int)
                 rgn_ind = getregion(m, p.xsc)
                 
                 # ** Calculate No Adaptation Costs **
-                dir = "/Users/catherineledna/Desktop/ERG/Research/AnthoffGSR/mimi-ciam.jl/test/test_phil/results-jl"
+                dir = "../test/test_phil/results-jl"
                 file = "results.csv"
                 if isfile(joinpath(dir,file))
-                    println("isfile")
                     handle = "a"
                     header=false
                 else
-                    println("new file")
                     handle="w"
                     header = "rcp,level,seg,costtype,time,value"
                 end
@@ -334,7 +332,6 @@ function run_timestep(s::ciam, t::Int)
                         FloodRetreat = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], R) +          
                             max(0,calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev))* 
                             (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t])
-                        println("$(t), $(p.adaptOptions[i]), $(calcCoastArea(v.areaparams[m,:], R)), $(calcCoastArea(v.areaparams[m,:], Rprev))")
 
                         RelocateRetreat = (p.tstep / atstep) * 
                             max(0, calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
@@ -347,8 +344,7 @@ function run_timestep(s::ciam, t::Int)
                                 (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(H^2 - Hprev^2) + 
                                 p.mc*atstep*H) + p.length[m] * 1.7 * H * v.landvalue[m,t]*.04/2*atstep)
                             
-                            println("$(p.adaptOptions[i]), $(t),$(H),$(Hprev)")
-                        end
+                         end
 
                         for j in t_range
                             v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
@@ -358,8 +354,6 @@ function run_timestep(s::ciam, t::Int)
                                     (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R - p.lslr[m, j])))) * 
                                     (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                     
-                            println("t: $(j) R: $(R); R_prev: $(Rprev)")
-                            println(i, findind(j,t_range))
                             v.RetreatCost[m, j, i] = FloodRetreat + RelocateRetreat + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
                             
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
