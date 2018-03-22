@@ -261,33 +261,46 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
         jldata = import_comparison_data(datadir, jlfile) # TODO - distinct outputs for each model run
 
         cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation","protect10",
-                    "protect100","protect1000","protect10000"]                     # Todo variable-length
+                    "protect100","protect1000","protect10000","optimalfixed"]                     # Todo variable-length
         variables = ["protection","inundation","relocation","storms","total"]    # Todo hardcoded 
         
 
         for j in 1:length(cases)
             plotlist = []
-            for k in 1:length(variables)
+            if cases[j]=="optimalfixed"
+                metadata=[rcps[i],"optimalfixed","Philippines10615","total"]
+                A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== "total"), :value] / 10 * .001
+                B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== "total"), :value][2:end]
+                compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
 
-                # Skip incompatible combinations
-                if (contains(cases[j], "retreat")|| cases[j]=="noAdaptation") && variables[k]=="protection"
-                    continue
-                elseif contains(cases[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
-                    continue
-                else
-                    metadata=[rcps[i],cases[j],"Philippines10615",variables[k]]
-                    A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== variables[k]), :value] / 10 * .001
-                    B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== variables[k]), :value][2:end]
-                    compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
+                # Make plots
+                title = string("Optimal fixed total")
+                p = line_plot(B, A, title)
+                savefig(p,"optimalfixed.pdf")
 
-                    # Make plots
-                    title = string(cases[j], " ", variables[k])
-                    p = line_plot(B, A, title)
-                    push!(plotlist, p)
-                end
-            
-             end
-             make_plots(plotlist,cases[j])
+            else
+                for k in 1:length(variables)
+
+                    # Skip incompatible combinations
+                    if (contains(cases[j], "retreat")|| cases[j]=="noAdaptation") && variables[k]=="protection"
+                        continue
+                    elseif contains(cases[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
+                        continue
+                    else
+                        metadata=[rcps[i],cases[j],"Philippines10615",variables[k]]
+                        A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== variables[k]), :value] / 10 * .001
+                        B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== variables[k]), :value][2:end]
+                        compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
+    
+                        # Make plots
+                        title = string(cases[j], " ", variables[k])
+                        p = line_plot(B, A, title)
+                        push!(plotlist, p)
+                    end
+                
+                 end
+                 make_plots(plotlist,cases[j])
+            end
         end
 
 

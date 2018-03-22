@@ -126,8 +126,6 @@ using Mimi
     coastArea = Variable(index=[segments, time])            # Calculate remaining coastal area after slr (m^2)
     
     # ---Intermediate Variables---
-    R = Variable(index = [segments, adaptPers] )             # Matrix of retreat radii for each adaptation option/exposure level
-    H = Variable(index = [segments, adaptPers] )             # Matrix of construction heights for each adaptation option
     WetlandNoAdapt = Variable(index = [segments, time])
     FloodNoAdapt = Variable(index = [segments, time])
     StormNoAdapt = Variable(index = [segments, time])
@@ -143,12 +141,16 @@ using Mimi
   #  RelocateRetreat = Variable(index = [segments, time])
 
     # ---Decision Variables---   
-    NoAdaptCost = Variable(index = [segments, time])         # Cost of not adapting (e.g. reactive retreat) (2010$)                                                
- #   ProtectCost = Variable(index = [segments, time])         # Cost of protection at each timestep
-    RetreatCost = Variable(index = [segments, time]) 
-   # NPVNoAdapt = Variable(index = [segments, adaptPers])
-   # NPVAdapt = Variable(index = [segments, ])
-
+    NoAdaptCost = Variable(index = [segments, time])         # Cost of not adapting (e.g. reactive retreat) (2010$)
+    ProtectCost = Variable(index = [segments, time, 4])      # Total cost of protection at each level      
+    RetreatCost = Variable(index = [segments, time, 5])      # Total cost of retreat at each level   
+    OptimalFixedCost = Variable(index = [segments, time])        # Fixed optimal cost based on NPV in period 1   
+    OptimalFixedLevel = Variable(index = [segments])        # Fixed optimal level (1,10,100,1000,10000)
+    OptimalFixedOption = Variable(index = [segments])       # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
+    NPVRetreat = Variable(index = [segments, adaptPers, 5])
+    NPVProtect = Variable(index = [segments, adaptPers, 4])
+    NPVNoAdapt = Variable(index = [segments, adaptPers])                     
+  
     # ---Outcome Variables---
     AdaptationDecision = Variable(index = [segments, time])   # Option chosen for adaptation period
     AdaptationCost = Variable(index = [segments, time])       # Cost of option chosen for adaptation period (B 2010$ / yr) 
@@ -202,10 +204,7 @@ function run_timestep(s::ciam, t::Int)
         # 3. Initialize segment-dependent variables 
         for m in d.segments
             rgn_ind = getregion(m, p.xsc)
-            # At beginning, initialize H and R at period 1 as 0. May get changed later when optimization is performed. 
-            v.H[m, 1] = 0
-            v.R[m, 1] = 0 # todo this is wrong and also probably deprecated 
-
+ 
             v.popdens_seg[m, t] = p.popdens[m]
             v.ypc_seg[m, t] = p.ypcc[t, rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05)
             v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens_seg[m, t] * 1e-6
@@ -312,16 +311,11 @@ function run_timestep(s::ciam, t::Int)
                         
 
                     end
-                    NPVNoAdapt = sum( [ v.discountfactor[j] * v.NoAdaptCost[m,j] for j in t_range] )
+                    v.NPVNoAdapt[m, at_index] = sum( [ v.discountfactor[j] * v.NoAdaptCost[m,j] for j in t_range] )
 
-                    println("notnoadapt")
                     # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
                     lslrPlan_at = p.lslr[m, at_next]
                     lslrPlan_atprev = p.lslr[m, t]
-
-                    NPVAdapt = NaN .* ones(2, length(p.adaptOptions))
-                    RetreatTot = NaN .* ones(length(p.adaptOptions), length(t_range))
-                    ProtectTot = NaN .* ones(length(p.adaptOptions), length(t_range))
 
                     for i in 1:length(p.adaptOptions)
 
@@ -357,7 +351,6 @@ function run_timestep(s::ciam, t::Int)
                         end
 
                         for j in t_range
-                            println("retreattrange")
                             v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
                                             min(v.coastArea[m, j], p.wetland[m])
 
@@ -367,14 +360,14 @@ function run_timestep(s::ciam, t::Int)
                                     
                             println("t: $(j) R: $(R); R_prev: $(Rprev)")
                             println(i, findind(j,t_range))
-                            RetreatTot[i,findind(j,t_range)] = FloodRetreat + RelocateRetreat + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
-                                    
+                            v.RetreatCost[m, j, i] = FloodRetreat + RelocateRetreat + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
+                            
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(FloodRetreat)")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,relocation,$(j),$(RelocateRetreat)")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandRetreat[m,j])")                                
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormRetreat[m,j])")  
-                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(RetreatTot[i,findind(j,t_range)])")                                   
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.RetreatCost[m,j,i])")                                   
 
                             if p.adaptOptions[i] >= 10
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
@@ -383,49 +376,52 @@ function run_timestep(s::ciam, t::Int)
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(H - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                                 
-                                ProtectTot[i,findind(j,t_range)] = Construct + v.WetlandProtect[m,j] + v.StormProtect[m,j]
+                                v.ProtectCost[m,j,i-1] = Construct + v.WetlandProtect[m,j] + v.StormProtect[m,j]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(Construct)")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j])")  
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(ProtectTot[i,findind(j,t_range)])")                                   
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
 
                             end
 
                         end
 
-                        NPVAdapt[2, i] = sum([v.discountfactor[j] * RetreatTot[i,findind(j,t_range)] for j in t_range])
-                        NPVAdapt[1,i] = sum( [ v.discountfactor[j] * ProtectTot[i,findind(j,t_range)] for j in t_range] ) # Protect
-                        println("after calcs")           
-                    end
+                        v.NPVRetreat[m, at_index,i] = sum([v.discountfactor[j] * v.RetreatCost[m,findind(j,t_range),i] for j in t_range])
+
+                        if p.adaptOptions[i] >=10
+                            v.NPVProtect[m,at_index,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[m,findind(j,t_range),i-1] for j in t_range] ) # Protect
+                        end
+                     end
 
                     # ** Choose Least Cost Option **
-                    protectInd = indmin(NPVAdapt[1,:])
-                    retreatInd = indmin(NPVAdapt[2,:])
-                    println("in least cost")
-    
-                    minLevels = [p.adaptOptions[protectInd], p.adaptOptions[retreatInd], 0]
-                    choices = [NPVAdapt[1,protectInd], NPVAdapt[2,retreatInd], NPVNoAdapt]
-                    leastcost = -1 * indmin(choices)
-                    leastlevel = minLevels[indmin(choices)]
-    
-                    v.AdaptationDecision[m, t_range] = leastcost
-                    v.AdaptationLevel[m, t_range] = leastlevel
-                    println("in decision")
-                    # Set H or R
-                    v.H[m, at_index] = v.H[m, at_index_prev]
-                    v.R[m, at_index] = v.R[m, at_index_prev]
+                    if t==1 && p.fixed
+                        protectInd = indmin(v.NPVProtect[m,at_index,:])
+                        retreatInd = indmin(v.NPVRetreat[m,at_index,:])
+        
+                        minLevels = [p.adaptOptions[protectInd+1], p.adaptOptions[retreatInd], 0]
+                        choices = [v.NPVProtect[m,at_index,protectInd], v.NPVRetreat[m,at_index,retreatInd], v.NPVNoAdapt[m,at_index]]
+                        leastcost = -1 * indmin(choices)
+                        leastlevel = minLevels[indmin(choices)]
+        
+                        v.OptimalFixedOption[m] = leastcost
+                        v.OptimalFixedLevel[m] = leastlevel
+                        
+                    end
+                    
+                    if v.OptimalFixedOption[m]==-1
+                        v.OptimalFixedCost[m, t_range] = v.ProtectCost[m, t_range, (find(i->i==v.OptimalFixedLevel[m], p.adaptOptions)-1)] 
+                    elseif v.OptimalFixedOption[m]==-2
+                        v.OptimalFixedCost[m, t_range] = v.RetreatCost[m, t_range, find(i->i==v.OptimalFixedLevel[m], p.adaptOptions)] 
+                    else
+                        v.OptimalFixedCost[m, t_range] = v.NoAdaptCost[m, t_range]
+                    end
 
-                    if leastcost==-1
-                      #  v.AdaptationCost[m, t_range] = ProtectTot[protectInd, t_range] .* 1e-6 ./ p.tstep                        
-                      #  v.H[m, at_index] =  calcHorR(-1, p.adaptOptions[protectInd], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
-                    elseif leastcost==-2
-                      #  v.AdaptationCost[m, t_range] = RetreatTot[retreatInd, t_range] .* 1e-6 ./ p.tstep 
-                      #  v.R[m, at_index] = calcHorR(-2, p.adaptOptions[retreatInd], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
+                    for i in t_range
+                        println(f, "rcp0_p50,optimalfixed,Philippines10615,total,$(i),$(v.OptimalFixedCost[m,i])")
                     end
     
-
                 end
             end
         end     
