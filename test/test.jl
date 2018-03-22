@@ -13,7 +13,7 @@ using Plots
 using StatPlots
 gr()
 
-function compare_outputs(A, B, metadata, file)
+function compare_outputs(A, B, metadata, file, tol=1e-5)
 
     # Compute pct diff
     if length(A)==length(B)
@@ -43,9 +43,9 @@ function compare_outputs(A, B, metadata, file)
             println(f,"rcp,level,seg,costtype,time,rank,pctdiff")    # TODO remove hardcoding
         end
         for i in 1:length(pctdiff)
-            if pctdiff[i] == 0
+            if pctdiff[i] <= tol
                 rank = 6
-            elseif pctdiff[i] > 0 && pctdiff[i] <= .01
+            elseif pctdiff[i] > tol && pctdiff[i] <= .01
                 rank = 5
             elseif pctdiff[i] > .01 && pctdiff[i] <= .1
                 rank = 4

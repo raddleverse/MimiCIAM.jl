@@ -204,7 +204,7 @@ function run_timestep(s::ciam, t::Int)
             rgn_ind = getregion(m, p.xsc)
             # At beginning, initialize H and R at period 1 as 0. May get changed later when optimization is performed. 
             v.H[m, 1] = 0
-            v.R[m, 1] = 0
+            v.R[m, 1] = 0 # todo this is wrong and also probably deprecated 
 
             v.popdens_seg[m, t] = p.popdens[m]
             v.ypc_seg[m, t] = p.ypcc[t, rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05)
@@ -292,13 +292,13 @@ function run_timestep(s::ciam, t::Int)
                             v.FloodNoAdapt[m,i] = p.tstep * v.landvalue[m,i-1]*.04 * max(0, v.coastArea[m, i]) + (max(0, v.coastArea[m, i]) - max(0, v.coastArea[m, i-1])) * 
                                 (1 - p.mobcapfrac) * v.capital[m, i-1]
         
-                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m, i]) - max(0,v.coastArea[m, i-1])) * (5 * p.movefactor * p.ypcc[i-1, rgn_ind]*1e-6*v.popdens_seg[m, i-1] +
+                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m, i]) - max(0,v.coastArea[m, i-1])) * (5 * p.movefactor * v.ypc_seg[m,i-1]*1e-6*v.popdens_seg[m, i-1] +
                                 p.capmovefactor * p.mobcapfrac * v.capital[m, i-1] + p.democost * (1 - p.mobcapfrac) * v.capital[m, i-1])
                         else
                             v.FloodNoAdapt[m,i]  = p.tstep * v.landvalue[m,i]*.04 * max(0, v.coastArea[m, i+1]) + (max(0, v.coastArea[m, i+1]) - max(0, v.coastArea[m,i])) * 
                                 (1 - p.mobcapfrac) * v.capital[m,i]                    
                         
-                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m,i+1]) - max(0,v.coastArea[m,i])) * (5 * p.movefactor * p.ypcc[i, rgn_ind]*1e-6*v.popdens_seg[m,i] +
+                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m,i+1]) - max(0,v.coastArea[m,i])) * (5 * p.movefactor * v.ypc_seg[m,i]*1e-6*v.popdens_seg[m,i] +
                                 p.capmovefactor * p.mobcapfrac * v.capital[m,i] + p.democost * (1 - p.mobcapfrac) * v.capital[m,i])
                         end
                             
@@ -333,7 +333,7 @@ function run_timestep(s::ciam, t::Int)
                             Hprev = calcHorR(-1, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions)
                         else
                             Rprev = calcHorR(-2, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
-                            Hprev = calcHorR(-2, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
+                            Hprev = calcHorR(-1, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
                         end
 
 
@@ -352,6 +352,8 @@ function run_timestep(s::ciam, t::Int)
                             Construct = (p.tstep/atstep) * 
                                 (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(H^2 - Hprev^2) + 
                                 p.mc*atstep*H) + p.length[m] * 1.7 * H * v.landvalue[m,t]*.04/2*atstep)
+                            
+                            println("$(p.adaptOptions[i]), $(t),$(H),$(Hprev)")
                         end
 
                         for j in t_range
