@@ -169,31 +169,16 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     mainparams = Dict{Any,Any}()
     mainparams["data"] = params["data"]
     mainparams["globalparams"] = params["globalparams"]
+    mainparams["ypc_usa"] = params["ypc_usa"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
 
   #  parse_long!(params["philinput"],mainparams,1)
     
  #   parse_long!(params["globalparams"],mainparams)
-    mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
+  #  mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
     mainparams["pop"] = params["pop"][2:end,2:end]
     mainparams["ypcc"] = params["ypcc"][2:end,2:end]
     
-    # for p in keys(mainparams)
-    #     if isinteger(mainparams[p])
-    #         mainparams[p] = [convert(Float64,mainparams[p])]
-    #     end
-    # end
-   # a=["refpopdens","popdens"] #"s10","s100","s1000","smax","area1","area2","area3","area4","area5","area6","area7","area8",
-    #"area9","area10","area11","area12","area13","area14","area15","gtapland","length","cci","psig0","psig0coef","psigA","psigB","rsig0","rsigA",
-    #"rsigB","wetland",
-   # for k in a
-   #     mainparams[k] = [convert(Float64,mainparams[k])]
-   # end
-   # b = ["movefactor","depr","kgdp","tstep"]
-  #  for k in b
-  #      mainparams[k] = convert(Float64,mainparams[k])
-  #  end
-
 
     # LSLR Dictionary
     lslrall = Dict{Any,Any}()
