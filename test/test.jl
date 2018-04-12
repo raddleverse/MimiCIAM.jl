@@ -193,8 +193,7 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     parse_long!(lslparams["philinputlsl_reshape"], lslrall,1,1, true)
 
     # Process XSC
-    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(datadir,xscfile), '\r' ))
-    xsc = prepxsc(xsc_params)
+    xsc = prepxsc(datadir, xscfile, ["Philippines10615"])
 
     return(mainparams, xsc, lslrall)
 

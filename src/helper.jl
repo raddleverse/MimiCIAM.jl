@@ -13,6 +13,16 @@ function loadparametersciam(datadir=joinpath(dirname(@__FILE__), "..", "data"))
     return parameters
 end
 
+function load_ciam_params(data_dir)
+    files = readdir(data_dir)
+    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
+    params = Dict{Any, Any}()
+    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
+    return params
+
+end
+
+
 function parse_ciam_params!(params, rgn_order, seg_order)
 
     # 1. String to tuple
@@ -109,26 +119,42 @@ function transpose_string_matrix(mat)
     return nmat   
 end
 
-function prepxsc(params)  
-    # Returns index of regions (rgns_full), index of segments (segs_full), dictionary translating segment index
-    #   to region index (xsc_ind_full), and dictionary translating segment name to region name (xsc_char)
+function prepxsc(data_dir, xscfile,subset)  
+    # Returns regions (rgns), segments (segs), dictionary translating segment index
+    #   to region index (xsc_ind), and dictionary translating segment name to region name (xsc_out)
 
     # Create segment-region mapping (string version)
-    xsc_char = Dict{Any,Any}( split(params["xsc"][i],",")[1] =>  split(params["xsc"][i],",")[2] for i in collect(1:length(params["xsc"])))
+    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir,xscfile), ',' ))
+    xsc_char = Dict{Any,Any}( xsc_params["xsc"][i,1] => xsc_params["xsc"][i,2] for i in 1:size(xsc_params["xsc"],1))
+    
+    # Subset dictionary according to list of desired segments or regions
+    if subset!=false
+        subset_sorted = sort(subset)
+        xsc_out = Dict{Any,Any}()
+        for k in keys(xsc_char)
+            if k in subset
+                xsc_out[k] = xsc_char[k]
+            end
+        end
+    else
+        xsc_out = xsc_char
+    end
 
     # Create region and segment indices
-    rgns_full = unique(collect(values(xsc_char)))
-    segs_full = unique(collect(keys(xsc_char)))
+    rgns = sort(unique(collect(values(xsc_out))))
+    segs = sort(unique(collect(keys(xsc_out))))
     
-    # Map segment index to region index
-    xsc_ind_full = Dict()
-    for i in collect(1:length(segs_full))
-        r = xsc_char[segs_full[i]]
-        r_ind = findind(r, rgns_full)
-        xsc_ind_full[i] = r_ind
+    # # Map segment index to region index
+    xsc_ind = Dict{Any,Any}()
+    for i in 1:length(segs)
+        r = xsc_char[segs[i]]
+        r_ind = findind(r, rgns)
+        xsc_ind[i] = r_ind
     end
-    return (xsc_ind_full, rgns_full, segs_full, xsc_char)
+    return (xsc_ind, rgns, segs, xsc_out)
+
 end
+
 
 function findind(val, vec)
     # Look up index corresponding to name
