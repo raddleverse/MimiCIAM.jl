@@ -114,14 +114,14 @@ function run_model(params, xsc, model="ciam")
 
     addcomponent(m, eval(parse(model)))
 
-    setparameter(m, parse(model), :ntsteps, 20)       
+  #  setparameter(m, parse(model), :ntsteps, 20)       
     #setparameter(m, :ciam, :tstep, 10.)
     setparameter(m, parse(model), :at, adaptperiods) 
 
     adaptoptions = [1,10,100,1000,10000]
     setparameter(m, parse(model), :adaptOptions, adaptoptions)
-    setparameter(m, parse(model), :fixed, true)
-    setparameter(m, parse(model), :landinput, true)
+  #  setparameter(m, parse(model), :fixed, true)
+  #  setparameter(m, parse(model), :landinput, true)
 
     setparameter(m, parse(model), :xsc, xsc[1])
     setleftoverparameters(m, params)
