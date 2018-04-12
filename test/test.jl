@@ -168,11 +168,12 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     # Parse Main Parameters
     mainparams = Dict{Any,Any}()
     mainparams["data"] = params["data"]
+    mainparams["globalparams"] = params["globalparams"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
 
   #  parse_long!(params["philinput"],mainparams,1)
     
-    parse_long!(params["globalparams"],mainparams)
+ #   parse_long!(params["globalparams"],mainparams)
     mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
     mainparams["pop"] = params["pop"][2:end,2:end]
     mainparams["ypcc"] = params["ypcc"][2:end,2:end]
@@ -188,10 +189,10 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
    # for k in a
    #     mainparams[k] = [convert(Float64,mainparams[k])]
    # end
-    b = ["movefactor","depr","kgdp","tstep"]
-    for k in b
-        mainparams[k] = convert(Float64,mainparams[k])
-    end
+   # b = ["movefactor","depr","kgdp","tstep"]
+  #  for k in b
+  #      mainparams[k] = convert(Float64,mainparams[k])
+  #  end
 
 
     # LSLR Dictionary

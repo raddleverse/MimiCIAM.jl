@@ -57,6 +57,30 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             else
                 error("Segments in dictionary do not match supplied segments") 
             end
+        elseif keyname=="globalparams"
+
+            for k in 1:size(p,1)
+                varname = p[k,1]
+                newval = p[k,2]
+
+                if (varname=="ntsteps" || varname=="adaptPers")
+                    newval = convert(Int64,newval)
+
+                elseif typeof(newval)==Int
+                    newval = convert(Float64,newval)
+
+                elseif isa(newval,AbstractString)
+                    if lowercase(newval)=="true"
+                        newval = true
+
+                    elseif lowercase(newval)=="false"
+                        newval = false
+                    end
+                end                
+                params[varname] = newval
+
+            end
+            delete!(params, "globalparams")
  
         elseif size(p,2) ==2
             # Type 1: Country/Segment-Data Format
