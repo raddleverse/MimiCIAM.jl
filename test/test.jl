@@ -106,24 +106,13 @@ end
 # Some params are currently hard-coded
 function run_model(params, xsc, model="ciam")
 
-    adaptperiods = [1, 5, 10, 15, 19]
     m = Model()
     setindex(m, :time, 20)
-    setindex(m, :adaptPers, length(adaptperiods))
+    setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
     setindex(m, :regions, xsc[2])
     setindex(m, :segments, xsc[3])
 
     addcomponent(m, eval(parse(model)))
-
-  #  setparameter(m, parse(model), :ntsteps, 20)       
-    #setparameter(m, :ciam, :tstep, 10.)
-    setparameter(m, parse(model), :at, adaptperiods) 
-
-    adaptoptions = [1,10,100,1000,10000]
-    setparameter(m, parse(model), :adaptOptions, adaptoptions)
-  #  setparameter(m, parse(model), :fixed, true)
-  #  setparameter(m, parse(model), :landinput, true)
-
     setparameter(m, parse(model), :xsc, xsc[1])
     setleftoverparameters(m, params)
 
@@ -155,18 +144,17 @@ end
 
 # Wrapper for importing model data. Not generalizable; hard-coded names; WIP
 # datadir - data directory
-# paramfiles - filenames for main parameters (string)
 # lslfile - filename for lsl (string)
 # xscfile - filename for segment-country mapping (string)
-function import_model_data(datadir, paramfiles, lslfile, xscfile)
+function import_model_data(datadir, lslfile, xscfile)
     # Process main and lsl params
-    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(datadir,m), ',' ) for m in paramfiles)
-    lslparams = Dict{Any, Any}(lowercase(splitext(lslfile)[1]) => readdlm(joinpath(data_dir,lslfile), ',' ))
-    
+    params = load_ciam_params(datadir)
+     
     # Process XSC
     xsc = prepxsc(datadir, xscfile, ["Philippines10615"])
 
     # Parse Main Parameters
+    # TODO switch away from using mainparams
     mainparams = Dict{Any,Any}()
     mainparams["data"] = params["data"]
     mainparams["globalparams"] = params["globalparams"]
@@ -176,6 +164,8 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     mainparams["gtapland"] = params["gtapland"]
     mainparams["pop"] = params["pop"]
     mainparams["ypcc"] = params["ypcc"]
+    mainparams["at"] = params["at"]
+    mainparams["adaptOptions"] = params["adaptoptions"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
     preplsl!(datadir, lslfile, ["Philippines10615"], mainparams)
 
@@ -244,12 +234,11 @@ end
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcps - vector of string rcp values to test
 # variables - list of variables to compare and output (strings)
-function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, model=false)
+function run_tests(datadir, gamsfile, jlfile, resultsdir, rcps, model=false)
     # Import model data
-    modelparams = import_model_data(datadir, paramfiles, "lsl_rcp0_p50.csv","xsc.csv")
+    modelparams = import_model_data(datadir, "lsl_rcp0_p50.csv","xsc.csv")
     params = modelparams[1]
     xsc = modelparams[2]
-    #lslrall = modelparams[3]
 
     # Import GAMS Data
     gamsdata = import_comparison_data(datadir, gamsfile)
@@ -262,7 +251,6 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
 
         # Run model if specified
         if model!= false
-          #  params["lslr"] = lslrall[rcps[i]]
             m = run_model(params, xsc, model)
             push!(modellist,m)
         end

@@ -9,25 +9,22 @@
 
 using Mimi
 include("../src/ciam.jl")
-include("../src/helper.jl")
+include("../src/ciamhelper.jl")
 include("test.jl")
  
-###------
-# CIAM - Simplified
-###------
+#------------------------------------------------------------------------
+# CIAM - Single-Segment version (Philippines10615 segment)
+#------------------------------------------------------------------------
 
 data_dir = joinpath("test_phil/input-data")
-paramfiles =  ["data.csv", "globalparams.csv","cci.csv", "gtapland.csv", "refpopdens.csv","pop.csv","ypcc.csv","ypc_usa.csv"]
-lsldata = "lsl_rcp0_p50.csv"
 gamsfile = "../results-gams/test.csv" 
 jlfile = "../results-jl/results.csv"
 resultsdir = "test_phil/comparison"
 
-n = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
+n = run_tests(data_dir,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
 
-m = run_tests(data_dir,paramfiles,gamsfile,jlfile,resultsdir,["rcp0_p50"])
-
-
-d = import_comparison_data(resultsdir, "comparison.csv")
+#------------------------------------------------------------------------
+# CIAM - Multisegment version (1000 segments)
+#------------------------------------------------------------------------
 
 

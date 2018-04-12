@@ -1,27 +1,27 @@
-# Helper functions from FUND (github.com/davidanthoff/fund.jl/src/helper.jl)
-# Modified for CIAM by Catherine Ledna, November 10, 2017
+# # Catherine Ledna
+# 4/12/18
+#------------------------------------------------------------------------
+# ciamhelpers.jl
+#------------------------------------------------------------------------
+# Assorted functions to process CIAM data and run CIAM model
+#------------------------------------------------------------------------
 
 using Distributions
 
-function loadparametersciam(datadir=joinpath(dirname(@__FILE__), "..", "data"))
-    files = readdir(datadir)
-    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv" && i!="globalparams.csv" ), files)
-    parameters = Dict{Any, Any}(lowercase(splitext(file)[1]) => readdlm(joinpath(datadir,file), ',' ) for file in files)
-
-    #prepparameters!(parameters)
-
-    return parameters
-end
-
+# Function to load CIAM parameters from CSV to dictionary
+#   data_dir = relative path to data location
 function load_ciam_params(data_dir)
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
-    params = Dict{Any, Any}()
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
     return params
 
 end
 
+# Function to read in LSLR from file and filter to desired set of segments
+#   Modifies input parameter dictionary
+# subset - list of segments you want
+# params - parameter dictionary you want to add lslr to 
 function preplsl!(data_dir,lslfile,subset, params)
     lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
 
@@ -40,7 +40,10 @@ function preplsl!(data_dir,lslfile,subset, params)
     return params
 end
 
-
+# Function to process CIAM data from csv to usable format
+#   Stores outputs in params
+# rgn_order, seg_order - alphabetized lists of regions/segments used
+# Specific to CIAM data; some hard-coded names and assumptions
 function parse_ciam_params!(params, rgn_order, seg_order)
     key = [k for k in keys(params)]
 
@@ -137,9 +140,9 @@ function parse_ciam_params!(params, rgn_order, seg_order)
     end
 
 end
-
-
-
+ 
+# Filters a vector (v1) by a second vector (v2), returns
+#   indices of contained elements
 function filter_index(v1, v2)
     out = []
     for i in 1:length(v1)
@@ -160,6 +163,9 @@ function transpose_string_matrix(mat)
     return nmat   
 end
 
+# Function to process the segment-country mapping file (xsc) in CIAM
+#   Reads from CSV, outputs list of dictionaries and arrays
+#   Filters xsc file to desired segments/regions
 function prepxsc(data_dir, xscfile,subset)  
     # Returns regions (rgns), segments (segs), dictionary translating segment index
     #   to region index (xsc_ind), and dictionary translating segment name to region name (xsc_out)
@@ -196,118 +202,16 @@ function prepxsc(data_dir, xscfile,subset)
 
 end
 
-
+# Function to look up index corresponding to name
+# vec - a vector of region or segment names (strings)
+# val - a string corresponding to value in 'vec'
 function findind(val, vec)
-    # Look up index corresponding to name
-    # vec - a vector of region or segment names (strings)
-    # val - a string corresponding to value in 'vec'
     h(u) = u == val
     name_ind = find(h, vec)[1]
     return name_ind
 
 end
 
-import StatsBase.mode
-function mode(d::Truncated{Gamma{Float64},Continuous})
-    return mode(d.untruncated)
-end
 
-function getindexfromyear(year)
-    const baseyear = 1950
-    return year - baseyear + 1
-end
 
-function convertparametervalue(pv)
-    if isa(pv,AbstractString)
-        if startswith(pv,"~") & endswith(pv,")")
-            args_start_index = search(pv,'(')
-            dist_name = pv[2:args_start_index-1]
-            args = split(pv[args_start_index+1:end-1], ';')
-            fixedargs = filter(i->!contains(i,"="),args)
-            optargs = Dict(split(i,'=')[1]=>split(i,'=')[2] for i in filter(i->contains(i,"="),args))
 
-            if dist_name == "N"
-                if length(fixedargs)!=2 error() end
-                if length(optargs)>2 error() end
-
-                basenormal = Normal(parse(Float64, fixedargs[1]),parse(Float64, fixedargs[2]))
-
-                if length(optargs)==0
-                    return basenormal
-                else
-                    return Truncated(basenormal,
-                        haskey(optargs,"min") ? parse(Float64, optargs["min"]) : -Inf,
-                        haskey(optargs,"max") ? parse(Float64, optargs["max"]) : Inf)
-                end
-            elseif startswith(pv, "~Gamma(")
-                if length(fixedargs)!=2 error() end
-                if length(optargs)>2 error() end
-
-                basegamma = Gamma(parse(Float64, fixedargs[1]),parse(Float64, fixedargs[2]))
-
-                if length(optargs)==0
-                    return basegamma
-                else
-                    return Truncated(basegamma,
-                        haskey(optargs,"min") ? parse(Float64, optargs["min"]) : -Inf,
-                        haskey(optargs,"max") ? parse(Float64, optargs["max"]) : Inf)
-                end
-            elseif startswith(pv, "~Triangular(")
-                triang = TriangularDist(parse(Float64, fixedargs[1]), parse(Float64, fixedargs[2]), parse(Float64, fixedargs[3]))
-                return triang
-            else
-                error("Unknown distribution")
-            end
-        elseif pv=="true"
-            return true
-        elseif pv=="false"
-            return false
-        elseif endswith(pv, "y")
-            return parse(Int, strip(pv,'y'))
-        else
-            try
-                return parse(Float64, pv)
-            catch e
-                error(pv)
-            end
-        end
-        return pv
-    else
-        return pv
-    end
-end
-
-function getbestguess(p)
-    if isa(p, ContinuousUnivariateDistribution)
-        return mode(p)
-    else
-        return p
-    end
-end
-
-function prepparameters!(parameters)
-    for i in parameters
-        p = i[2]
-        column_count = size(p,2)
-        if column_count == 1
-            parameters[i[1]] = getbestguess(convertparametervalue(p[1,1]))
-        elseif column_count == 2
-            parameters[i[1]] = Float64[getbestguess(convertparametervalue(p[j,2])) for j in 1:size(p,1)]
-        elseif column_count == 3
-            length_index1 = length(unique(p[:,1]))
-            length_index2 = length(unique(p[:,2]))
-            new_p = Array(Float64,length_index1,length_index2)
-            cur_1 = 1
-            cur_2 = 1
-            for j in 1:size(p,1)
-                new_p[cur_1,cur_2] = getbestguess(convertparametervalue(p[j,3]))
-                cur_2 += 1
-                if cur_2 > length_index2
-                    cur_2 = 1
-                    cur_1 += 1
-                end
-            end
-            parameters[i[1]] = new_p
-        end
-    end
-end
