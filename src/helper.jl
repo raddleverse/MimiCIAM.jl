@@ -30,18 +30,27 @@ function parse_ciam_params!(params, rgn_order, seg_order)
         p = i[2] # Array
         keyname = i[1]
 
-        # Special case for seg-data csv
         if keyname=="data"
-            print("ok")
+            rownames = copy(p[1:1,:]) # Preserve first row names
+            
+            # Sort Segments alphabetically
             segnames= filter(f -> f!="NA",p[:,1])
             row_order = sortperm(segnames)
-            segs = segnames[row_order]
+            p = p[2:end,:]
+            p = p[row_order,:]
 
-            if segs == seg_order
-                for k in collect(2:size(p,2))
-                    varname = p[1,k]
-                    newvars = p[2:size(p,1),k]
-                    newvars = newvars[row_order]
+            segs = p[:,1]
+
+            # Filter segments to desired values based on inputs
+            seg_inds = filter_index(segs, seg_order)
+
+            if length(seg_inds)>=1
+                # Process all variables
+                for k in 2:size(p,2)
+                    varname = rownames[1,k]
+                    newvars = p[1:end,k]
+                    newvars = newvars[seg_inds]
+                    newvars = [convert(Float64,v) for v in newvars]     
                     params[varname] = newvars
                 end
                 delete!(params, "data")
@@ -108,6 +117,15 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
 end
 
+function filter_index(v1, v2)
+    out = []
+    for i in 1:length(v1)
+        if v1[i] in v2
+            push!(out, i)
+        end
+    end
+    return(out)
+end
 
 function transpose_string_matrix(mat)
     # Utility function to manually transpose a matrix composed of non-numeric types

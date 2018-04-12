@@ -162,10 +162,16 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(datadir,m), ',' ) for m in paramfiles)
     lslparams = Dict{Any, Any}(lowercase(splitext(lslfile)[1]) => readdlm(joinpath(data_dir,lslfile), ',' ))
     
+    # Process XSC
+    xsc = prepxsc(datadir, xscfile, ["Philippines10615"])
 
-    # Main params 
+    # Parse Main Parameters
     mainparams = Dict{Any,Any}()
-    parse_long!(params["philinput"],mainparams,1)
+    mainparams["data"] = params["data"]
+    parse_ciam_params!(mainparams, xsc[2], xsc[3])
+
+  #  parse_long!(params["philinput"],mainparams,1)
+    
     parse_long!(params["globalparams"],mainparams)
     mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
     mainparams["pop"] = params["pop"][2:end,2:end]
@@ -176,12 +182,12 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     #         mainparams[p] = [convert(Float64,mainparams[p])]
     #     end
     # end
-    a=["refpopdens","popdens","gtapland","length","cci","psig0","psig0coef","psigA","psigB","rsig0","rsigA",
-    "rsigB","wetland","s10","s100","s1000","smax","area1","area2","area3","area4","area5","area6","area7","area8",
-    "area9","area10","area11","area12","area13","area14","area15"] 
-    for k in a
-        mainparams[k] = [convert(Float64,mainparams[k])]
-    end
+   # a=["refpopdens","popdens"] #"s10","s100","s1000","smax","area1","area2","area3","area4","area5","area6","area7","area8",
+    #"area9","area10","area11","area12","area13","area14","area15","gtapland","length","cci","psig0","psig0coef","psigA","psigB","rsig0","rsigA",
+    #"rsigB","wetland",
+   # for k in a
+   #     mainparams[k] = [convert(Float64,mainparams[k])]
+   # end
     b = ["movefactor","depr","kgdp","tstep"]
     for k in b
         mainparams[k] = convert(Float64,mainparams[k])
@@ -192,8 +198,6 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     lslrall = Dict{Any,Any}()
     parse_long!(lslparams["philinputlsl_reshape"], lslrall,1,1, true)
 
-    # Process XSC
-    xsc = prepxsc(datadir, xscfile, ["Philippines10615"])
 
     return(mainparams, xsc, lslrall)
 
