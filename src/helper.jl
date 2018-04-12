@@ -52,7 +52,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
                 newvals = [ j[2] for j in p_tup ]
                 params[keyname] = newvals
             end
-        elseif size(p,1)>3
+        elseif size(p,2)>3
             # Type 2: Time-Country-Data format
             # CASES: 
             #   1. Country-time matrix
@@ -62,34 +62,34 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             # Sort by country, time period
             # ASSUMPTION: Row 1 = strings of country names
             # ASSUMPTION: Column 1 = time 1-20
-            if (size(p, 2)==length(rgn_order) | size(p,2)==(length(rgn_order)+1))
-                p_new = p[:,2:size(p,2)]
-                col_order = sortperm(p_new[1,:])
-                p_new = p_new[2:size(p,1),col_order]
+            print(keyname)
+            p_new = p[:,2:end]
+            col_order = sortperm(p_new[1,:])
+            p_new = p_new[2:end,col_order]
             
-                params[keyname] = p_new
-            elseif (size(p,1)==length(seg_order) | size(p,1) == (length(seg_order)+1))
-            #     # Type 3: Segment-Time format (reorder this)
-                print("ok2")
-                n = size(p,1) - length(seg_order)
-                print("\n",n)
-                if n >0
-                    p_new = p[(1+n):size(p,1),:]
-                    print("cool")
-                else
-                    p_new = p
-                end
-                row_order = sortperm(p_new[:,1])
-                p_new = p_new[row_order,:]
-                p_new = p_new[:, 2:size(p_new,2)] # clip name column
-                params[keyname] = p_new
+            params[keyname] = p_new
+            # elseif (size(p,1)==length(seg_order) | size(p,1) == (length(seg_order)+1))
+            # #     # Type 3: Segment-Time format (reorder this)
+            #     print("ok2")
+            #     n = size(p,1) - length(seg_order)
+            #     print("\n",n)
+            #     if n >0
+            #         p_new = p[(1+n):size(p,1),:]
+            #         print("cool")
+            #     else
+            #         p_new = p
+            #     end
+            #     row_order = sortperm(p_new[:,1])
+            #     p_new = p_new[row_order,:]
+            #     p_new = p_new[:, 2:size(p_new,2)] # clip name column
+            #     params[keyname] = p_new
 
             #     p_new = transpose_string_matrix(p_new)
             #     col_order = sortperm(p_new[1,:])
             #     p_new = p_new[:, col_order]
             #     p_new = p_new[2:size(p_new,1),:] # clip off names
 
-            end
+           
             
 
         end

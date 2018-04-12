@@ -168,8 +168,8 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     parse_long!(params["philinput"],mainparams,1)
     parse_long!(params["globalparams"],mainparams)
     mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
-    mainparams["pop"] = params["pop"][2:21,2:end]
-    mainparams["ypcc"] = params["ypcc"][2:21,2:end]
+    mainparams["pop"] = params["pop"][2:end,2:end]
+    mainparams["ypcc"] = params["ypcc"][2:end,2:end]
     
     # for p in keys(mainparams)
     #     if isinteger(mainparams[p])
@@ -226,6 +226,33 @@ function line_plot(gams, jl, title)
     return p
 
 end
+
+# Function to write out model results to CSV file
+# m - an instance of the model
+# name - model name (e.g. CIAM); string
+# meta - model metadata -- e.g. segment name, rcp - from file
+# params - variables to write out; string array
+# QUESTION: do we want to a) translate model variable names to results output (e.g. variable name->results dictionary?
+#   or b) change results file to use our variable names?
+function write_results(m, name, params, outputdir, outfile = "results.csv")
+    
+    # Get header
+    open("../data/meta/header.txt") do f  # TODO define _HEADER_ path or similar a la GCAM data system
+        header = readstring(f)
+    end
+
+    # Get model metadata 
+    # Format so segment-country mapping doesn't get screwed up
+    # Out: 
+    # rcp, segment 
+
+    for p in params 
+        
+
+    end
+
+end
+
 
 # Function to run tests for model
 # WIP - hardcoded strings 

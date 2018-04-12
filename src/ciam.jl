@@ -19,11 +19,11 @@ using Mimi
     fixed::Bool = Parameter()               # Run model as fixed (T) or flexible (F) with respect to adaptation
 
     # ---Socioeconomic Parameters---
-    pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
+    pop = Parameter(index = [regions, time])           # Population of region (million people) (from MERGE)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
     refpopdens_usa = Parameter()                       # Reference population density of USA (people/km^2) 
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
-    ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
+    ypcc = Parameter(index = [regions, time])          # GDP per capita per region ($2010 per capita)
     ypc_usa = Parameter(index = [time])                # GDP per capita in USA; used as benchmark ($2010 per capita)
     
     popdens_seg = Variable(index = [segments, time])          # Population density of segment extrapolated forward in time (people / km^2)    
@@ -181,23 +181,23 @@ function run_timestep(s::ciam, t::Int)
             # Determine land input value (true = FUND, false = GTAP)
             # TODO switch to importing fund land values as param
             if p.landinput 
-                v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[1,r] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
+                v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[r,1] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
                 v.landdata[r] = v.fundland[r]
             else
                 v.landdata[r] = p.gtapland[r]
             end
 
             v.land_appr[r, t] = 1.
-            v.wetlandservice[r, t] = p.wbvm * ((p.ypcc[t,r] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
-            v.ρ[r, t] = p.ypcc[t,r] / (p.ypcc[t,r] + p.ypc_usa[1])
-            v.vsl[r, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[t,r]/p.ypc_usa[t])^0.5
+            v.wetlandservice[r, t] = p.wbvm * ((p.ypcc[r,t] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
+            v.ρ[r, t] = p.ypcc[r,t] / (p.ypcc[r,t] + p.ypc_usa[1])
+            v.vsl[r, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[r,t]/p.ypc_usa[t])^0.5
 
             
             for i in collect(2:Int(p.ntsteps))
-                v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[i-1,r], p.ypcc[i,r]) + 0.313 * growthrate(p.pop[i-1,r], p.pop[i,r]))
+                v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[r,i-1], p.ypcc[r,i]) + 0.313 * growthrate(p.pop[r,i-1], p.pop[r,i]))
                 v.wetlandservice[r,i] = v.land_appr[r,i] * v.wetlandservice[r,1]
-                v.ρ[r, i] = p.ypcc[i,r] / (p.ypcc[i,r] + p.ypc_usa[1]) 
-                v.vsl[r, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[i,r]/p.ypc_usa[i])^0.5  
+                v.ρ[r, i] = p.ypcc[r,i] / (p.ypcc[r,i] + p.ypc_usa[1]) 
+                v.vsl[r, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[r,i]/p.ypc_usa[i])^0.5  
             end    
         end
 
@@ -206,7 +206,7 @@ function run_timestep(s::ciam, t::Int)
             rgn_ind = getregion(m, p.xsc)
  
             v.popdens_seg[m, t] = p.popdens[m]
-            v.ypc_seg[m, t] = p.ypcc[t, rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05)
+            v.ypc_seg[m, t] = p.ypcc[rgn_ind,t] * max(0.9, (p.popdens[m]/250.)^0.05)
             v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens_seg[m, t] * 1e-6
             v.coastland[m, t] = max(0.5, log(1+v.popdens_seg[m, t])/log(25)) * (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind])  # Interior * scaling factor
             v.landvalue[m, t] = min(v.coastland[m, t], (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind]))
@@ -214,8 +214,8 @@ function run_timestep(s::ciam, t::Int)
 
             
             for i in collect(2:Int(p.ntsteps))
-                v.popdens_seg[m,i] = v.popdens_seg[m, i-1] * (1 + growthrate(p.pop[ i-1, rgn_ind], p.pop[i, rgn_ind])) 
-                v.ypc_seg[m, i] = p.ypcc[i,rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
+                v.popdens_seg[m,i] = v.popdens_seg[m, i-1] * (1 + growthrate(p.pop[rgn_ind, i-1], p.pop[rgn_ind,i])) 
+                v.ypc_seg[m, i] = p.ypcc[rgn_ind,i] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
                 v.capital[m, i] = p.kgdp * v.ypc_seg[m, i] * v.popdens_seg[m, i] * 1e-6 
                 v.coastland[m, i] = max(0.5, log(1+v.popdens_seg[m, i])/log(25)) * (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind])
                 v.landvalue[m, i] = min(v.coastland[m, i], (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind]))
