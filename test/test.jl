@@ -173,15 +173,10 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     mainparams["cci"] = params["cci"]
     mainparams["refpopdens"] = params["refpopdens"]
     mainparams["gtapland"] = params["gtapland"]
+    mainparams["pop"] = params["pop"]
+    mainparams["ypcc"] = params["ypcc"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
 
-  #  parse_long!(params["philinput"],mainparams,1)
-    
- #   parse_long!(params["globalparams"],mainparams)
-  #  mainparams["ypc_usa"] = params["ypc_usa"][2:21,2]
-    mainparams["pop"] = params["pop"][2:end,2:end]
-    mainparams["ypcc"] = params["ypcc"][2:end,2:end]
-    
 
     # LSLR Dictionary
     lslrall = Dict{Any,Any}()
