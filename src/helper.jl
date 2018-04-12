@@ -22,6 +22,24 @@ function load_ciam_params(data_dir)
 
 end
 
+function preplsl!(data_dir,lslfile,subset, params)
+    lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
+
+    # Filter LSL according to subset segments
+    p = lsl_params["lslr"]
+    p_new = p[2:end,:]
+    row_order = sortperm(p_new[:,1])
+    p_new = p_new[row_order,1:end]
+
+    s = p_new[:,1]
+    ind_s = filter_index(s,subset)
+    p_new = p_new[ind_s,2:end]
+
+    params["lslr"] = p_new
+
+    return params
+end
+
 
 function parse_ciam_params!(params, rgn_order, seg_order)
     key = [k for k in keys(params)]
@@ -29,7 +47,6 @@ function parse_ciam_params!(params, rgn_order, seg_order)
     for i in 1:length(key)
         p = params[key[i]] # Array
         keyname = key[i]
-        println(keyname)
 
         if keyname=="data"
             rownames = copy(p[1:1,:]) # Preserve first row names
@@ -120,6 +137,8 @@ function parse_ciam_params!(params, rgn_order, seg_order)
     end
 
 end
+
+
 
 function filter_index(v1, v2)
     out = []

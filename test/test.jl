@@ -105,6 +105,7 @@ end
 # Function to run CIAM for given parameters and segment-country mapping
 # Some params are currently hard-coded
 function run_model(params, xsc, model="ciam")
+
     adaptperiods = [1, 5, 10, 15, 19]
     m = Model()
     setindex(m, :time, 20)
@@ -176,14 +177,9 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     mainparams["pop"] = params["pop"]
     mainparams["ypcc"] = params["ypcc"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
+    preplsl!(datadir, lslfile, ["Philippines10615"], mainparams)
 
-
-    # LSLR Dictionary
-    lslrall = Dict{Any,Any}()
-    parse_long!(lslparams["philinputlsl_reshape"], lslrall,1,1, true)
-
-
-    return(mainparams, xsc, lslrall)
+    return(mainparams, xsc)
 
 end
 
@@ -250,10 +246,10 @@ end
 # variables - list of variables to compare and output (strings)
 function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, model=false)
     # Import model data
-    modelparams = import_model_data(datadir, paramfiles, "philinputlsl_reshape.csv","xsc.csv")
+    modelparams = import_model_data(datadir, paramfiles, "lsl_rcp0_p50.csv","xsc.csv")
     params = modelparams[1]
     xsc = modelparams[2]
-    lslrall = modelparams[3]
+    #lslrall = modelparams[3]
 
     # Import GAMS Data
     gamsdata = import_comparison_data(datadir, gamsfile)
@@ -266,7 +262,7 @@ function run_tests(datadir, paramfiles, gamsfile, jlfile, resultsdir, rcps, mode
 
         # Run model if specified
         if model!= false
-            params["lslr"] = lslrall[rcps[i]]
+          #  params["lslr"] = lslrall[rcps[i]]
             m = run_model(params, xsc, model)
             push!(modellist,m)
         end
