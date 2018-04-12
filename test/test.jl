@@ -170,6 +170,9 @@ function import_model_data(datadir, paramfiles, lslfile, xscfile)
     mainparams["data"] = params["data"]
     mainparams["globalparams"] = params["globalparams"]
     mainparams["ypc_usa"] = params["ypc_usa"]
+    mainparams["cci"] = params["cci"]
+    mainparams["refpopdens"] = params["refpopdens"]
+    mainparams["gtapland"] = params["gtapland"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
 
   #  parse_long!(params["philinput"],mainparams,1)

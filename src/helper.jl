@@ -83,16 +83,18 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             delete!(params, "globalparams")
  
         elseif size(p,2) ==2
-            # Type 1: Country/Segment-Data Format
-            # Assumption: column 1 = country column
-            # Make and sort tuples; confirm region/segment order and remove region name
+            # Alphabetize
+            p = p[sortperm(p[:,1]),:]
 
-            p_tup = sort([ (p[j,1], p[j,2]) for j in collect(1:size(p,1))])
+            # Filter regions
+            r = p[:,1]
+            r_inds = filter_index(r, rgn_order)
+            p = p[r_inds,:]
 
-            if collect([j[1] for j in p_tup])!=rgn_order
-                error("Regions in dictionary do not match supplied regions, ", keyname)                
+            if p[:,1]!=rgn_order
+                error("Regions in dictionary do not match supplied regions, ", keyname)               
             else
-                newvals = [ j[2] for j in p_tup ]
+                newvals = p[:,2]
                 params[keyname] = newvals
             end
         elseif size(p,2)>3
@@ -135,7 +137,10 @@ function parse_ciam_params!(params, rgn_order, seg_order)
            
             
 
-        end
+        elseif size(p,2)==1 && typeof(p)==Array{Float64,2}
+            p_new = p[:,1]
+            params[keyname] = p_new
+        end  
 
     end
 

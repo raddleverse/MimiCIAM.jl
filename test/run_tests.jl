@@ -17,7 +17,7 @@ include("test.jl")
 ###------
 
 data_dir = joinpath("test_phil/input-data")
-paramfiles =  ["data.csv", "globalparams.csv","pop.csv","ypcc.csv","ypc_usa.csv"]
+paramfiles =  ["data.csv", "globalparams.csv","cci.csv", "gtapland.csv", "refpopdens.csv","pop.csv","ypcc.csv","ypc_usa.csv"]
 lsldata = "philinputlsl_reshape.csv"
 gamsfile = "../results-gams/test.csv" 
 jlfile = "../results-jl/results.csv"
