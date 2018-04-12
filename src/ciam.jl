@@ -131,7 +131,7 @@ using Mimi
     StormNoAdapt = Variable(index = [segments, time])
     RelocateNoAdapt = Variable(index = [segments, time])
 
-    #Construct = Variable(index = [segments, 5])
+    Construct = Variable(index = [segments, time, 4])
     WetlandProtect = Variable(index = [segments, time])
     StormProtect = Variable(index = [segments, time])
     
@@ -340,11 +340,11 @@ function run_timestep(s::ciam, t::Int)
        
 
                         if p.adaptOptions[i] >= 10
-                            Construct = (p.tstep/atstep) * 
+                            v.Construct[m,at_index,i-1] = (p.tstep/atstep) * 
                                 (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(H^2 - Hprev^2) + 
                                 p.mc*atstep*H) + p.length[m] * 1.7 * H * v.landvalue[m,t]*.04/2*atstep)
-                            
-                         end
+                                
+                        end
 
                         for j in t_range
                             v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
@@ -370,14 +370,14 @@ function run_timestep(s::ciam, t::Int)
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(H - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                                 
-                                v.ProtectCost[m,j,i-1] = Construct + v.WetlandProtect[m,j] + v.StormProtect[m,j]
+                                v.ProtectCost[m,j,i-1] = v.Construct[m,at_index,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(Construct)")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,at_index,i-1])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j])")  
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
-
+ 
                             end
 
                         end
