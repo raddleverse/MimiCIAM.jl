@@ -120,27 +120,6 @@ function run_model(params, xsc, model="ciam")
     return m
 end
 
-# Helper function to trim arrays based on specifications
-# Used for importing data
-# data - input data; outdict - output dictionary that is modified by fcn
-# csnip = # of columns to remove from beginning; rsnip = # of rows to remove from beginning
-# arr = bool for whether to output as 2-d array or 1-d vector 
-# TODO: if we standardize data preferences in main CIAM, arr is prob less necessary?
-function parse_long!(data::Array{Any,2}, outdict::Dict{Any,Any}, csnip = 0, rsnip=0,arr=false)
-    data = data[(rsnip+1):end, (csnip+1):end ]
-    
-    for i in 1:size(data,1)
-        if arr
-            outdict[data[i,1]] = data[i:i,2:end]
-        else
-            outdict[data[i,1]] = data[i,2:end][1] 
-        end
-        
-    end
-
-end
-
-
 # Wrapper for importing model data. Not generalizable; hard-coded names; WIP
 # datadir - data directory
 # lslfile - filename for lsl (string)
@@ -166,7 +145,7 @@ function import_model_data(datadir, lslfile, xscfile, subset)
     mainparams["at"] = params["at"]
     mainparams["adaptOptions"] = params["adaptoptions"]
     parse_ciam_params!(mainparams, xsc[2], xsc[3])
-    preplsl!(datadir, lslfile, ["Philippines10615"], mainparams)
+    preplsl!(datadir, lslfile, subset, mainparams)
 
     return(mainparams, xsc)
 
@@ -206,7 +185,137 @@ end
 # vars - variables to write out; string array
 # QUESTION: do we want to a) translate model variable names to results output (e.g. variable name->results dictionary?
 #   or b) change results file to use our variable names?
-function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results.csv")
+function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true, name = "ciam", outfile = "results.csv")
+
+    meta_output = load_meta(truncate)
+    header = meta_output[1]
+    vardict = meta_output[2]
+    protectdict = meta_output[3]
+    retreatdict = meta_output[4]
+
+    segmap = xsc[6]
+
+    vars = [k for k in keys(vardict)]
+
+    for v in vars # Iterate variables
+        d = m[parse(name), parse(v)]
+        
+        level = vardict[v][1]
+        costtype = vardict[v][2]
+        println(level,costtype)
+
+        s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
+        
+        if sumsegs
+            func = x -> sum(x)
+            n = 1
+            s_arr = ["$(size(d,1))segs"]
+        else
+            func = x -> identity(x)
+            n = size(d,1)
+        end
+
+        for i in 1:size(d,2) # Iterate times (t = 1, 2, ...)
+            t = repeat([i], outer=n)
+            rcp_arr = repeat([rcp], outer= n)
+            cost_arr = repeat([costtype], outer = n)
+
+            if typeof(d)==Array{Float64,2}
+                val = d[:,i] / 10 * .001
+                v_arr = func(val)
+
+                if level=="protect"
+                    for j in 1:4
+                        p = protectdict[j]
+                        pval = "$(level)$(p)"
+                        lev_arr = repeat([pval], outer = n)
+
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                            # Write results to csv
+                        if !(isfile(joinpath(outputdir,outfile)))
+                            open(joinpath(outputdir,outfile),"w") do g 
+                                write(g, "$(header)\n")
+                            end
+                        end    
+             
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+
+                    end
+                elseif level=="retreat"
+                    for j in 1:5
+                        q = retreatdict[j]
+                        rval = "$(level)$(q)"
+                        lev_arr = repeat([rval], outer = n)
+
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                        if !(isfile(joinpath(outputdir,outfile)))
+                            open(joinpath(outputdir,outfile),"w") do g 
+                                write(g, "$(header)\n")
+                            end
+                        end    
+            
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+                    end
+
+                else
+                    lev_arr = repeat([level], outer = n)
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+
+                    if !(isfile(joinpath(outputdir,outfile)))
+                        open(joinpath(outputdir,outfile),"w") do g 
+                            write(g, "$(header)\n")
+                        end
+                    end    
+         
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+
+                end
+
+            elseif typeof(d)==Array{Float64,3}
+                for j in 1:size(d,3)
+                    val = d[:,i,j] / 10 * .001
+                    v_arr = func(val)
+
+                    if level=="protect"
+                        p = protectdict[j]
+                        pval = "$(level)$(p)"
+                        lev_arr = repeat([pval], outer = n)
+
+                    elseif level=="retreat"
+                        q = retreatdict[j]
+                        rval = "$(level)$(q)"
+                        lev_arr = repeat([rval], outer = n)
+                    else
+                        lev_arr = repeat([level], outer = n)
+                    end
+
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                    
+                    if !(isfile(joinpath(outputdir,outfile)))
+                        open(joinpath(outputdir,outfile),"w") do g 
+                            write(g, "$(header)\n")
+                        end
+                    end    
+                 
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+
+                end
+            end
+
+        end
+    end
+
+end
+
+function load_meta(truncate)
     metadir = "../data/meta"
 
     # Read header and mappings
@@ -214,7 +323,14 @@ function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results
     header = readstring(f)
     close(f)
 
-    f = open(joinpath(metadir,"variablenames.csv"))
+    if truncate==true
+        vn = "variablenamestruncated.csv"
+        println("ok")
+    else
+        vn = "variablenames.csv"
+    end
+
+    f = open(joinpath(metadir,vn))
     varnames = readlines(f)
     close(f)
     vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
@@ -229,79 +345,7 @@ function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results
     close(f)
     retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => parse(Int,split(retreat[i],',')[2]) for i in 1:length(retreat))
 
-    segmap = xsc[6]
-
-    vars = [k for k in keys(vardict)]
-
-    for v in vars # Iterate variables
-        d = m[parse(name), parse(v)]
-        
-        level = vardict[v][1]
-        costtype = vardict[v][2]
-        
-        if typeof(d)==Array{Float64,2}
-            for i in 1:size(d,1) # Iterate segments and build arrays
-                rcp_arr = repeat([rcp], outer=size(d,2))
-                s = segmap[i]
-                s_arr = repeat([s], outer = size(d,2))
-                t = collect(1:size(d,2))
-                val_arr = d[i,:]
-                cost_arr = repeat([costtype], outer = size(d,2))
-
-                lev_arr = repeat([level], outer = size(d,2))
-
-                outarr= [rcp_arr lev_arr s_arr cost_arr t val_arr]
-
-                # Write results to csv
-                if !(isfile(joinpath(outputdir,outfile)))
-                    open(joinpath(outputdir,outfile),"w") do g 
-                        write(g, "$(header)\n")
-                    end
-                end    
-             
-                open(joinpath(outputdir,outfile),"a") do g 
-                    writecsv(g, outarr)
-                end
-            end
-        elseif typeof(d)==Array{Float64,3}
-            for i in 1:size(d,1) # Iterate segments
-                for j in 1:size(d,3) # Iterate levels
-                    rcp_arr = repeat([rcp], outer=size(d,2))
-                    s = segmap[i]
-                    s_arr = repeat([s], outer = size(d,2))
-                    t = collect(1:size(d,2))
-                    val_arr = d[i,:,j]
-                    cost_arr = repeat([costtype], outer = size(d,2))
-                    
-                    if level=="protect"
-                        val = protectdict[j]
-                        pval = "$(level)$(val)"
-                        lev_arr = repeat([pval], outer = size(d,2))
-
-                    elseif level=="retreat"
-                        val = retreatdict[j]
-                        rval = "$(level)$(val)"
-                        lev_arr = repeat([rval], outer = size(d,2))
-                    else
-                        lev_arr = repeat([level], outer = size(d,2))
-                    end
-                    outarr= [rcp_arr lev_arr s_arr cost_arr t val_arr]
-                    if !(isfile(joinpath(outputdir,outfile)))
-                        open(joinpath(outputdir,outfile),"w") do g 
-                            write(g, "$(header)\n")
-                        end
-                    end    
-                 
-                    open(joinpath(outputdir,outfile),"a") do g 
-                        writecsv(g, outarr)
-                    end
-                   
-
-                end
-            end
-        end
-    end
-
+    return(header,vardict, protectdict, retreatdict)
 end
 
 
@@ -312,7 +356,7 @@ end
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcps - vector of string rcp values to test
 # variables - list of variables to compare and output (strings)
-function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps, model=false)
+function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcp, model=false)
     # Import model data
     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
@@ -321,11 +365,11 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
     # Import GAMS Data
     gamsdata = import_comparison_data(datadir, gamsfile)
     
-    # Run model for desired RCPs and output results
-    # TODO 
+    # Run model for desired rcp and output results
+    # TODO
     # if julia results file exists already will append to it; need to distinguish
     modellist = []
-    for i in 1:length(rcps)
+
 
         # Run model if specified
         if model!= false
@@ -344,7 +388,7 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
         for j in 1:length(cases)
             plotlist = []
             if cases[j]=="optimalfixed"
-                metadata=[rcps[i],"optimalfixed","Philippines10615","total"]
+                metadata=[rcp[i],"optimalfixed","Philippines10615","total"]
                 A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== "total"), :value] / 10 * .001
                 B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== "total"), :value][2:end]
                 compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
@@ -363,7 +407,7 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
                     elseif contains(cases[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
                         continue
                     else
-                        metadata=[rcps[i],cases[j],"Philippines10615",variables[k]]
+                        metadata=[rcp[i],cases[j],"Philippines10615",variables[k]]
                         A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== variables[k]), :value] / 10 * .001
                         B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== variables[k]), :value][2:end]
                         compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
@@ -377,7 +421,7 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
                  end
                  make_plots(plotlist,cases[j])
             end
-        end
+
 
 
     end
@@ -391,13 +435,23 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
 
 end
 
-function run_and_write_model(datadir, resultsdir, lslfile, subset, rcp)
+function run_and_write_model(datadir, resultsdir, lslfile, subset, rcp, truncate, sum)
     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
     xsc = modelparams[2]
 
     m = run_model(params, xsc, "ciam")
-    write_results(m, rcp, resultsdir, xsc, "ciam", "results$(rcp).csv")
+    write_results(m, rcp, resultsdir, xsc,truncate,sum, "ciam", "results$(rcp).csv")
+    return m
+
+end
+
+function model_driver(datadir, lslfile, subset)
+    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
+    params = modelparams[1]
+    xsc = modelparams[2]
+
+    m = run_model(params, xsc, "ciam")
     return m
 
 end

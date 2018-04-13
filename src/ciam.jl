@@ -261,7 +261,7 @@ function run_timestep(s::ciam, t::Int)
                 v.AdaptationLevel[m, t] = v.AdaptationLevel[m, t-1]
             else
                 rgn_ind = getregion(m, p.xsc)
-                
+                println(m," $(rgn_ind)")
                 # ** Calculate No Adaptation Costs **
                     for i in t_range
                         v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] )) * 

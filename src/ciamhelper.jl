@@ -31,11 +31,16 @@ function preplsl!(data_dir,lslfile,subset, params)
     row_order = sortperm(p_new[:,1])
     p_new = p_new[row_order,1:end]
 
-    s = p_new[:,1]
-    ind_s = filter_index(s,subset)
-    p_new = p_new[ind_s,2:end]
-
-    params["lslr"] = p_new
+    if subset != false
+        s = p_new[:,1]
+        ind_s = filter_index(s,subset)
+        p_new = p_new[ind_s,2:end]
+    
+        params["lslr"] = p_new
+    else
+        params["lslr"] = p_new[:, 2:end]
+    end
+    
 
     return params
 end
