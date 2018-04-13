@@ -105,7 +105,6 @@ end
 # Function to run CIAM for given parameters and segment-country mapping
 # Some params are currently hard-coded
 function run_model(params, xsc, model="ciam")
-
     m = Model()
     setindex(m, :time, 20)
     setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
@@ -146,12 +145,12 @@ end
 # datadir - data directory
 # lslfile - filename for lsl (string)
 # xscfile - filename for segment-country mapping (string)
-function import_model_data(datadir, lslfile, xscfile)
+function import_model_data(datadir, lslfile, xscfile, subset)
     # Process main and lsl params
     params = load_ciam_params(datadir)
      
     # Process XSC
-    xsc = prepxsc(datadir, xscfile, ["Philippines10615"])
+    xsc = prepxsc(datadir, xscfile, subset)
 
     # Parse Main Parameters
     # TODO switch away from using mainparams
@@ -204,23 +203,93 @@ end
 # m - an instance of the model
 # name - model name (e.g. CIAM); string
 # meta - model metadata -- e.g. segment name, rcp - from file
-# params - variables to write out; string array
+# vars - variables to write out; string array
 # QUESTION: do we want to a) translate model variable names to results output (e.g. variable name->results dictionary?
 #   or b) change results file to use our variable names?
-function write_results(m, name, params, outputdir, outfile = "results.csv")
+function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results.csv")
     
-    # Get header
-    open("../data/meta/header.txt") do f  # TODO define _HEADER_ path or similar a la GCAM data system
-        header = readstring(f)
-    end
-
+    metadir = "../data/meta"
+    # Read header and mappings
+    f = open(joinpath(metadir,"header.txt"))  # TODO define _HEADER_ path or similar a la GCAM data system
+    header = readstring(f)
+    close(f)
+    print(header)
+    f = open(joinpath(metadir,"variablenames.csv"))
+    varnames = readlines(f)
+    close(f)
+    vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
+    println(vardict)
+    f = open(joinpath(metadir, "protectlevelmapping.csv"))
+    protect = readlines(f)
+    close(f)
+    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => parse(Int,split(protect[i],',')[2]) for i in 1:length(protect))
+    println(protectdict)
+    f = open(joinpath(metadir, "retreatlevelmapping.csv")) 
+    retreat = readlines(f)
+    close(f)
+    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => parse(Int,split(retreat[i],',')[2]) for i in 1:length(retreat))
+   #return (retreatdict,protectdict,vardict,header)
+    segmap = xsc[6]
     # Get model metadata 
     # Format so segment-country mapping doesn't get screwed up
-    # Out: 
-    # rcp, segment 
+    # Out format: 
+    #   Data frame: rcp, segment, level, costtype, value
+    #   Need mappings for: level, costtype vs variable/index 
+    vars = [k for k in keys(vardict)]
 
-    for p in params 
+    for v in vars 
+        # For now assume time = 20
+        d = m[parse(name), parse(v)]
+
         
+        level = vardict[v][1]
+        costtype = vardict[v][2]
+        
+        if typeof(d)==Array{Float64,2}
+            
+        elseif typeof(d)==Array{Float64,3}
+            for i in 1:size(d,1) # Iterate segments
+                for j in 1:size(d,3) # Iterate levels
+                    rcp_arr = repeat([rcp], outer=size(d,2))
+                    s = segmap[i]
+                    s_arr = repeat([s], outer = size(d,2))
+                    t = collect(1:size(d,2))
+                    val_arr = d[i,:,j]
+                    cost_arr = repeat([costtype], outer = size(d,2))
+                    
+                    if level=="protect"
+                        val = protectdict[j]
+                        pval = "$(level)$(val)"
+                        lev_arr = repeat([pval], outer = size(d,2))
+
+                    elseif level=="retreat"
+                        val = retreatdict[j]
+                        rval = "$(level)$(val)"
+                        lev_arr = repeat([rval], outer = size(d,2))
+                    else
+                        lev_arr = repeat([level], outer = size(d,2))
+                    end
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t val_arr]
+                    if !(isfile(joinpath(outputdir,outfile)))
+                        open(joinpath(outputdir,outfile),"w") do g 
+                            write(g, "$(header)\n")
+                        end
+                    end    
+                 
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+                   
+
+                end
+            end
+        end
+
+
+
+        
+        # This will be a multidimensional array (from 1-3 dims)
+        # If dims = 3, proceed segment-by-segment -- it's segments x time x levels
 
     end
 
@@ -234,9 +303,9 @@ end
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcps - vector of string rcp values to test
 # variables - list of variables to compare and output (strings)
-function run_tests(datadir, gamsfile, jlfile, resultsdir, rcps, model=false)
+function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps, model=false)
     # Import model data
-    modelparams = import_model_data(datadir, "lsl_rcp0_p50.csv","xsc.csv")
+    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
     xsc = modelparams[2]
 
@@ -306,8 +375,7 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, rcps, model=false)
   #  summary_report(resultsdir, "comparison.csv", resultsdir)
 
     if model != false
-        println("returning model")
-        return modellist 
+          return modellist 
     else 
         return nothing
     end

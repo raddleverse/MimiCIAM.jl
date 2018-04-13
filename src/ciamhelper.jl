@@ -192,13 +192,25 @@ function prepxsc(data_dir, xscfile,subset)
     segs = sort(unique(collect(keys(xsc_out))))
     
     # # Map segment index to region index
-    xsc_ind = Dict{Any,Any}()
+    # # Also create seg -> number, rgn -> number dictionary
+    xsc_ind = Dict{Any,Any}() # numeric seg -> numeric rgn
+    xsc_segmap = Dict{Any,Any}() # Numeric seg/rgn -> char seg/rgn
+    xsc_rgnmap = Dict{Any,Any}()
     for i in 1:length(segs)
         r = xsc_char[segs[i]]
         r_ind = findind(r, rgns)
+        
+        # Build XSC Seg/rgn Maps
+        r2 = rgns[r_ind]
+        s = segs[i]
+        xsc_segmap[i] = s
+        if !(r2 in values(xsc_rgnmap))
+            xsc_rgnmap[r_ind] = r2
+        end
+
         xsc_ind[i] = r_ind
     end
-    return (xsc_ind, rgns, segs, xsc_out)
+    return (xsc_ind, rgns, segs, xsc_out, xsc_rgnmap, xsc_segmap)
 
 end
 

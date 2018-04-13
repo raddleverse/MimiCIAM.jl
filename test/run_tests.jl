@@ -18,13 +18,22 @@ include("test.jl")
 
 data_dir = joinpath("test_phil/input-data")
 gamsfile = "../results-gams/test.csv" 
+lslfile = "lsl_rcp0_p50.csv"
 jlfile = "../results-jl/results.csv"
+xscfile = "xsc.csv"
 resultsdir = "test_phil/comparison"
 
-n = run_tests(data_dir,gamsfile,jlfile,resultsdir,["rcp0_p50"], "ciam")
+n = run_tests(data_dir,gamsfile,jlfile,resultsdir,lslfile,["Philippines10615"],["rcp0_p50"], "ciam")
+
+# Test of Write_Results
+xsc = prepxsc(data_dir, xscfile, ["Philippines10615"])
+j = write_results(n[1], "rcp0_p50", ".", xsc)
 
 #------------------------------------------------------------------------
 # CIAM - Multisegment version (1000 segments)
 #------------------------------------------------------------------------
-
-
+data_dir = "../data/input-data"
+resultsdir = "../data/results"
+lslfile = "lsl_rcp85_p50.csv"
+gamsfile = "../data/input-data/results/results-gams/globalCostB.csv"
+jlfile = "../data/input-data/results/results-jl/results.csv"
