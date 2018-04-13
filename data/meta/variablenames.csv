@@ -1,0 +1,15 @@
+FloodNoAdapt,noAdaptation,inundation
+RelocateNoAdapt,noAdaptation,relocation
+StormNoAdapt,noAdaptation,storms
+WetlandNoAdapt,noAdaptation,wetland
+NoAdaptCost,noAdaptation,total
+FloodRetreat,retreat,inundation
+RelocateRetreat,retreat,relocation
+WetlandRetreat,retreat,wetland
+StormRetreat,retreat,storms
+RetreatCost,retreat,total
+Construct,protect,protection
+WetlandProtect,protect,wetland
+StormProtect,protect,storms
+ProtectCost,protect,total
+OptimalFixedCost,optimalFixed,total

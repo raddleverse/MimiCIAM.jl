@@ -207,46 +207,62 @@ end
 # QUESTION: do we want to a) translate model variable names to results output (e.g. variable name->results dictionary?
 #   or b) change results file to use our variable names?
 function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results.csv")
-    
     metadir = "../data/meta"
+
     # Read header and mappings
     f = open(joinpath(metadir,"header.txt"))  # TODO define _HEADER_ path or similar a la GCAM data system
     header = readstring(f)
     close(f)
-    print(header)
+
     f = open(joinpath(metadir,"variablenames.csv"))
     varnames = readlines(f)
     close(f)
     vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
-    println(vardict)
+
     f = open(joinpath(metadir, "protectlevelmapping.csv"))
     protect = readlines(f)
     close(f)
     protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => parse(Int,split(protect[i],',')[2]) for i in 1:length(protect))
-    println(protectdict)
+
     f = open(joinpath(metadir, "retreatlevelmapping.csv")) 
     retreat = readlines(f)
     close(f)
     retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => parse(Int,split(retreat[i],',')[2]) for i in 1:length(retreat))
-   #return (retreatdict,protectdict,vardict,header)
+
     segmap = xsc[6]
-    # Get model metadata 
-    # Format so segment-country mapping doesn't get screwed up
-    # Out format: 
-    #   Data frame: rcp, segment, level, costtype, value
-    #   Need mappings for: level, costtype vs variable/index 
+
     vars = [k for k in keys(vardict)]
 
-    for v in vars 
-        # For now assume time = 20
+    for v in vars # Iterate variables
         d = m[parse(name), parse(v)]
-
         
         level = vardict[v][1]
         costtype = vardict[v][2]
         
         if typeof(d)==Array{Float64,2}
-            
+            for i in 1:size(d,1) # Iterate segments and build arrays
+                rcp_arr = repeat([rcp], outer=size(d,2))
+                s = segmap[i]
+                s_arr = repeat([s], outer = size(d,2))
+                t = collect(1:size(d,2))
+                val_arr = d[i,:]
+                cost_arr = repeat([costtype], outer = size(d,2))
+
+                lev_arr = repeat([level], outer = size(d,2))
+
+                outarr= [rcp_arr lev_arr s_arr cost_arr t val_arr]
+
+                # Write results to csv
+                if !(isfile(joinpath(outputdir,outfile)))
+                    open(joinpath(outputdir,outfile),"w") do g 
+                        write(g, "$(header)\n")
+                    end
+                end    
+             
+                open(joinpath(outputdir,outfile),"a") do g 
+                    writecsv(g, outarr)
+                end
+            end
         elseif typeof(d)==Array{Float64,3}
             for i in 1:size(d,1) # Iterate segments
                 for j in 1:size(d,3) # Iterate levels
@@ -284,13 +300,6 @@ function write_results(m, rcp, outputdir, xsc, name = "ciam", outfile = "results
                 end
             end
         end
-
-
-
-        
-        # This will be a multidimensional array (from 1-3 dims)
-        # If dims = 3, proceed segment-by-segment -- it's segments x time x levels
-
     end
 
 end
