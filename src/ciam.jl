@@ -263,6 +263,21 @@ function run_timestep(s::ciam, t::Int)
                 rgn_ind = getregion(m, p.xsc)
                 println(m," $(rgn_ind)")
                 # ** Calculate No Adaptation Costs **
+                dir = "../test/test_phil/results-jl"
+                file = "results.csv"
+                if isfile(joinpath(dir,file))
+                    handle = "a"
+                    header=false
+                else
+                    handle="w"
+                    header = "rcp,level,seg,costtype,time,value"
+                end
+
+                open(joinpath(dir,file),handle) do f
+                    if header != false
+                        println(f, "$(header)")
+                    end
+                    # ** Calculate No Adaptation Costs **
                     for i in t_range
                         v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] )) * 
                                 (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[rgn_ind, i] * p.floodmortality)
@@ -285,7 +300,14 @@ function run_timestep(s::ciam, t::Int)
                         end
                             
                         v.NoAdaptCost[m,i] = v.WetlandNoAdapt[m,i] + v.FloodNoAdapt[m,i] +  v.RelocateNoAdapt[m,i] + v.StormNoAdapt[m, i]
-                      
+
+                        println(f, "rcp0_p50,noAdaptation,Philippines10615,inundation,$(i),$(v.FloodNoAdapt[m,i])")
+                        println(f, "rcp0_p50,noAdaptation,Philippines10615,relocation,$(i),$(v.RelocateNoAdapt[m,i])")
+                        println(f, "rcp0_p50,noAdaptation,Philippines10615,storms,$(i),$(v.StormNoAdapt[m,i])")
+                        println(f, "rcp0_p50,noAdaptation,Philippines10615,wetland,$(i),$(v.WetlandNoAdapt[m,i])")
+                        println(f, "rcp0_p50,noAdaptation,Philippines10615,total,$(i),$(v.NoAdaptCost[m,i])")
+                        
+
                     end
                     v.NPVNoAdapt[m, at_index] = sum( [ v.discountfactor[j] * v.NoAdaptCost[m,j] for j in t_range] )
 
@@ -337,6 +359,13 @@ function run_timestep(s::ciam, t::Int)
                                     
                             v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
                             
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(v.FloodRetreat[m, at_index,i])")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,relocation,$(j),$(v.RelocateRetreat[m,at_index,i])")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandRetreat[m,j])")                                
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormRetreat[m,j])")  
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.RetreatCost[m,j,i])")                                   
+
                             if p.adaptOptions[i] >= 10
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
                                         
@@ -348,7 +377,13 @@ function run_timestep(s::ciam, t::Int)
                                                 
                                 v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j]
 
-                             end
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,at_index,i-1])")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j])")  
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
+ 
+                            end
 
                         end
 
@@ -381,8 +416,12 @@ function run_timestep(s::ciam, t::Int)
                     else
                         v.OptimalFixedCost[m, t_range] = v.NoAdaptCost[m, t_range]
                     end
+
+                    for i in t_range
+                        println(f, "rcp0_p50,optimalfixed,Philippines10615,total,$(i),$(v.OptimalFixedCost[m,i])")
+                    end
     
-                
+                end
             end
         end     
     end
