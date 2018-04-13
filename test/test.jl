@@ -391,3 +391,13 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcps,
 
 end
 
+function run_and_write_model(datadir, resultsdir, lslfile, subset, rcp)
+    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
+    params = modelparams[1]
+    xsc = modelparams[2]
+
+    m = run_model(params, xsc, "ciam")
+    write_results(m, rcp, resultsdir, xsc, "ciam", "results$(rcp).csv")
+    return m
+
+end
