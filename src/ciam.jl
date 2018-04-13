@@ -353,8 +353,11 @@ function run_timestep(s::ciam, t::Int)
                             v.StormRetreat[m,j] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
                                     (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R - p.lslr[m, j])))) * 
                                     (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality)
+
+                            v.FloodRetreat[m, j, i] = v.FloodRetreat[m, at_index, i]
+                            v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,at_index,i]
                                     
-                            v.RetreatCost[m, j, i] = v.FloodRetreat[m,at_index,i] + v.RelocateRetreat[m,at_index,i] + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
+                            v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
                             
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(v.FloodRetreat[m, at_index,i])")
@@ -369,8 +372,10 @@ function run_timestep(s::ciam, t::Int)
                                 v.StormProtect[m,j] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(H - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
+                                
+                                v.Construct[m,j,i-1] = v.Construct[m, at_index, i-1]
                                                 
-                                v.ProtectCost[m,j,i-1] = v.Construct[m,at_index,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j]
+                                v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,at_index,i-1])")
