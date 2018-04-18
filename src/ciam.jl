@@ -321,7 +321,6 @@ function run_timestep(s::ciam, t::Int)
 
                         v.R[m, t, i] = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
                         
-
                         if t==1
                             Rprev = calcHorR(-2, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions) 
                         else
@@ -389,7 +388,7 @@ function run_timestep(s::ciam, t::Int)
                                 v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(v.H[m, j, i-1])")
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,t,i-1])")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,j,i-1])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j,i-1])")  
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
