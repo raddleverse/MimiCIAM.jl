@@ -134,6 +134,7 @@ using Mimi
     Construct = Variable(index = [segments, time, 4])
     WetlandProtect = Variable(index = [segments, time])
     StormProtect = Variable(index = [segments, time,4])
+    H = Variable(index = [segments, time, 4])
     
     WetlandRetreat = Variable(index = [segments, time])
     StormRetreat = Variable(index = [segments, time,5])
@@ -319,6 +320,7 @@ function run_timestep(s::ciam, t::Int)
 
                         R = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
                         H = calcHorR(-1, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
+                        
 
                         if t==1
                             Rprev = calcHorR(-2, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions) 
@@ -340,9 +342,17 @@ function run_timestep(s::ciam, t::Int)
        
 
                         if p.adaptOptions[i] >= 10
-                            v.Construct[m,at_index,i-1] = (p.tstep/atstep) * 
-                                (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(H^2 - Hprev^2) + 
-                                p.mc*atstep*H) + p.length[m] * 1.7 * H * v.landvalue[m,t]*.04/2*atstep)
+                            v.H[m, t, i-1] = calcHorR(-1, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
+
+                            if t==1
+                                Hprev = calcHorR(-1, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions)
+                            else
+                                Hprev = v.H[m, convert(Int,p.at[at_index_prev]),i-1]
+                            end
+
+                            v.Construct[m,t,i-1] = (p.tstep/atstep) * 
+                                (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
+                                p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep)
                                 
                         end
 
@@ -367,18 +377,20 @@ function run_timestep(s::ciam, t::Int)
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.RetreatCost[m,j,i])")                                   
 
                             if p.adaptOptions[i] >= 10
+                                v.H[m, j, i-1] = v.H[m, t, i-1]
+
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
                                         
                                 v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
-                                                        (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(H - p.lslr[m,j])))) *
+                                                        (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[m, j, i-1] - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                 
-                                v.Construct[m,j,i-1] = v.Construct[m, at_index, i-1]
+                                v.Construct[m,j,i-1] = v.Construct[m, t, i-1]
                                                 
                                 v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
 
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,at_index,i-1])")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(v.H[m, j, i-1])")
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,t,i-1])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j,i-1])")  
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
