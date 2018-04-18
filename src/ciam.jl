@@ -140,6 +140,7 @@ using Mimi
     StormRetreat = Variable(index = [segments, time,5])
     FloodRetreat = Variable(index = [segments, time, 5])
     RelocateRetreat = Variable(index = [segments, time, 5])
+    R = Variable(index = [segments, time, 5])
 
     # ---Decision Variables---   
     NoAdaptCost = Variable(index = [segments, time])         # Cost of not adapting (e.g. reactive retreat) (2010$)
@@ -319,24 +320,22 @@ function run_timestep(s::ciam, t::Int)
                     for i in 1:length(p.adaptOptions)
 
                         R = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
-                        H = calcHorR(-1, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
+                        v.R[m, t, i] = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
                         
 
                         if t==1
                             Rprev = calcHorR(-2, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions) 
-                            Hprev = calcHorR(-1, p.adaptOptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptOptions)
                         else
-                            Rprev = calcHorR(-2, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
-                            Hprev = calcHorR(-1, p.adaptOptions[i], lslrPlan_atprev, v.surgeExposure[m,:], p.adaptOptions)
+                            Rprev = v.R[m, convert(Int,p.at[at_index_prev]), i]
                         end
 
 
-                        v.FloodRetreat[m,at_index,i] = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], R) +          
-                            max(0,calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev))* 
+                        v.FloodRetreat[m,t,i] = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) +          
+                            max(0,calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
                             (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t])
 
-                        v.RelocateRetreat[m,at_index,i] = (p.tstep / atstep) * 
-                            max(0, calcCoastArea(v.areaparams[m,:], R) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
+                        v.RelocateRetreat[m,t,i] = (p.tstep / atstep) * 
+                            max(0, calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
                             (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
                             p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
        
@@ -357,21 +356,22 @@ function run_timestep(s::ciam, t::Int)
                         end
 
                         for j in t_range
+                            v.R[m,j,i] = v.R[m,t,i]
                             v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
                                             min(v.coastArea[m, j], p.wetland[m])
 
                             v.StormRetreat[m,j,i] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
-                                    (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R - p.lslr[m, j])))) * 
+                                    (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[m,j,i] - p.lslr[m, j])))) * 
                                     (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality)
 
-                            v.FloodRetreat[m, j, i] = v.FloodRetreat[m, at_index, i]
-                            v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,at_index,i]
+                            v.FloodRetreat[m, j, i] = v.FloodRetreat[m, t, i]
+                            v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,t,i]
                                     
                             v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j,i] + v.WetlandRetreat[m,j]
                             
-                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
-                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(v.FloodRetreat[m, at_index,i])")
-                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,relocation,$(j),$(v.RelocateRetreat[m,at_index,i])")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(v.R[m,j,i])")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(v.FloodRetreat[m, j,i])")
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,relocation,$(j),$(v.RelocateRetreat[m,j,i])")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandRetreat[m,j])")                                
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormRetreat[m,j,i])")  
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.RetreatCost[m,j,i])")                                   
