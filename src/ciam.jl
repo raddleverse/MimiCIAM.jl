@@ -133,10 +133,10 @@ using Mimi
 
     Construct = Variable(index = [segments, time, 4])
     WetlandProtect = Variable(index = [segments, time])
-    StormProtect = Variable(index = [segments, time])
+    StormProtect = Variable(index = [segments, time,4])
     
     WetlandRetreat = Variable(index = [segments, time])
-    StormRetreat = Variable(index = [segments, time])
+    StormRetreat = Variable(index = [segments, time,5])
     FloodRetreat = Variable(index = [segments, time, 5])
     RelocateRetreat = Variable(index = [segments, time, 5])
 
@@ -261,7 +261,7 @@ function run_timestep(s::ciam, t::Int)
                 v.AdaptationLevel[m, t] = v.AdaptationLevel[m, t-1]
             else
                 rgn_ind = getregion(m, p.xsc)
-                println(m," $(rgn_ind)")
+ 
                 # ** Calculate No Adaptation Costs **
                 dir = "../test/test_phil/results-jl"
                 file = "results.csv"
@@ -350,37 +350,37 @@ function run_timestep(s::ciam, t::Int)
                             v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
                                             min(v.coastArea[m, j], p.wetland[m])
 
-                            v.StormRetreat[m,j] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
+                            v.StormRetreat[m,j,i] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
                                     (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R - p.lslr[m, j])))) * 
                                     (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality)
 
                             v.FloodRetreat[m, j, i] = v.FloodRetreat[m, at_index, i]
                             v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,at_index,i]
                                     
-                            v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j] + v.WetlandRetreat[m,j]
+                            v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j,i] + v.WetlandRetreat[m,j]
                             
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,R,$(j),$(R)")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,inundation,$(j),$(v.FloodRetreat[m, at_index,i])")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,relocation,$(j),$(v.RelocateRetreat[m,at_index,i])")
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandRetreat[m,j])")                                
-                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormRetreat[m,j])")  
+                            println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormRetreat[m,j,i])")  
                             println(f, "rcp0_p50,retreat$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.RetreatCost[m,j,i])")                                   
 
                             if p.adaptOptions[i] >= 10
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
                                         
-                                v.StormProtect[m,j] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
+                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(H - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                 
                                 v.Construct[m,j,i-1] = v.Construct[m, at_index, i-1]
                                                 
-                                v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j]
+                                v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
 
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,H,$(j),$(H)")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,protection,$(j),$(v.Construct[m,at_index,i-1])")
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,wetland,$(j),$(v.WetlandProtect[m,j])")
-                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j])")  
+                                println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,storms,$(j),$(v.StormProtect[m,j,i-1])")  
                                 println(f, "rcp0_p50,protect$(convert(Int64,p.adaptOptions[i])),Philippines10615,total,$(j),$(v.ProtectCost[m,j,i-1])")                                   
  
                             end
