@@ -319,7 +319,6 @@ function run_timestep(s::ciam, t::Int)
 
                     for i in 1:length(p.adaptOptions)
 
-                        R = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
                         v.R[m, t, i] = calcHorR(-2, p.adaptOptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptOptions)
                         
 
