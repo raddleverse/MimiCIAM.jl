@@ -3,9 +3,7 @@
 #------------------------------------------------------------------------
 # Test Code
 #------------------------------------------------------------------------
-# Run model and compare results of Julia and GAMS code; 
-# Outputs csv with rank by accuracy (1-6 scale, 6 best)
-# In progress for multi-segment comparisons 
+# Run model and compare results of Julia and GAMS code
 #------------------------------------------------------------------------
 
 using Mimi
@@ -17,50 +15,47 @@ include("test.jl")
 # CIAM - Single-Segment version (Philippines10615 segment)
 #------------------------------------------------------------------------
 
-data_dir_phl = joinpath("test_phil/input-data")
-gamsfile = "../results-gams/test.csv" 
+data_dir_phl = "../data/input-data"
+gamsfilephl = "../results/results-gams/Phl_test_comp.csv" 
 lslfilephl = "lsl_rcp0_p50.csv"
-jlfile = "../results-jl/results.csv"
-xscfile = "xsc.csv"
-resultsdirphl = "test_phil/comparison"
+resultsdirphl = "../data/results/results-jl"
 
-n = run_tests(data_dir,gamsfile,jlfile,resultsdir,lslfile,["Philippines10615"],["rcp0_p50"], "ciam") # TODO: broken
+segnames_phl = ["Philippines10615"]
+rcp_phl = "rcp0_p50"
 
-# Test of Write_Results
-xsc = prepxsc(data_dir, xscfile, ["Philippines10615"])
-j = write_results(n[1], "rcp0_p50", ".", xsc)
-
-# Testing w/o println
-l = run_and_write_model(data_dir_phl, ".",lslfilephl,["Philippines10615"],"rcp0_p50",true,false)
+test1seg = run_tests(data_dir_phl, gamsfilephl, resultsdirphl, lslfilephl, segnames_phl, rcp_phl)
 
 #------------------------------------------------------------------------
 # CIAM - Multisegment version (1000 segments)
 #------------------------------------------------------------------------
-data_dir = "../data/input-data"
-resultsdir = "../data/results"
-lslfile = "lsl_rcp85_p50.csv"
-gamsfile = "../data/input-data/results/results-gams/globalCostB.csv"
-jlfile = "../data/input-data/results/results-jl/results.csv"
+data_dir_1000 = "../data/input-data"
+resultsdir_1000 = "../data/results/results-jl"
+lslfile_1000 = "lsl_rcp85_p50.csv"
+gamsfile_1000 = "../results/results-gams/globalCostBcomp.csv"
 
-segnames = readlines(open("../test-data-delavane/segmentnames.csv"))
+segnames_1000 = readlines(open("../test-data-delavane/segmentnames.csv"))
+rcp_1000 = "rcp85_p50"
 
-# Test and Benchmark Only: No Results comparison
-d = import_model_data(data_dir, lslfile, "xsc.csv", segnames)
-k = run_and_write_model(data_dir, resultsdir,lslfile,segnames,"rcp85_p50", false, true)
+test1000segs = run_tests(data_dir_1000, gamsfile_1000, resultsdir_1000, lslfile_1000, segnames_1000, rcp_1000)
 
-for i in 1:20
-    @time model_driver(data_dir, lslfile, segnames)
-end
 # Averages 1.9-2.2 seconds, 21.83 M allocations; 530.734 MiB; 22-31% gc time per run
-h = model_driver(data_dir, lslfile, segnames)
-xsc2 = prepxsc(data_dir, xscfile, segnames)
-xsc2[4]
+
 #------------------------------------------------------------------------
 # CIAM - Full version (~12000 segments)
 #------------------------------------------------------------------------
+data_dir_full = "../data/input-data"
+resultsdir_full = "../data/results/results-jl"
+lslfile_full = "lsl_rcp85_p50.csv"
+gamsfile_full = "../results/results-gams/total_mockup.csv"  # Don't have comparison data 
+rcp_full = "rcp85_p50"
 
-for i in 1:10
-    @time model_driver(data_dir, lslfile, false)
-end
+testAllsegs = run_tests(data_dir_full, gamsfile_full, resultsdir_full, lslfile_full, false, rcp_full)
 
-# Full segments: 12.4-13.9 seconds each; 217.63 M allocatons; 4.672 GiB; 23.21% gc time)
+
+#for i in 1:10
+#    @time model_driver(data_dir, lslfile, false) # TODO re-write this function 
+#end
+
+
+
+

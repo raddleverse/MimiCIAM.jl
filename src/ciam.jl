@@ -1,9 +1,20 @@
+# Catherine Ledna
+# April 20, 2018
+##------------------------------------------------------------------------
+# CIAM Model
+#------------------------------------------------------------------------
+# Implements CIAM model adapted from Diaz, 2016. 
+#------------------------------------------------------------------------
+# TODO optimalFixed variable write-outs
+# TODO multi-segment bugs
+# TODO performance optimization 
+
 using Mimi
 
 @defcomp ciam begin
     # --- Indices ---
     regions = Index()
-    segments = Index()                      # Q: Have all the segments upfront?
+    segments = Index()                      
     adaptPers = Index()
 
    

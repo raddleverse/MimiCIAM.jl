@@ -1,19 +1,15 @@
-# Testing Suite For CIAM Model Comparison
-
+# Tests For CIAM Model Comparison
+# TODO update comments
+# TODO fix result overwrite issues
 #------------------------------------------------------------------------
 # Functions
 #------------------------------------------------------------------------
-## Function to compare two vector and write results to file
-## WiP - still uses hardcoded header string
-## A and B are vectors. A is julia and B is GAMS. 
-##  metadata - rcp,level,seg,costtype
-## file is file to write to
 using DataFrames
 using Plots
 using StatPlots
 gr()
 
-function compare_outputs(A, B, metadata, file, tol=1e-5)
+function compare_outputs(A, B, header, metadata, file, tol=1e-5)
 
     # Compute pct diff
     if length(A)==length(B)
@@ -28,20 +24,12 @@ function compare_outputs(A, B, metadata, file, tol=1e-5)
         meta = string(meta, ",", metadata[i])
     end
 
-    if isfile(file)
-        option = "a"
-        header= false
-    else
-        option = "w"
-        header = true
-    end
     
     # Rank according to priority on 1-5 scale (1 worst 5 best) and write to file
-    open(file,option) do f
+    open(file,"w") do f
 
-        if header 
-            println(f,"rcp,level,seg,costtype,time,rank,pctdiff")    # TODO remove hardcoding
-        end
+        println(f,header)    
+
         for i in 1:length(pctdiff)
             if pctdiff[i] <= tol
                 rank = 6
@@ -64,55 +52,17 @@ function compare_outputs(A, B, metadata, file, tol=1e-5)
 
 end
 
-## Function to write a summary report from compare_outputs data
-## Hard-coded / specific; overwrites previous 
-function summary_report(datadir, file, outputdir)
-    data = import_comparison_data(datadir, file)
-
-    cases = unique(data[:level])
-    costtypes = unique(data[:costtype])
-    segments = unique(data[:seg])
-    rcps = unique(data[:rcp])
-
-    for i in 1:length(rcps)
-        open(joinpath(outputdir, "summary$(rcps[i]).txt"),"w") do f
-            for m in 1:length(segments)
-                
-                println(f,"RCP: $(rcps[i])\tSegment: $(segments[m])")
-                
-                for j in 1:length(cases)
-                    for k in 1:length(costtypes)    
-                        df = data[ (data[:rcp].==rcps[i]) .& (data[:seg] .== segments[m]) .& (data[:level] .== cases[j]) .& (d[:costtype].==costtypes[k]) ]
-                        if costtypes[k] != "total" && minimum(df[:rank]) <= 3
-                            maxdiff = maximum(df[:pctdiff])
-                            maxtime = df[ (df[:pctdiff] .== maxdiff) , :time ]
-                            println("$(cases[j]): $(costtypes[k]) has deviation >10%; max $(maxdiff)% at t=$(maxtime)")
-                        elseif costtypes[k]=="total"
-                            mindev = minimum(df[:pctdiff])
-                            maxdev = maximum(df[:pctdiff])
-                            println("Total: mean rank $(round(mean(df[:rank]))); mindev $(mindev); maxdev $(maxdev)")
-                        end
-
-                    end
-                end
-
-            end
-        end
-    end
-
-end
-
 # Function to run CIAM for given parameters and segment-country mapping
 # Some params are currently hard-coded
-function run_model(params, xsc, model="ciam")
+function run_model(params, xsc)
     m = Model()
     setindex(m, :time, 20)
     setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
     setindex(m, :regions, xsc[2])
     setindex(m, :segments, xsc[3])
 
-    addcomponent(m, eval(parse(model)))
-    setparameter(m, parse(model), :xsc, xsc[1])
+    addcomponent(m, ciam)
+    setparameter(m, :ciam, :xsc, xsc[1])
     setleftoverparameters(m, params)
 
     run(m)
@@ -131,48 +81,38 @@ function import_model_data(datadir, lslfile, xscfile, subset)
     # Process XSC
     xsc = prepxsc(datadir, xscfile, subset)
 
-    # Parse Main Parameters
-    # TODO switch away from using mainparams
-    mainparams = Dict{Any,Any}()
-    mainparams["data"] = params["data"]
-    mainparams["globalparams"] = params["globalparams"]
-    mainparams["ypc_usa"] = params["ypc_usa"]
-    mainparams["cci"] = params["cci"]
-    mainparams["refpopdens"] = params["refpopdens"]
-    mainparams["gtapland"] = params["gtapland"]
-    mainparams["pop"] = params["pop"]
-    mainparams["ypcc"] = params["ypcc"]
-    mainparams["at"] = params["at"]
-    mainparams["adaptOptions"] = params["adaptoptions"]
-    parse_ciam_params!(mainparams, xsc[2], xsc[3])
-    preplsl!(datadir, lslfile, subset, mainparams)
+    parse_ciam_params!(params, xsc[2], xsc[3])
+    preplsl!(datadir, lslfile, subset, params)
 
-    return(mainparams, xsc)
+    return(params, xsc)
 
 end
 
 # Function to import comparison data and store in DataFrame
 # WIP - to do -- unique header or detect header automatically
 function import_comparison_data(datadir, file)
-
     data = readtable(abspath(datadir,file))
     data = DataFrame(data)
     return(data)
 end
 
-function make_plots(plotlist,title)
+function make_plots(plotlist,title,resultsdir)
     if length(plotlist)==3
          p = plot(plotlist[1],plotlist[2],plotlist[3],layout=(3,1),legend=(:bottom))
-    else
+    elseif length(plotlist)==4
         p = plot(plotlist[1],plotlist[2],plotlist[3],plotlist[4], layout=(2,2),legend=(:bottom))
+    elseif length(plotlist)==5
+        p = plot(plotlist[1],plotlist[2],plotlist[3],plotlist[4],plotlist[5],plot(0), layout=(2,3),legend=(:bottom))
+    else
+        p = plot(plotlist[1], legend=(:bottom))
     end
-    savefig(p, "$(title)_plot.pdf")
+    savefig(p, joinpath(resultsdir,"$(title)_plot.pdf"))
 end
 
 function line_plot(gams, jl, title)
-    x = 1:20
-    p = plot(x, gams, label="GAMS",yaxis=("billion2010USD"))
-    plot!(p, x, jl, title = title, label = "Julia")
+
+    p = plot(gams, label="GAMS",yaxis=("billion2010USD"))
+    plot!(p, jl, title = title, linestyle = :dash, label = "Julia")
 
     return p
 
@@ -180,14 +120,14 @@ end
 
 # Function to write out model results to CSV file
 # m - an instance of the model
-# name - model name (e.g. CIAM); string
-# meta - model metadata -- e.g. segment name, rcp - from file
-# vars - variables to write out; string array
-# QUESTION: do we want to a) translate model variable names to results output (e.g. variable name->results dictionary?
-#   or b) change results file to use our variable names?
-function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true, name = "ciam", outfile = "results.csv")
+# RCP - string for RCP we're using; todo make automatic from lsl file
+# xsc - segment-region dictionaries
+# outputdir, outfile - where to write results to, relative to test folder
+# sumsegs - whether to sum across segments
+function write_results(m, rcp, outputdir, xsc, sumsegs = true)
 
-    meta_output = load_meta(truncate)
+    meta_output = load_meta()
+    outfile = "results_$(rcp).csv"
     header = meta_output[1]
     vardict = meta_output[2]
     protectdict = meta_output[3]
@@ -197,19 +137,22 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
 
     vars = [k for k in keys(vardict)]
 
+    open(joinpath(outputdir,outfile),"w") do g 
+        write(g, "$(header)\n")
+    end
+
     for v in vars # Iterate variables
-        d = m[parse(name), parse(v)]
+        d = m[:ciam, parse(v)]
         
         level = vardict[v][1]
         costtype = vardict[v][2]
-        println(level,costtype)
 
         s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
         
         if sumsegs
             func = x -> sum(x)
             n = 1
-            s_arr = ["$(size(d,1))segs"]
+            s_arr = ["sum$(size(d,1))segs"]
         else
             func = x -> identity(x)
             n = size(d,1)
@@ -227,16 +170,10 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
                 if level=="protect"
                     for j in 1:4
                         p = protectdict[j]
-                        pval = "$(level)$(p)"
-                        lev_arr = repeat([pval], outer = n)
+                        lev_arr = repeat([p], outer = n)
 
                         outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                            # Write results to csv
-                        if !(isfile(joinpath(outputdir,outfile)))
-                            open(joinpath(outputdir,outfile),"w") do g 
-                                write(g, "$(header)\n")
-                            end
-                        end    
+                            # Write results to csv 
              
                         open(joinpath(outputdir,outfile),"a") do g 
                             writecsv(g, outarr)
@@ -246,15 +183,9 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
                 elseif level=="retreat"
                     for j in 1:5
                         q = retreatdict[j]
-                        rval = "$(level)$(q)"
-                        lev_arr = repeat([rval], outer = n)
+                        lev_arr = repeat([q], outer = n)
 
-                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                        if !(isfile(joinpath(outputdir,outfile)))
-                            open(joinpath(outputdir,outfile),"w") do g 
-                                write(g, "$(header)\n")
-                            end
-                        end    
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
             
                         open(joinpath(outputdir,outfile),"a") do g 
                             writecsv(g, outarr)
@@ -265,12 +196,6 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
                     lev_arr = repeat([level], outer = n)
                     outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
 
-                    if !(isfile(joinpath(outputdir,outfile)))
-                        open(joinpath(outputdir,outfile),"w") do g 
-                            write(g, "$(header)\n")
-                        end
-                    end    
-         
                     open(joinpath(outputdir,outfile),"a") do g 
                         writecsv(g, outarr)
                     end
@@ -284,24 +209,16 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
 
                     if level=="protect"
                         p = protectdict[j]
-                        pval = "$(level)$(p)"
-                        lev_arr = repeat([pval], outer = n)
+                        lev_arr = repeat([p], outer = n)
 
                     elseif level=="retreat"
                         q = retreatdict[j]
-                        rval = "$(level)$(q)"
-                        lev_arr = repeat([rval], outer = n)
+                        lev_arr = repeat([q], outer = n)
                     else
                         lev_arr = repeat([level], outer = n)
                     end
 
                     outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                    
-                    if !(isfile(joinpath(outputdir,outfile)))
-                        open(joinpath(outputdir,outfile),"w") do g 
-                            write(g, "$(header)\n")
-                        end
-                    end    
                  
                     open(joinpath(outputdir,outfile),"a") do g 
                         writecsv(g, outarr)
@@ -315,48 +232,32 @@ function write_results(m, rcp, outputdir, xsc, truncate = false, sumsegs = true,
 
 end
 
-function load_meta(truncate)
+function load_meta()
     metadir = "../data/meta"
 
     # Read header and mappings
-    f = open(joinpath(metadir,"header.txt"))  # TODO define _HEADER_ path or similar a la GCAM data system
-    header = readstring(f)
-    close(f)
+    header = readstring(open(joinpath(metadir,"header.txt")))
 
-    if truncate==true
-        vn = "variablenamestruncated.csv"
-        println("ok")
-    else
-        vn = "variablenames.csv"
-    end
-
-    f = open(joinpath(metadir,vn))
-    varnames = readlines(f)
-    close(f)
+    varnames = readlines(open(joinpath(metadir,"variablenames.csv")))
     vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
 
-    f = open(joinpath(metadir, "protectlevelmapping.csv"))
-    protect = readlines(f)
-    close(f)
-    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => parse(Int,split(protect[i],',')[2]) for i in 1:length(protect))
+    protect = readlines(open(joinpath(metadir, "protectlevels.csv")))
+    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => split(protect[i],',')[2] for i in 1:length(protect))
 
-    f = open(joinpath(metadir, "retreatlevelmapping.csv")) 
-    retreat = readlines(f)
-    close(f)
-    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => parse(Int,split(retreat[i],',')[2]) for i in 1:length(retreat))
+    retreat = readlines(open(joinpath(metadir, "retreatlevels.csv")))
+    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => split(retreat[i],',')[2] for i in 1:length(retreat))
 
     return(header,vardict, protectdict, retreatdict)
 end
 
 
-# Function to run tests for model
+# Function to run tests for model and make plots
 # WIP - hardcoded strings 
-# Output - 
-# datadir - directory where data is located; resultsdir - output directory
+# datadir - directory where data is located; 
+# resultsdir - output directory
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
-# rcps - vector of string rcp values to test
-# variables - list of variables to compare and output (strings)
-function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcp, model=false)
+# rcp - string rcp value to test
+function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, model=true, conv_factor = 1e-4)
     # Import model data
     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
@@ -364,94 +265,75 @@ function run_tests(datadir, gamsfile, jlfile, resultsdir, lslfile, subset, rcp, 
 
     # Import GAMS Data
     gamsdata = import_comparison_data(datadir, gamsfile)
+
+    # Load Metadata
+    metavars = load_meta()
     
-    # Run model for desired rcp and output results
-    # TODO
-    # if julia results file exists already will append to it; need to distinguish
-    modellist = []
+    # Run model if specified
+    if model
 
+        m = run_model(params, xsc)
 
-        # Run model if specified
-        if model!= false
-            m = run_model(params, xsc, model)
-            push!(modellist,m)
+        if (length(subset)>5 || subset==false)
+            sum = true
+        else
+            sum = false
         end
 
-        # Compare and ouptut results
-        jldata = import_comparison_data(datadir, jlfile) # TODO - distinct outputs for each model run
+        write_results(m, rcp, resultsdir, xsc, sum)
+    end
 
-        cases = ["retreat1","retreat10","retreat100","retreat1000","retreat10000","noAdaptation","protect10",
-                    "protect100","protect1000","protect10000","optimalfixed"]                     # Todo variable-length
-        variables = ["protection","inundation","relocation","storms","total"]    # Todo hardcoded 
-        
+    # Compare and ouptut results
+    jldata = import_comparison_data(resultsdir, "results_$(rcp).csv") # TODO - distinct outputs for each model run
+    levels = readlines(open("../data/meta/levels.csv"))                  
+    variables = unique([v[2] for v in values(metavars[2])])
+    segments = unique(jldata[:seg])
 
-        for j in 1:length(cases)
-            plotlist = []
-            if cases[j]=="optimalfixed"
-                metadata=[rcp[i],"optimalfixed","Philippines10615","total"]
-                A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== "total"), :value] / 10 * .001
-                B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== "total"), :value][2:end]
-                compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
+    for j in 1:length(levels)
+        plotlist = []
+        for k in 1:length(variables)
 
-                # Make plots
-                title = string("Optimal fixed total")
-                p = line_plot(B, A, title)
-                savefig(p,"optimalfixed.pdf")
-
+            # Skip incompatible combinations
+            if (contains(levels[j], "retreat")|| levels[j]=="noAdaptation") && variables[k]=="protection"
+                continue
+            elseif contains(levels[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
+                continue
+            elseif (levels[j]=="optimalFixed") && (variables[k] != "total") # TODO update this 
+                continue
             else
-                for k in 1:length(variables)
+        
+                if sum
+                    A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]), :value]
+                    B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
 
-                    # Skip incompatible combinations
-                    if (contains(cases[j], "retreat")|| cases[j]=="noAdaptation") && variables[k]=="protection"
-                        continue
-                    elseif contains(cases[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
-                        continue
-                    else
-                        metadata=[rcp[i],cases[j],"Philippines10615",variables[k]]
-                        A = jldata[ (jldata[:level] .== cases[j]) .& (jldata[:costtype] .== variables[k]), :value] / 10 * .001
-                        B = gamsdata[ (gamsdata[:level] .== cases[j]) .& (gamsdata[:costtype] .== variables[k]), :value][2:end]
-                        compare_outputs(A,B,metadata,joinpath(resultsdir,"comparison.csv"))
-    
+                     # Make plots
+                     title = string(unique(jldata[:seg])[1], variables[k])
+                     p = line_plot(B, A, title)
+                     push!(plotlist, p)
+                else
+                    for s in segments
+                        A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]) .& (jldata[:seg] .== s), :value] 
+                        B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]) .& (gamsdata[:seg].==s), :value]
+
                         # Make plots
-                        title = string(cases[j], " ", variables[k])
+                        title = string(s,variables[k])
                         p = line_plot(B, A, title)
                         push!(plotlist, p)
                     end
-                
-                 end
-                 make_plots(plotlist,cases[j])
+
+                end        
             end
-
-
-
+                
+        end
+        make_plots(plotlist,"$(rcp)_$(levels[j])", resultsdir)
     end
-  #  summary_report(resultsdir, "comparison.csv", resultsdir)
 
-    if model != false
-          return modellist 
+    if model
+          return m 
     else 
         return nothing
     end
 
 end
 
-function run_and_write_model(datadir, resultsdir, lslfile, subset, rcp, truncate, sum)
-    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
-    params = modelparams[1]
-    xsc = modelparams[2]
 
-    m = run_model(params, xsc, "ciam")
-    write_results(m, rcp, resultsdir, xsc,truncate,sum, "ciam", "results$(rcp).csv")
-    return m
-
-end
-
-function model_driver(datadir, lslfile, subset)
-    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
-    params = modelparams[1]
-    xsc = modelparams[2]
-
-    m = run_model(params, xsc, "ciam")
-    return m
-
-end
