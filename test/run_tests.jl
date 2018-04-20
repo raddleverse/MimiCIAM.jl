@@ -23,7 +23,7 @@ resultsdirphl = "../data/results/results-jl"
 segnames_phl = ["Philippines10615"]
 rcp_phl = "rcp0_p50"
 
-test1seg = run_tests(data_dir_phl, gamsfilephl, resultsdirphl, lslfilephl, segnames_phl, rcp_phl)
+test1seg = run_tests(data_dir_phl, gamsfilephl, resultsdirphl, lslfilephl, segnames_phl, rcp_phl,"Phl")
 
 #------------------------------------------------------------------------
 # CIAM - Multisegment version (1000 segments)
@@ -33,10 +33,10 @@ resultsdir_1000 = "../data/results/results-jl"
 lslfile_1000 = "lsl_rcp85_p50.csv"
 gamsfile_1000 = "../results/results-gams/globalCostBcomp.csv"
 
-segnames_1000 = readlines(open("../test-data-delavane/segmentnames.csv"))
+segnames_1000 = readlines(open("../data/segmentnames.csv"))
 rcp_1000 = "rcp85_p50"
 
-test1000segs = run_tests(data_dir_1000, gamsfile_1000, resultsdir_1000, lslfile_1000, segnames_1000, rcp_1000)
+test1000segs = run_tests(data_dir_1000, gamsfile_1000, resultsdir_1000, lslfile_1000, segnames_1000, rcp_1000,"1000")
 
 # Averages 1.9-2.2 seconds, 21.83 M allocations; 530.734 MiB; 22-31% gc time per run
 
@@ -49,7 +49,7 @@ lslfile_full = "lsl_rcp85_p50.csv"
 gamsfile_full = "../results/results-gams/total_mockup.csv"  # Don't have comparison data 
 rcp_full = "rcp85_p50"
 
-testAllsegs = run_tests(data_dir_full, gamsfile_full, resultsdir_full, lslfile_full, false, rcp_full)
+testAllsegs = run_tests(data_dir_full, gamsfile_full, resultsdir_full, lslfile_full, false, rcp_full,"full")
 
 
 #for i in 1:10

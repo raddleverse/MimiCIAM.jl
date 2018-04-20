@@ -297,6 +297,12 @@ function run_timestep(s::ciam, t::Int)
                                 p.capmovefactor * p.mobcapfrac * v.capital[m,i] + p.democost * (1 - p.mobcapfrac) * v.capital[m,i])
                         end
                             
+                        # Put all costs into $Billions and divide by 10
+                        v.WetlandNoAdapt[m,i] = v.WetlandNoAdapt[m,i] * 1e-4
+                        v.FloodNoAdapt[m,i] = v.FloodNoAdapt[m,i] * 1e-4
+                        v.RelocateNoAdapt[m,i] = v.RelocateNoAdapt[m,i] * 1e-4
+                        v.StormNoAdapt[m, i] = v.StormNoAdapt[m, i] * 1e-4
+
                         v.NoAdaptCost[m,i] = v.WetlandNoAdapt[m,i] + v.FloodNoAdapt[m,i] +  v.RelocateNoAdapt[m,i] + v.StormNoAdapt[m, i]
     
 
@@ -320,12 +326,12 @@ function run_timestep(s::ciam, t::Int)
 
                         v.FloodRetreat[m,t,i] = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) +          
                             max(0,calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
-                            (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t])
+                            (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t]) * 1e-4
 
                         v.RelocateRetreat[m,t,i] = (p.tstep / atstep) * 
                             max(0, calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
                             (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
-                            p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t])
+                            p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t]) * 1e-4
        
 
                         if p.adaptOptions[i] >= 10
@@ -339,7 +345,7 @@ function run_timestep(s::ciam, t::Int)
 
                             v.Construct[m,t,i-1] = (p.tstep/atstep) * 
                                 (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
-                                p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep)
+                                p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep) * 1e-4
                                 
                         end
 
@@ -354,6 +360,10 @@ function run_timestep(s::ciam, t::Int)
 
                             v.FloodRetreat[m, j, i] = v.FloodRetreat[m, t, i]
                             v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,t,i]
+
+                            # Put all other costs intp $Billions from $M and divide by 10
+                           v.StormRetreat[m,j,i]  = v.StormRetreat[m,j,i]  * 1e-4
+                            v.WetlandRetreat[m,j] = v.WetlandRetreat[m,j] * 1e-4
                                     
                             v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j,i] + v.WetlandRetreat[m,j]
                             
@@ -367,6 +377,10 @@ function run_timestep(s::ciam, t::Int)
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                 
                                 v.Construct[m,j,i-1] = v.Construct[m, t, i-1]
+
+                                # Put all other costs intp $Billions from $M and divide by 10
+                                v.WetlandProtect[m,j] = v.WetlandProtect[m,j] * 1e-4
+                                v.StormProtect[m,j,i-1] = v.StormProtect[m,j,i-1] * 1e-4
                                                 
                                 v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
 

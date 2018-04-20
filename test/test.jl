@@ -1,6 +1,6 @@
 # Tests For CIAM Model Comparison
 # TODO update comments
-# TODO fix result overwrite issues
+
 #------------------------------------------------------------------------
 # Functions
 #------------------------------------------------------------------------
@@ -124,10 +124,10 @@ end
 # xsc - segment-region dictionaries
 # outputdir, outfile - where to write results to, relative to test folder
 # sumsegs - whether to sum across segments
-function write_results(m, rcp, outputdir, xsc, sumsegs = true)
+function write_results(m, rcp, outputdir, xsc, tag, sumsegs = true)
 
     meta_output = load_meta()
-    outfile = "results_$(rcp).csv"
+    outfile = "results_$(rcp)_$(tag).csv"
     header = meta_output[1]
     vardict = meta_output[2]
     protectdict = meta_output[3]
@@ -164,7 +164,7 @@ function write_results(m, rcp, outputdir, xsc, sumsegs = true)
             cost_arr = repeat([costtype], outer = n)
 
             if typeof(d)==Array{Float64,2}
-                val = d[:,i] / 10 * .001
+                val = d[:,i] 
                 v_arr = func(val)
 
                 if level=="protect"
@@ -204,7 +204,7 @@ function write_results(m, rcp, outputdir, xsc, sumsegs = true)
 
             elseif typeof(d)==Array{Float64,3}
                 for j in 1:size(d,3)
-                    val = d[:,i,j] / 10 * .001
+                    val = d[:,i,j] 
                     v_arr = func(val)
 
                     if level=="protect"
@@ -257,7 +257,7 @@ end
 # resultsdir - output directory
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcp - string rcp value to test
-function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, model=true, conv_factor = 1e-4)
+function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, model=true)
     # Import model data
     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
@@ -280,11 +280,11 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, model=tr
             sum = false
         end
 
-        write_results(m, rcp, resultsdir, xsc, sum)
+        write_results(m, rcp, resultsdir, xsc, tag, sum)
     end
 
     # Compare and ouptut results
-    jldata = import_comparison_data(resultsdir, "results_$(rcp).csv") # TODO - distinct outputs for each model run
+    jldata = import_comparison_data(resultsdir, "results_$(rcp)_$(tag).csv") # TODO - distinct outputs for each model run
     levels = readlines(open("../data/meta/levels.csv"))                  
     variables = unique([v[2] for v in values(metavars[2])])
     segments = unique(jldata[:seg])
@@ -307,7 +307,7 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, model=tr
                     B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
 
                      # Make plots
-                     title = string(unique(jldata[:seg])[1], variables[k])
+                     title = string(variables[k])
                      p = line_plot(B, A, title)
                      push!(plotlist, p)
                 else
@@ -325,7 +325,7 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, model=tr
             end
                 
         end
-        make_plots(plotlist,"$(rcp)_$(levels[j])", resultsdir)
+        make_plots(plotlist,"$(rcp)_$(levels[j])_$(tag)", resultsdir)
     end
 
     if model
