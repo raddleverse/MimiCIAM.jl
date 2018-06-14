@@ -374,7 +374,7 @@ function run_timestep(s::ciam, t::Int)
 
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
                                         
-                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
+                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[m, j])) / 
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[m, j, i-1] - p.lslr[m,j])))) *
                                                         (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
                                 
