@@ -277,7 +277,9 @@ function run_timestep(s::ciam, t::Int)
  
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
-                        v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] )) * 
+                        R_NoAdapt = max(0, p.lslr[m,i])
+
+                        v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[m,i])))) * 
                                 (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[rgn_ind, i] * p.floodmortality)
                             
                         v.WetlandNoAdapt[m,i] = p.tstep * v.wetlandservice[rgn_ind, i] * v.wetlandloss[m, i] * 
