@@ -171,51 +171,46 @@ end
 # Function to process the segment-country mapping file (xsc) in CIAM
 #   Reads from CSV, outputs list of dictionaries and arrays
 #   Filters xsc file to desired segments/regions
-function prepxsc(data_dir, xscfile,subset)  
-    # Returns regions (rgns), segments (segs), dictionary translating segment index
-    #   to region index (xsc_ind), and dictionary translating segment name to region name (xsc_out)
+function prepxsc(data_dir, xscfile, subset)
 
-    # Create segment-region mapping (string version)
-    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir,xscfile), ',' ))
-    xsc_char = Dict{Any,Any}( xsc_params["xsc"][i,1] => xsc_params["xsc"][i,2] for i in 1:size(xsc_params["xsc"],1))
-    
-    # Subset dictionary according to list of desired segments or regions
+    xsc_name = replace(xscfile, ".csv","") # Strip ".csv" from file name
+
+    # Read in csv and convert to dictionary format 
+    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir, xscfile), ',' ))
+    xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3]) for i in 1:size(xsc_params[xsc_name],1))
+
+    # If only a subset of segments is used, filter down to relevant segments
     if subset!=false
-        subset_sorted = sort(subset)
-        xsc_out = Dict{Any,Any}()
-        for k in keys(xsc_char)
-            if k in subset
-                xsc_out[k] = xsc_char[k]
-            end
-        end
-    else
-        xsc_out = xsc_char
+        filter!((k,v)-> k in subset, xsc_char)
     end
 
     # Create region and segment indices
-    rgns = sort(unique(collect(values(xsc_out))))
-    segs = sort(unique(collect(keys(xsc_out))))
-    
-    # # Map segment index to region index
-    # # Also create seg -> number, rgn -> number dictionary
-    xsc_ind = Dict{Any,Any}() # numeric seg -> numeric rgn
-    xsc_segmap = Dict{Any,Any}() # Numeric seg/rgn -> char seg/rgn
+    rgns = sort(unique([i[1] for i in collect(values(xsc_char))]))
+    segs = sort(unique(collect(keys(xsc_char))))
+
+    xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool)
+    xsc_segmap = Dict{Any,Any}()   # Numeric seg/rgn -> char seg/rgn
     xsc_rgnmap = Dict{Any,Any}()
+   
     for i in 1:length(segs)
-        r = xsc_char[segs[i]]
-        r_ind = findind(r, rgns)
+        r = xsc_char[segs[i]][1]   # Region character
+        grn = xsc_char[segs[i]][2] # 0 = non-Greenland, 1 = greenland bool 
+        r_ind = findind(r, rgns)   # Region index 
+        
+        new_val = (r_ind, grn)     # New tuple w/ region index instead of character
         
         # Build XSC Seg/rgn Maps
-        r2 = rgns[r_ind]
-        s = segs[i]
+        r2 = rgns[r_ind]           # New region char
+        s = segs[i]                
         xsc_segmap[i] = s
         if !(r2 in values(xsc_rgnmap))
             xsc_rgnmap[r_ind] = r2
         end
-
-        xsc_ind[i] = r_ind
+   
+        xsc_ind[i] = new_val
     end
-    return (xsc_ind, rgns, segs, xsc_out, xsc_rgnmap, xsc_segmap)
+   
+    return (xsc_ind, rgns, segs, xsc_char, xsc_rgnmap, xsc_segmap)
 
 end
 

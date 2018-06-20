@@ -257,7 +257,7 @@ end
 # resultsdir - output directory
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcp - string rcp value to test
-function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, model=true)
+function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, model=true, sum = false)
     # Import model data
     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
     params = modelparams[1]
@@ -274,11 +274,11 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, mod
 
         m = run_model(params, xsc)
 
-        if (length(subset)>5 || subset==false)
-            sum = true
-        else
-            sum = false
-        end
+     #   if (length(subset)>5 || subset==false)
+     #       sum = true
+     #   else
+     #       sum = false
+      #  end
 
         write_results(m, rcp, resultsdir, xsc, tag, sum)
     end
@@ -336,4 +336,17 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, mod
 
 end
 
+
+function run_model_only(datadir, lslfile, subset)
+     # Import model data
+     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
+     params = modelparams[1]
+     xsc = modelparams[2]
+ 
+   #  return modelparams
+     m = run_model(params, xsc)
+
+     return m
+
+end
 
