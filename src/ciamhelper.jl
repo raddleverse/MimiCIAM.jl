@@ -13,7 +13,7 @@ using Distributions
 # Function to load CIAM parameters from CSV to dictionary
 #   data_dir = relative path to data location
 function load_ciam_params()
-    data_dir = "../data/input-data"
+    data_dir = "../data/input"
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
@@ -27,7 +27,7 @@ end
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
 function preplsl!(lslfile,subset, params)
-    data_dir = "../data/input-data"
+    data_dir = "../data/input"
     lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
 
     # Filter LSL according to subset segments
@@ -168,7 +168,7 @@ end
 #   Filters xsc file to desired segments/regions
 function prepxsc(subset)
 
-    data_dir = "../data/input-data"
+    data_dir = "../data/input"
     xscfile = "xsc.csv"
     xsc_name = replace(xscfile, ".csv","") # Strip ".csv" from file name
 
