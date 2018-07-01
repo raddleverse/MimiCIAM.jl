@@ -1,12 +1,10 @@
 # Catherine Ledna
-# April 20, 2018
+# June 30, 2018
 ##------------------------------------------------------------------------
 # CIAM Model
 #------------------------------------------------------------------------
 # Implements CIAM model adapted from Diaz, 2016. 
 #------------------------------------------------------------------------
-# TODO optimalFixed variable write-outs
-# TODO multi-segment bugs
 # TODO performance optimization 
 
 using Mimi
@@ -277,14 +275,14 @@ function run_timestep(s::ciam, t::Int)
 
         # Determine length of adaptation period ("atstep")
         g(c) = c == t
-        at_index = find(g, p.at)[1] # WEIRD - changing to g solved issue
-        at_index_next = at_index + 1
+        at_index = find(g, p.at)[1] # Find index corresponding to adaptation period in p.at
+        at_index_next = at_index + 1    # Find index corresponding to next adaptation period
         at_index_prev = max(1,at_index - 1)
         
         at_prev = Int(p.at[at_index_prev])      # TODO pick one - either index into vector or use the period, it's confusing
 
         if at_index_next <= length(p.at)
-            atstep = (p.at[at_index_next] - p.at[at_index])*p.tstep   # years
+            atstep = (p.at[at_index_next] - p.at[at_index])*p.tstep   # In years
             at_next = Int(p.at[at_index_next])  
             last_t = at_next-1
             last = 0
@@ -375,10 +373,15 @@ function run_timestep(s::ciam, t::Int)
                                 Hprev = v.H[m, convert(Int,p.at[at_index_prev]),i-1]
                             end
 
-
+                            # Island protection costs are higher
+                            if isisland(m,p.xsc)==1
+                                pc = 2*p.pc0*p.cci[rgn_ind]
+                            else
+                                pc = p.pc0 * p.cci[rgn_ind]
+                            end
 
                             v.Construct[m,t,i-1] = (p.tstep/atstep) * 
-                                (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
+                                (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
                                 p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep) * 1e-4
                                 
                         end
@@ -517,6 +520,11 @@ end
 function isgreenland(seg_ind, xsc)
     greenland = xsc[seg_ind][2]
     return greenland
+end
+
+function isisland(seg_ind, xsc)
+    island = xsc[seg_ind][3]
+    return island
 end
 
 function calcHorR(option, level, lslrPlan, surgeExpLevels, adaptOptions)

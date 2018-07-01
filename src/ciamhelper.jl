@@ -5,12 +5,15 @@
 #------------------------------------------------------------------------
 # Assorted functions to process CIAM data and run CIAM model
 #------------------------------------------------------------------------
+include("ciam.jl")
 
+using Mimi
 using Distributions
 
 # Function to load CIAM parameters from CSV to dictionary
 #   data_dir = relative path to data location
-function load_ciam_params(data_dir)
+function load_ciam_params()
+    data_dir = "../data/input-data"
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
@@ -20,18 +23,20 @@ end
 
 # Function to read in LSLR from file and filter to desired set of segments
 #   Modifies input parameter dictionary
+# lslfile - string; name of lslr file to use; location relative to data/input-data directory
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
-function preplsl!(data_dir,lslfile,subset, params)
+function preplsl!(lslfile,subset, params)
+    data_dir = "../data/input-data"
     lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
 
     # Filter LSL according to subset segments
     p = lsl_params["lslr"]
-    p_new = p[2:end,:]
+    p_new = p[2:end,:]  # Chomp off first row 
     row_order = sortperm(p_new[:,1])
     p_new = p_new[row_order,1:end]
 
-    if subset != false
+    if subset != false # TODO use filter! function instead like in prepxsc
         s = p_new[:,1]
         ind_s = filter_index(s,subset)
         p_new = p_new[ind_s,2:end]
@@ -158,26 +163,18 @@ function filter_index(v1, v2)
     return(out)
 end
 
-function transpose_string_matrix(mat)
-    # Utility function to manually transpose a matrix composed of non-numeric types
-    nmat = vec(mat[1,:])
-    for i in collect(2:size(mat,1))
-        col = mat[i,:]
-        nmat = hcat(nmat,col)
-    end 
-    return nmat   
-end
-
 # Function to process the segment-country mapping file (xsc) in CIAM
 #   Reads from CSV, outputs list of dictionaries and arrays
 #   Filters xsc file to desired segments/regions
-function prepxsc(data_dir, xscfile, subset)
+function prepxsc(subset)
 
+    data_dir = "../data/input-data"
+    xscfile = "xsc.csv"
     xsc_name = replace(xscfile, ".csv","") # Strip ".csv" from file name
 
     # Read in csv and convert to dictionary format 
     xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir, xscfile), ',' ))
-    xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3]) for i in 1:size(xsc_params[xsc_name],1))
+    xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3], xsc_params[xsc_name][i,4]) for i in 1:size(xsc_params[xsc_name],1))
 
     # If only a subset of segments is used, filter down to relevant segments
     if subset!=false
@@ -195,9 +192,10 @@ function prepxsc(data_dir, xscfile, subset)
     for i in 1:length(segs)
         r = xsc_char[segs[i]][1]   # Region character
         grn = xsc_char[segs[i]][2] # 0 = non-Greenland, 1 = greenland bool 
+        isl = xsc_char[segs[i]][3] # 0 = non-island, 1 = island bool 
         r_ind = findind(r, rgns)   # Region index 
         
-        new_val = (r_ind, grn)     # New tuple w/ region index instead of character
+        new_val = (r_ind, grn, isl)     # New tuple w/ region index instead of character
         
         # Build XSC Seg/rgn Maps
         r2 = rgns[r_ind]           # New region char
@@ -224,6 +222,54 @@ function findind(val, vec)
 
 end
 
+# Function to run CIAM for given parameters and segment-country mapping
+# Some params are currently hard-coded
+function run_model(params, xsc)
+    m = Model()
+    setindex(m, :time, 20)
+    setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
+    setindex(m, :regions, xsc[2])
+    setindex(m, :segments, xsc[3])
+
+    addcomponent(m, ciam)
+    setparameter(m, :ciam, :xsc, xsc[1])
+    setleftoverparameters(m, params)
+
+    run(m)
+
+    return m
+end
+
+
+# Wrapper for importing model data.
+# lslfile - filename for lsl (string)
+# subset - filename with names of segments to use (string) or false (bool) to run all segments
+function import_model_data(lslfile, subset)
+    # Process main and lsl params
+    params = load_ciam_params()
+     
+    # Process XSC (segment-country mapping dictionary)
+    xsc = prepxsc(subset)
+
+    # Process params using xsc and format lsl file
+    parse_ciam_params!(params, xsc[2], xsc[3])
+    preplsl!(lslfile, subset, params)
+
+    return(params, xsc)
+
+end
+
+function get_ciam(lslfile, subset)
+    # Import model data
+    modelparams = import_model_data(lslfile,subset)
+    params = modelparams[1]
+    xsc = modelparams[2]
+     
+    m = run_model(params, xsc)
+    
+    return m
+
+end
 
 
 

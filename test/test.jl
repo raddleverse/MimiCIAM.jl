@@ -52,24 +52,6 @@ function compare_outputs(A, B, header, metadata, file, tol=1e-5)
 
 end
 
-# Function to run CIAM for given parameters and segment-country mapping
-# Some params are currently hard-coded
-function run_model(params, xsc)
-    m = Model()
-    setindex(m, :time, 20)
-    setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
-    setindex(m, :regions, xsc[2])
-    setindex(m, :segments, xsc[3])
-
-    addcomponent(m, ciam)
-    setparameter(m, :ciam, :xsc, xsc[1])
-    setleftoverparameters(m, params)
-
-    run(m)
-
-    return m
-end
-
 # Wrapper for importing model data. Not generalizable; hard-coded names; WIP
 # datadir - data directory
 # lslfile - filename for lsl (string)
@@ -284,49 +266,49 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, mod
     end
 
     # Compare and ouptut results
-    jldata = import_comparison_data(resultsdir, "results_$(rcp)_$(tag).csv") # TODO - distinct outputs for each model run
-    levels = readlines(open("../data/meta/levels.csv"))                  
-    variables = unique([v[2] for v in values(metavars[2])])
-    segments = unique(jldata[:seg])
+    # jldata = import_comparison_data(resultsdir, "results_$(rcp)_$(tag).csv") # TODO - distinct outputs for each model run
+    # levels = readlines(open("../data/meta/levels.csv"))                  
+    # variables = unique([v[2] for v in values(metavars[2])])
+    # segments = unique(jldata[:seg])
 
-    for j in 1:length(levels)
-        plotlist = []
-        for k in 1:length(variables)
+    # for j in 1:length(levels)
+    #     plotlist = []
+    #     for k in 1:length(variables)
 
-            # Skip incompatible combinations
-            if (contains(levels[j], "retreat")|| levels[j]=="noAdaptation") && variables[k]=="protection"
-                continue
-            elseif contains(levels[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
-                continue
-            elseif (levels[j]=="optimalFixed") && (variables[k] != "total") # TODO update this 
-                continue
-            else
+    #         # Skip incompatible combinations
+    #         if (contains(levels[j], "retreat")|| levels[j]=="noAdaptation") && variables[k]=="protection"
+    #             continue
+    #         elseif contains(levels[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
+    #             continue
+    #         elseif (levels[j]=="optimalFixed") && (variables[k] != "total") # TODO update this 
+    #             continue
+    #         else
         
-                if sum
-                    A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]), :value]
-                    B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
+    #             if sum
+    #                 A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]), :value]
+    #                 B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
 
-                     # Make plots
-                     title = string(variables[k])
-                     p = line_plot(B, A, title)
-                     push!(plotlist, p)
-                else
-                    for s in segments
-                        A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]) .& (jldata[:seg] .== s), :value] 
-                        B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]) .& (gamsdata[:seg].==s), :value]
+    #                  # Make plots
+    #                  title = string(variables[k])
+    #                  p = line_plot(B, A, title)
+    #                  push!(plotlist, p)
+    #             else
+    #                 for s in segments
+    #                     A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]) .& (jldata[:seg] .== s), :value] 
+    #                     B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]) .& (gamsdata[:seg].==s), :value]
 
-                        # Make plots
-                        title = string(s,variables[k])
-                        p = line_plot(B, A, title)
-                        push!(plotlist, p)
-                    end
+    #                     # Make plots
+    #                     title = string(s,variables[k])
+    #                     p = line_plot(B, A, title)
+    #                     push!(plotlist, p)
+    #                 end
 
-                end        
-            end
+    #             end        
+    #         end
                 
-        end
-        make_plots(plotlist,"$(rcp)_$(levels[j])_$(tag)", resultsdir)
-    end
+    #     end
+    #     make_plots(plotlist,"$(rcp)_$(levels[j])_$(tag)", resultsdir)
+    # end
 
     if model
           return m 
