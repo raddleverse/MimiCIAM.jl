@@ -11,7 +11,6 @@ using Mimi
 using Distributions
 
 # Function to load CIAM parameters from CSV to dictionary
-#   data_dir = relative path to data location
 function load_ciam_params()
     data_dir = "../data/input"
     files = readdir(data_dir)
@@ -267,8 +266,139 @@ function get_ciam(lslfile, subset)
      
     m = run_model(params, xsc)
     
-    return m
+    return (m, xsc)
 
+end
+
+function load_meta()
+    metadir = "../data/meta"
+
+    # Read header and mappings
+    header = readstring(open(joinpath(metadir,"header.txt")))
+
+    varnames = readlines(open(joinpath(metadir,"variablenames.csv")))
+    vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
+
+    protect = readlines(open(joinpath(metadir, "protectlevels.csv")))
+    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => split(protect[i],',')[2] for i in 1:length(protect))
+
+    retreat = readlines(open(joinpath(metadir, "retreatlevels.csv")))
+    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => split(retreat[i],',')[2] for i in 1:length(retreat))
+
+    return(header,vardict, protectdict, retreatdict)
+end
+
+# Function to write out model results to CSV file
+# m - an instance of the model
+# RCP - string for RCP we're using; todo make automatic from lsl file
+# xsc - segment-region dictionaries
+# outputdir, outfile - where to write results to, relative to test folder
+# sumsegs - whether to sum across segments
+function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
+    outputdir = "../output/results-jl"
+    meta_output = load_meta()
+
+    outfile = "results_$(rcp)_$(tag).csv"
+    header = meta_output[1]
+    vardict = meta_output[2]
+    protectdict = meta_output[3]
+    retreatdict = meta_output[4]
+    
+    segmap = xsc[6]
+    
+    vars = [k for k in keys(vardict)]
+    
+    open(joinpath(outputdir,outfile),"w") do g 
+        write(g, "$(header)\n")
+    end
+    
+    for v in vars # Iterate variables
+        d = m[:ciam, parse(v)]
+            
+        level = vardict[v][1]
+        costtype = vardict[v][2]
+    
+        s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
+            
+        if sumsegs
+            func = x -> sum(x)
+            n = 1
+            s_arr = ["sum$(size(d,1))segs"]
+        else
+            func = x -> identity(x)
+            n = size(d,1)
+        end
+    
+        for i in 1:size(d,2) # Iterate times (t = 1, 2, ...)
+            t = repeat([i], outer=n)
+            rcp_arr = repeat([rcp], outer= n)
+            cost_arr = repeat([costtype], outer = n)
+    
+            if typeof(d)==Array{Float64,2}
+                val = d[:,i] 
+                v_arr = func(val)
+    
+                if level=="protect"
+                    for j in 1:4
+                        p = protectdict[j]
+                        lev_arr = repeat([p], outer = n)
+    
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                                # Write results to csv 
+                 
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+    
+                    end
+                elseif level=="retreat"
+                    for j in 1:5
+                        q = retreatdict[j]
+                        lev_arr = repeat([q], outer = n)
+    
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
+                
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+                    end
+    
+                else
+                    lev_arr = repeat([level], outer = n)
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+    
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+    
+                end
+    
+            elseif typeof(d)==Array{Float64,3}
+                for j in 1:size(d,3)
+                    val = d[:,i,j] 
+                    v_arr = func(val)
+    
+                    if level=="protect"
+                        p = protectdict[j]
+                        lev_arr = repeat([p], outer = n)
+    
+                    elseif level=="retreat"
+                        q = retreatdict[j]
+                        lev_arr = repeat([q], outer = n)
+                    else
+                        lev_arr = repeat([level], outer = n)
+                    end
+    
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                     
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+    
+                end
+            end
+        end
+    end
 end
 
 

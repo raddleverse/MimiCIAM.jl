@@ -7,6 +7,7 @@
 using DataFrames
 using Plots
 using StatPlots
+include("../src/ciamhelper.jl")
 gr()
 
 function compare_outputs(A, B, header, metadata, file, tol=1e-5)
@@ -52,28 +53,10 @@ function compare_outputs(A, B, header, metadata, file, tol=1e-5)
 
 end
 
-# Wrapper for importing model data. Not generalizable; hard-coded names; WIP
-# datadir - data directory
-# lslfile - filename for lsl (string)
-# xscfile - filename for segment-country mapping (string)
-function import_model_data(datadir, lslfile, xscfile, subset)
-    # Process main and lsl params
-    params = load_ciam_params(datadir)
-     
-    # Process XSC
-    xsc = prepxsc(datadir, xscfile, subset)
-
-    parse_ciam_params!(params, xsc[2], xsc[3])
-    preplsl!(datadir, lslfile, subset, params)
-
-    return(params, xsc)
-
-end
-
 # Function to import comparison data and store in DataFrame
 # WIP - to do -- unique header or detect header automatically
-function import_comparison_data(datadir, file)
-    data = readtable(abspath(datadir,file))
+function load_data(file)
+    data = readtable(file)
     data = DataFrame(data)
     return(data)
 end
@@ -100,138 +83,6 @@ function line_plot(gams, jl, title)
 
 end
 
-# Function to write out model results to CSV file
-# m - an instance of the model
-# RCP - string for RCP we're using; todo make automatic from lsl file
-# xsc - segment-region dictionaries
-# outputdir, outfile - where to write results to, relative to test folder
-# sumsegs - whether to sum across segments
-function write_results(m, rcp, outputdir, xsc, tag, sumsegs = true)
-
-    meta_output = load_meta()
-    outfile = "results_$(rcp)_$(tag).csv"
-    header = meta_output[1]
-    vardict = meta_output[2]
-    protectdict = meta_output[3]
-    retreatdict = meta_output[4]
-
-    segmap = xsc[6]
-
-    vars = [k for k in keys(vardict)]
-
-    open(joinpath(outputdir,outfile),"w") do g 
-        write(g, "$(header)\n")
-    end
-
-    for v in vars # Iterate variables
-        d = m[:ciam, parse(v)]
-        
-        level = vardict[v][1]
-        costtype = vardict[v][2]
-
-        s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
-        
-        if sumsegs
-            func = x -> sum(x)
-            n = 1
-            s_arr = ["sum$(size(d,1))segs"]
-        else
-            func = x -> identity(x)
-            n = size(d,1)
-        end
-
-        for i in 1:size(d,2) # Iterate times (t = 1, 2, ...)
-            t = repeat([i], outer=n)
-            rcp_arr = repeat([rcp], outer= n)
-            cost_arr = repeat([costtype], outer = n)
-
-            if typeof(d)==Array{Float64,2}
-                val = d[:,i] 
-                v_arr = func(val)
-
-                if level=="protect"
-                    for j in 1:4
-                        p = protectdict[j]
-                        lev_arr = repeat([p], outer = n)
-
-                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                            # Write results to csv 
-             
-                        open(joinpath(outputdir,outfile),"a") do g 
-                            writecsv(g, outarr)
-                        end
-
-                    end
-                elseif level=="retreat"
-                    for j in 1:5
-                        q = retreatdict[j]
-                        lev_arr = repeat([q], outer = n)
-
-                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
-            
-                        open(joinpath(outputdir,outfile),"a") do g 
-                            writecsv(g, outarr)
-                        end
-                    end
-
-                else
-                    lev_arr = repeat([level], outer = n)
-                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-
-                    open(joinpath(outputdir,outfile),"a") do g 
-                        writecsv(g, outarr)
-                    end
-
-                end
-
-            elseif typeof(d)==Array{Float64,3}
-                for j in 1:size(d,3)
-                    val = d[:,i,j] 
-                    v_arr = func(val)
-
-                    if level=="protect"
-                        p = protectdict[j]
-                        lev_arr = repeat([p], outer = n)
-
-                    elseif level=="retreat"
-                        q = retreatdict[j]
-                        lev_arr = repeat([q], outer = n)
-                    else
-                        lev_arr = repeat([level], outer = n)
-                    end
-
-                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                 
-                    open(joinpath(outputdir,outfile),"a") do g 
-                        writecsv(g, outarr)
-                    end
-
-                end
-            end
-
-        end
-    end
-
-end
-
-function load_meta()
-    metadir = "../data/meta"
-
-    # Read header and mappings
-    header = readstring(open(joinpath(metadir,"header.txt")))
-
-    varnames = readlines(open(joinpath(metadir,"variablenames.csv")))
-    vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
-
-    protect = readlines(open(joinpath(metadir, "protectlevels.csv")))
-    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => split(protect[i],',')[2] for i in 1:length(protect))
-
-    retreat = readlines(open(joinpath(metadir, "retreatlevels.csv")))
-    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => split(retreat[i],',')[2] for i in 1:length(retreat))
-
-    return(header,vardict, protectdict, retreatdict)
-end
-
 
 # Function to run tests for model and make plots
 # WIP - hardcoded strings 
@@ -239,14 +90,14 @@ end
 # resultsdir - output directory
 # gamsdata,jldata - location of comparison data from GAMS/Julia (relative to datadir)
 # rcp - string rcp value to test
-function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, model=true, sum = false)
+function run_tests(gamsfile, lslfile, subset, rcp, tag, model=true, sum = false)
     # Import model data
-    modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
+    modelparams = import_model_data(lslfile,subset)
     params = modelparams[1]
     xsc = modelparams[2]
 
     # Import GAMS Data
-    gamsdata = import_comparison_data(datadir, gamsfile)
+    gamsdata = load_data(gamsfile)
 
     # Load Metadata
     metavars = load_meta()
@@ -262,53 +113,53 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, mod
      #       sum = false
       #  end
 
-        write_results(m, rcp, resultsdir, xsc, tag, sum)
+        write_ciam(m, xsc, rcp=rcp, tag=tag, sumsegs=sum)
     end
 
     # Compare and ouptut results
-    # jldata = import_comparison_data(resultsdir, "results_$(rcp)_$(tag).csv") # TODO - distinct outputs for each model run
-    # levels = readlines(open("../data/meta/levels.csv"))                  
-    # variables = unique([v[2] for v in values(metavars[2])])
-    # segments = unique(jldata[:seg])
+    jldata = load_data("../output/results-jl/results_$(rcp)_$(tag).csv") 
+    levels = readlines(open("../data/meta/levels.csv"))                  
+    variables = unique([v[2] for v in values(metavars[2])])
+    segments = unique(jldata[:seg])
 
-    # for j in 1:length(levels)
-    #     plotlist = []
-    #     for k in 1:length(variables)
+    for j in 1:length(levels)
+        plotlist = []
+        for k in 1:length(variables)
 
-    #         # Skip incompatible combinations
-    #         if (contains(levels[j], "retreat")|| levels[j]=="noAdaptation") && variables[k]=="protection"
-    #             continue
-    #         elseif contains(levels[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
-    #             continue
-    #         elseif (levels[j]=="optimalFixed") && (variables[k] != "total") # TODO update this 
-    #             continue
-    #         else
+            # Skip incompatible combinations
+            if (contains(levels[j], "retreat")|| levels[j]=="noAdaptation") && variables[k]=="protection"
+                continue
+            elseif contains(levels[j], "protect") && (variables[k]=="inundation" || variables[k]=="relocation")
+                continue
+            elseif (levels[j]=="optimalFixed") && (variables[k] != "total") # TODO update this 
+                continue
+            else
         
-    #             if sum
-    #                 A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]), :value]
-    #                 B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
+                if sum
+                    A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]), :value]
+                    B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]), :value]
 
-    #                  # Make plots
-    #                  title = string(variables[k])
-    #                  p = line_plot(B, A, title)
-    #                  push!(plotlist, p)
-    #             else
-    #                 for s in segments
-    #                     A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]) .& (jldata[:seg] .== s), :value] 
-    #                     B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]) .& (gamsdata[:seg].==s), :value]
+                     # Make plots
+                     title = string(variables[k])
+                     p = line_plot(B, A, title)
+                     push!(plotlist, p)
+                else
+                    for s in segments
+                        A = jldata[ (jldata[:level] .== levels[j]) .& (jldata[:costtype] .== variables[k]) .& (jldata[:seg] .== s), :value] 
+                        B = gamsdata[ (gamsdata[:level] .== levels[j]) .& (gamsdata[:costtype] .== variables[k]) .& (gamsdata[:seg].==s), :value]
 
-    #                     # Make plots
-    #                     title = string(s,variables[k])
-    #                     p = line_plot(B, A, title)
-    #                     push!(plotlist, p)
-    #                 end
+                        # Make plots
+                        title = string(s,variables[k])
+                        p = line_plot(B, A, title)
+                        push!(plotlist, p)
+                    end
 
-    #             end        
-    #         end
+                end        
+            end
                 
-    #     end
-    #     make_plots(plotlist,"$(rcp)_$(levels[j])_$(tag)", resultsdir)
-    # end
+        end
+        make_plots(plotlist,"$(rcp)_$(levels[j])_$(tag)", resultsdir)
+    end
 
     if model
           return m 
@@ -319,16 +170,4 @@ function run_tests(datadir, gamsfile, resultsdir, lslfile, subset, rcp, tag, mod
 end
 
 
-function run_model_only(datadir, lslfile, subset)
-     # Import model data
-     modelparams = import_model_data(datadir, lslfile,"xsc.csv", subset)
-     params = modelparams[1]
-     xsc = modelparams[2]
- 
-   #  return modelparams
-     m = run_model(params, xsc)
-
-     return m
-
-end
 
