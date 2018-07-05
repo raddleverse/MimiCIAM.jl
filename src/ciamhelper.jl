@@ -5,12 +5,14 @@
 #------------------------------------------------------------------------
 # Assorted functions to process CIAM data and run CIAM model
 #------------------------------------------------------------------------
+include("ciam.jl")
 
+using Mimi
 using Distributions
 
 # Function to load CIAM parameters from CSV to dictionary
-#   data_dir = relative path to data location
-function load_ciam_params(data_dir)
+function load_ciam_params()
+    data_dir = "../data/input"
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
@@ -20,18 +22,20 @@ end
 
 # Function to read in LSLR from file and filter to desired set of segments
 #   Modifies input parameter dictionary
+# lslfile - string; name of lslr file to use; location relative to data/input-data directory
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
-function preplsl!(data_dir,lslfile,subset, params)
+function preplsl!(lslfile,subset, params)
+    data_dir = "../data/input"
     lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
 
     # Filter LSL according to subset segments
     p = lsl_params["lslr"]
-    p_new = p[2:end,:]
+    p_new = p[2:end,:]  # Chomp off first row 
     row_order = sortperm(p_new[:,1])
     p_new = p_new[row_order,1:end]
 
-    if subset != false
+    if subset != false # TODO use filter! function instead like in prepxsc
         s = p_new[:,1]
         ind_s = filter_index(s,subset)
         p_new = p_new[ind_s,2:end]
@@ -158,64 +162,52 @@ function filter_index(v1, v2)
     return(out)
 end
 
-function transpose_string_matrix(mat)
-    # Utility function to manually transpose a matrix composed of non-numeric types
-    nmat = vec(mat[1,:])
-    for i in collect(2:size(mat,1))
-        col = mat[i,:]
-        nmat = hcat(nmat,col)
-    end 
-    return nmat   
-end
-
 # Function to process the segment-country mapping file (xsc) in CIAM
 #   Reads from CSV, outputs list of dictionaries and arrays
 #   Filters xsc file to desired segments/regions
-function prepxsc(data_dir, xscfile,subset)  
-    # Returns regions (rgns), segments (segs), dictionary translating segment index
-    #   to region index (xsc_ind), and dictionary translating segment name to region name (xsc_out)
+function prepxsc(subset)
 
-    # Create segment-region mapping (string version)
-    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir,xscfile), ',' ))
-    xsc_char = Dict{Any,Any}( xsc_params["xsc"][i,1] => xsc_params["xsc"][i,2] for i in 1:size(xsc_params["xsc"],1))
-    
-    # Subset dictionary according to list of desired segments or regions
+    data_dir = "../data/input"
+    xscfile = "xsc.csv"
+    xsc_name = replace(xscfile, ".csv","") # Strip ".csv" from file name
+
+    # Read in csv and convert to dictionary format 
+    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir, xscfile), ',' ))
+    xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3], xsc_params[xsc_name][i,4]) for i in 1:size(xsc_params[xsc_name],1))
+
+    # If only a subset of segments is used, filter down to relevant segments
     if subset!=false
-        subset_sorted = sort(subset)
-        xsc_out = Dict{Any,Any}()
-        for k in keys(xsc_char)
-            if k in subset
-                xsc_out[k] = xsc_char[k]
-            end
-        end
-    else
-        xsc_out = xsc_char
+        filter!((k,v)-> k in subset, xsc_char)
     end
 
     # Create region and segment indices
-    rgns = sort(unique(collect(values(xsc_out))))
-    segs = sort(unique(collect(keys(xsc_out))))
-    
-    # # Map segment index to region index
-    # # Also create seg -> number, rgn -> number dictionary
-    xsc_ind = Dict{Any,Any}() # numeric seg -> numeric rgn
-    xsc_segmap = Dict{Any,Any}() # Numeric seg/rgn -> char seg/rgn
+    rgns = sort(unique([i[1] for i in collect(values(xsc_char))]))
+    segs = sort(unique(collect(keys(xsc_char))))
+
+    xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool)
+    xsc_segmap = Dict{Any,Any}()   # Numeric seg/rgn -> char seg/rgn
     xsc_rgnmap = Dict{Any,Any}()
+   
     for i in 1:length(segs)
-        r = xsc_char[segs[i]]
-        r_ind = findind(r, rgns)
+        r = xsc_char[segs[i]][1]   # Region character
+        grn = xsc_char[segs[i]][2] # 0 = non-Greenland, 1 = greenland bool 
+        isl = xsc_char[segs[i]][3] # 0 = non-island, 1 = island bool 
+        r_ind = findind(r, rgns)   # Region index 
+        
+        new_val = (r_ind, grn, isl)     # New tuple w/ region index instead of character
         
         # Build XSC Seg/rgn Maps
-        r2 = rgns[r_ind]
-        s = segs[i]
+        r2 = rgns[r_ind]           # New region char
+        s = segs[i]                
         xsc_segmap[i] = s
         if !(r2 in values(xsc_rgnmap))
             xsc_rgnmap[r_ind] = r2
         end
-
-        xsc_ind[i] = r_ind
+   
+        xsc_ind[i] = new_val
     end
-    return (xsc_ind, rgns, segs, xsc_out, xsc_rgnmap, xsc_segmap)
+   
+    return (xsc_ind, rgns, segs, xsc_char, xsc_rgnmap, xsc_segmap)
 
 end
 
@@ -229,6 +221,185 @@ function findind(val, vec)
 
 end
 
+# Function to run CIAM for given parameters and segment-country mapping
+# Some params are currently hard-coded
+function run_model(params, xsc)
+    m = Model()
+    setindex(m, :time, 20)
+    setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
+    setindex(m, :regions, xsc[2])
+    setindex(m, :segments, xsc[3])
+
+    addcomponent(m, ciam)
+    setparameter(m, :ciam, :xsc, xsc[1])
+    setleftoverparameters(m, params)
+
+    run(m)
+
+    return m
+end
+
+
+# Wrapper for importing model data.
+# lslfile - filename for lsl (string)
+# subset - filename with names of segments to use (string) or false (bool) to run all segments
+function import_model_data(lslfile, subset)
+    # Process main and lsl params
+    params = load_ciam_params()
+     
+    # Process XSC (segment-country mapping dictionary)
+    xsc = prepxsc(subset)
+
+    # Process params using xsc and format lsl file
+    parse_ciam_params!(params, xsc[2], xsc[3])
+    preplsl!(lslfile, subset, params)
+
+    return(params, xsc)
+
+end
+
+function get_ciam(lslfile, subset)
+    # Import model data
+    modelparams = import_model_data(lslfile,subset)
+    params = modelparams[1]
+    xsc = modelparams[2]
+     
+    m = run_model(params, xsc)
+    
+    return (m, xsc)
+
+end
+
+function load_meta()
+    metadir = "../data/meta"
+
+    # Read header and mappings
+    header = readstring(open(joinpath(metadir,"header.txt")))
+
+    varnames = readlines(open(joinpath(metadir,"variablenames.csv")))
+    vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
+
+    protect = readlines(open(joinpath(metadir, "protectlevels.csv")))
+    protectdict = Dict{Any,Any}(parse(Int,split(protect[i],',')[1]) => split(protect[i],',')[2] for i in 1:length(protect))
+
+    retreat = readlines(open(joinpath(metadir, "retreatlevels.csv")))
+    retreatdict = Dict{Any,Any}(parse(Int,split(retreat[i],',')[1]) => split(retreat[i],',')[2] for i in 1:length(retreat))
+
+    return(header,vardict, protectdict, retreatdict)
+end
+
+# Function to write out model results to CSV file
+# m - an instance of the model
+# RCP - string for RCP we're using; todo make automatic from lsl file
+# xsc - segment-region dictionaries
+# outputdir, outfile - where to write results to, relative to test folder
+# sumsegs - whether to sum across segments
+function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
+    outputdir = "../output/results-jl"
+    meta_output = load_meta()
+
+    outfile = "results_$(rcp)_$(tag).csv"
+    header = meta_output[1]
+    vardict = meta_output[2]
+    protectdict = meta_output[3]
+    retreatdict = meta_output[4]
+    
+    segmap = xsc[6]
+    
+    vars = [k for k in keys(vardict)]
+    
+    open(joinpath(outputdir,outfile),"w") do g 
+        write(g, "$(header)\n")
+    end
+    
+    for v in vars # Iterate variables
+        d = m[:ciam, parse(v)]
+            
+        level = vardict[v][1]
+        costtype = vardict[v][2]
+    
+        s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
+            
+        if sumsegs
+            func = x -> sum(x)
+            n = 1
+            s_arr = ["sum$(size(d,1))segs"]
+        else
+            func = x -> identity(x)
+            n = size(d,1)
+        end
+    
+        for i in 1:size(d,2) # Iterate times (t = 1, 2, ...)
+            t = repeat([i], outer=n)
+            rcp_arr = repeat([rcp], outer= n)
+            cost_arr = repeat([costtype], outer = n)
+    
+            if typeof(d)==Array{Float64,2}
+                val = d[:,i] 
+                v_arr = func(val)
+    
+                if level=="protect"
+                    for j in 1:4
+                        p = protectdict[j]
+                        lev_arr = repeat([p], outer = n)
+    
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                                # Write results to csv 
+                 
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+    
+                    end
+                elseif level=="retreat"
+                    for j in 1:5
+                        q = retreatdict[j]
+                        lev_arr = repeat([q], outer = n)
+    
+                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
+                
+                        open(joinpath(outputdir,outfile),"a") do g 
+                            writecsv(g, outarr)
+                        end
+                    end
+    
+                else
+                    lev_arr = repeat([level], outer = n)
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+    
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+    
+                end
+    
+            elseif typeof(d)==Array{Float64,3}
+                for j in 1:size(d,3)
+                    val = d[:,i,j] 
+                    v_arr = func(val)
+    
+                    if level=="protect"
+                        p = protectdict[j]
+                        lev_arr = repeat([p], outer = n)
+    
+                    elseif level=="retreat"
+                        q = retreatdict[j]
+                        lev_arr = repeat([q], outer = n)
+                    else
+                        lev_arr = repeat([level], outer = n)
+                    end
+    
+                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
+                     
+                    open(joinpath(outputdir,outfile),"a") do g 
+                        writecsv(g, outarr)
+                    end
+    
+                end
+            end
+        end
+    end
+end
 
 
 

@@ -1,12 +1,10 @@
 # Catherine Ledna
-# April 20, 2018
+# June 30, 2018
 ##------------------------------------------------------------------------
 # CIAM Model
 #------------------------------------------------------------------------
 # Implements CIAM model adapted from Diaz, 2016. 
 #------------------------------------------------------------------------
-# TODO optimalFixed variable write-outs
-# TODO multi-segment bugs
 # TODO performance optimization 
 
 using Mimi
@@ -36,7 +34,7 @@ using Mimi
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
     ypcc = Parameter(index = [regions, time])          # GDP per capita per region ($2010 per capita)
     ypc_usa = Parameter(index = [time])                # GDP per capita in USA; used as benchmark ($2010 per capita)
-    
+     
     popdens_seg = Variable(index = [segments, time])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [segments, time])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
 
@@ -45,6 +43,8 @@ using Mimi
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
          
     gtapland = Parameter( index = [regions])        # GTAP land value in 2007 (million 2010$ / km^2)
+    gtapland_canada = Parameter()                   # GTAP land value in 2007 for Canada (million 2010$ / km^2)
+    fundland_canada = Parameter()                   # FUND land value in 1995 for Canada (million 2010$ / km^2)
     dvbm = Parameter()                              # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     kgdp = Parameter()                              # Capital output ratio (per MERGE) (3 by default) 
     discountrate = Parameter()                      # Discount rate (0.04 by default)
@@ -52,8 +52,11 @@ using Mimi
     
     
     landdata = Variable( index = [regions])         # Takes on value of either fundland or gtapland
+    landdata_canada = Variable()
     fundland = Variable( index = [regions])         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2), 
                                                     #   Q maybe import directly? 
+
+    land_appr_canada = Parameter(index = [time])    # Canada land appreciation rate (used for Greenland)
     land_appr = Variable(index = [regions, time])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott) 
     coastland = Variable(index = [segments, time])  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
     landvalue = Variable(index = [segments, time])  # Total endowment value of land ($2010M per sqkm)
@@ -94,7 +97,7 @@ using Mimi
 
     # ---Storm damage parameters---
     floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01) 
-    vsl = Variable(index = [regions, time])     # Value of statistica life (million 2010$)
+    vsl = Variable(index = [segments, time])     # Value of statistica life (million 2010$)
                                            
     # ---Wetland Loss Parameters---
     wbvm = Parameter()                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376) 
@@ -196,21 +199,20 @@ function run_timestep(s::ciam, t::Int)
             if p.landinput 
                 v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[r,1] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
                 v.landdata[r] = v.fundland[r]
+                v.landdata_canada = p.fundland_canada
             else
                 v.landdata[r] = p.gtapland[r]
+                v.landdata_canada = p.gtapland_canada
             end
 
-            v.land_appr[r, t] = 1.
             v.wetlandservice[r, t] = p.wbvm * ((p.ypcc[r,t] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
             v.ρ[r, t] = p.ypcc[r,t] / (p.ypcc[r,t] + p.ypc_usa[1])
-            v.vsl[r, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[r,t]/p.ypc_usa[t])^0.5
+            v.land_appr[r, t] = 1.
 
-            
             for i in collect(2:Int(p.ntsteps))
-                v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[r,i-1], p.ypcc[r,i]) + 0.313 * growthrate(p.pop[r,i-1], p.pop[r,i]))
                 v.wetlandservice[r,i] = v.land_appr[r,i] * v.wetlandservice[r,1]
                 v.ρ[r, i] = p.ypcc[r,i] / (p.ypcc[r,i] + p.ypc_usa[1]) 
-                v.vsl[r, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[r,i]/p.ypc_usa[i])^0.5  
+                v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[r,i-1], p.ypcc[r,i]) + 0.313 * growthrate(p.pop[r,i-1], p.pop[r,i]))
             end    
         end
 
@@ -219,21 +221,47 @@ function run_timestep(s::ciam, t::Int)
             rgn_ind = getregion(m, p.xsc)
  
             v.popdens_seg[m, t] = p.popdens[m]
-            v.ypc_seg[m, t] = p.ypcc[rgn_ind,t] * max(0.9, (p.popdens[m]/250.)^0.05)
-            v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens_seg[m, t] * 1e-6
-            v.coastland[m, t] = max(0.5, log(1+v.popdens_seg[m, t])/log(25)) * (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind])  # Interior * scaling factor
-            v.landvalue[m, t] = min(v.coastland[m, t], (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind]))
-            v.coastArea[m, t] = calcCoastArea(v.areaparams[m,:], p.lslr[m, t])  
 
+            # Greenland segments treated differently 
+            if isgreenland(m,p.xsc)==1
+                v.ypc_seg[m,t] =22642*1.01^t   # FLAG: assumes t is an index (1-20)
+                v.vsl[m, t] = 1e-6 * 216 * p.ypc_usa[t] * (v.ypc_seg[m,t]/p.ypc_usa[t])^0.5
+                v.coastland[m, t] = (p.land_appr_canada[t] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[m, t])/log(25))
+                v.landvalue[m, t] = min(v.coastland[m, t], (p.land_appr_canada[t] * v.landdata_canada))
+            else
+                v.ypc_seg[m, t] = p.ypcc[rgn_ind,t] * max(0.9, (p.popdens[m]/250.)^0.05)
+                v.vsl[m, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[rgn_ind,t]/p.ypc_usa[t])^0.5
+                v.coastland[m, t] = max(0.5, log(1+v.popdens_seg[m, t])/log(25)) * (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind])  # Interior * scaling factor
+                v.landvalue[m, t] = min(v.coastland[m, t], (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind]))
+            end
+
+            v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens_seg[m, t] * 1e-6
+            v.coastArea[m, t] = calcCoastArea(v.areaparams[m,:], p.lslr[m, t])  
             
-            for i in collect(2:Int(p.ntsteps))
+            
+            for i in 2:Int(p.ntsteps)      
                 v.popdens_seg[m,i] = v.popdens_seg[m, i-1] * (1 + growthrate(p.pop[rgn_ind, i-1], p.pop[rgn_ind,i])) 
-                v.ypc_seg[m, i] = p.ypcc[rgn_ind,i] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
+ 
+                # Special treatment for Greenland segments 
+                if isgreenland(m,p.xsc)==1
+                    v.ypc_seg[m,i] =22642*1.01^i   # FLAG: assumes i is an index (1-20)
+                    v.vsl[m, i] = 1e-6 * 216 * p.ypc_usa[i] * (v.ypc_seg[m,i]/p.ypc_usa[i])^0.5  
+                    v.coastland[m,i] = (p.land_appr_canada[i] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[m, i])/log(25))
+                    v.landvalue[m, i] = min(v.coastland[m, i], (p.land_appr_canada[i] * v.landdata_canada))
+
+                else
+                    v.ypc_seg[m, i] = p.ypcc[rgn_ind,i] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
+                    v.coastland[m, i] = max(0.5, log(1+v.popdens_seg[m, i])/log(25)) * (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind])
+                    v.vsl[m, i] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[rgn_ind,i]/p.ypc_usa[i])^0.5     
+                    v.landvalue[m, i] = min(v.coastland[m, i], (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind]))
+ 
+                end
+
                 v.capital[m, i] = p.kgdp * v.ypc_seg[m, i] * v.popdens_seg[m, i] * 1e-6 
-                v.coastland[m, i] = max(0.5, log(1+v.popdens_seg[m, i])/log(25)) * (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind])
-                v.landvalue[m, i] = min(v.coastland[m, i], (v.land_appr[rgn_ind, i] * v.landdata[rgn_ind]))
                 v.coastArea[m, i] = calcCoastArea(v.areaparams[m,:], p.lslr[m, i])
                 v.wetlandloss[m, i-1] = min(1, (localrate(p.lslr[m, i-1], p.lslr[m, i], p.tstep)/p.wmaxrate)^2)
+               
+
             end
 
             v.wetlandloss[m, p.ntsteps] = min(1, (localrate(p.lslr[m, p.ntsteps-1], p.lslr[m, p.ntsteps], p.tstep)/p.wmaxrate)^2)  
@@ -247,14 +275,14 @@ function run_timestep(s::ciam, t::Int)
 
         # Determine length of adaptation period ("atstep")
         g(c) = c == t
-        at_index = find(g, p.at)[1] # WEIRD - changing to g solved issue
-        at_index_next = at_index + 1
+        at_index = find(g, p.at)[1] # Find index corresponding to adaptation period in p.at
+        at_index_next = at_index + 1    # Find index corresponding to next adaptation period
         at_index_prev = max(1,at_index - 1)
         
         at_prev = Int(p.at[at_index_prev])      # TODO pick one - either index into vector or use the period, it's confusing
 
         if at_index_next <= length(p.at)
-            atstep = (p.at[at_index_next] - p.at[at_index])*p.tstep   # years
+            atstep = (p.at[at_index_next] - p.at[at_index])*p.tstep   # In years
             at_next = Int(p.at[at_index_next])  
             last_t = at_next-1
             last = 0
@@ -277,8 +305,10 @@ function run_timestep(s::ciam, t::Int)
  
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
-                        v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] )) * 
-                                (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[rgn_ind, i] * p.floodmortality)
+                        R_NoAdapt = max(0, p.lslr[m,i])
+
+                        v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[m,i])))) * 
+                                (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[m, i] * p.floodmortality)
                             
                         v.WetlandNoAdapt[m,i] = p.tstep * v.wetlandservice[rgn_ind, i] * v.wetlandloss[m, i] * 
                                 min(v.coastArea[m, i], p.wetland[m])
@@ -343,8 +373,15 @@ function run_timestep(s::ciam, t::Int)
                                 Hprev = v.H[m, convert(Int,p.at[at_index_prev]),i-1]
                             end
 
+                            # Island protection costs are higher
+                            if isisland(m,p.xsc)==1
+                                pc = 2*p.pc0*p.cci[rgn_ind]
+                            else
+                                pc = p.pc0 * p.cci[rgn_ind]
+                            end
+
                             v.Construct[m,t,i-1] = (p.tstep/atstep) * 
-                                (p.length[m] * p.pc0 * p.cci[rgn_ind] * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
+                                (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
                                 p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep) * 1e-4
                                 
                         end
@@ -356,7 +393,7 @@ function run_timestep(s::ciam, t::Int)
 
                             v.StormRetreat[m,j,i] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
                                     (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[m,j,i] - p.lslr[m, j])))) * 
-                                    (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[rgn_ind, j] * p.floodmortality)
+                                    (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[m, j] * p.floodmortality)
 
                             v.FloodRetreat[m, j, i] = v.FloodRetreat[m, t, i]
                             v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,t,i]
@@ -372,9 +409,9 @@ function run_timestep(s::ciam, t::Int)
 
                                 v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
                                         
-                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * p.lslr[m, j]) / 
+                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[m, j])) / 
                                                         (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[m, j, i-1] - p.lslr[m,j])))) *
-                                                        (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[rgn_ind, j] * p.floodmortality)
+                                                        (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[m, j] * p.floodmortality)
                                 
                                 v.Construct[m,j,i-1] = v.Construct[m, t, i-1]
 
@@ -459,7 +496,7 @@ end
 
 function getsegments(rgn_name, xsc)
 
-    segs = collect(keys(filter( (k,v) -> v==rgn_name,xsc)))
+    segs = collect(keys(filter( (k,v) -> v[1]==rgn_name,xsc)))
     return segs
 
 end
@@ -474,15 +511,20 @@ function findind(val, vec)
 
 end
 
-function getregion(seg_ind, xsc, index=true)
-    rgn = xsc[seg_ind]
+function getregion(seg_ind, xsc)
+    rgn = xsc[seg_ind][1]
     
-  #  if index
-  #      rgn_ind = index_lookup(rgn, rgnms)
-  #      return rgn_ind
-  #  end
-
     return rgn
+end
+
+function isgreenland(seg_ind, xsc)
+    greenland = xsc[seg_ind][2]
+    return greenland
+end
+
+function isisland(seg_ind, xsc)
+    island = xsc[seg_ind][3]
+    return island
 end
 
 function calcHorR(option, level, lslrPlan, surgeExpLevels, adaptOptions)

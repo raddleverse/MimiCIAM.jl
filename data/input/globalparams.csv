@@ -17,3 +17,5 @@ tstep,10
 ntsteps,20
 fixed,TRUE
 landinput,TRUE
+fundland_canada,0.162801546
+gtapland_canada,0.131428128
