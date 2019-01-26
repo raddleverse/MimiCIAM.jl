@@ -170,7 +170,7 @@ function prepxsc(subset)
 
     data_dir = "../data/input"
     xscfile = "xsc.csv"
-    xsc_name = replace(xscfile, ".csv","") # Strip ".csv" from file name
+    xsc_name = replace(xscfile, r".csv" => s"") # Strip ".csv" from file name
 
     # Read in csv and convert to dictionary format 
     xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir, xscfile), ',' ))
@@ -217,7 +217,7 @@ end
 # val - a string corresponding to value in 'vec'
 function findind(val, vec)
     h(u) = u == val
-    name_ind = find(h, vec)[1]
+    name_ind = findall(h, vec)[1]
     return name_ind
 
 end
