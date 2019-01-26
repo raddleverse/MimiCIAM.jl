@@ -173,7 +173,7 @@ using Mimi
     AdaptationLevel = Variable(index = [segments, time])      # Level of protect or retreat (if chosen)
     RegionalCost = Variable(index = [regions, time])          # Cost of adaptation at level of region
 
-    function run_timestep(p, v, d, t::Int)    
+    function run_timestep(p, v, d, t)    
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
         if t==1
           #  1. Initialize non-region dependent intermediate variables

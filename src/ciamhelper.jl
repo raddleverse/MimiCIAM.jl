@@ -9,6 +9,7 @@ include("ciam.jl")
 
 using Mimi
 using Distributions
+using DelimitedFiles
 
 # Function to load CIAM parameters from CSV to dictionary
 function load_ciam_params()
