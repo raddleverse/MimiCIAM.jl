@@ -183,7 +183,7 @@ function prepxsc(subset)
 
     # Create region and segment indices
     rgns = sort(unique([i[1] for i in collect(values(xsc_char))]))
-    segs = sort(unique(collect(keys(xsc_char))))
+    segs = string.(sort(unique(collect(keys(xsc_char)))))
 
     xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool)
     xsc_segmap = Dict{Any,Any}()   # Numeric seg/rgn -> char seg/rgn
@@ -226,14 +226,14 @@ end
 # Some params are currently hard-coded
 function run_model(params, xsc)
     m = Model()
-    setindex(m, :time, 20)
-    setindex(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
-    setindex(m, :regions, xsc[2])
-    setindex(m, :segments, xsc[3])
+    set_dimension!(m, :time, 20)
+    set_dimension!(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
+    set_dimension!(m, :regions, xsc[2])
+    set_dimension!(m, :segments, xsc[3])
 
-    addcomponent(m, ciam)
-    setparameter(m, :ciam, :xsc, xsc[1])
-    setleftoverparameters(m, params)
+    add_comp!(m, ciam)
+    set_param!(m, :ciam, :xsc, xsc[1])
+    set_leftover_params!(m, params)
 
     run(m)
 
