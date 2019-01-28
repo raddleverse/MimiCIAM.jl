@@ -41,11 +41,11 @@ function preplsl!(lslfile,subset, params)
         ind_s = filter_index(s,subset)
         p_new = p_new[ind_s,2:end]
     
-        params["lslr"] = p_new
+        params["lslr"] = Array{Float64,2}(p_new)
     else
-        params["lslr"] = p_new[:, 2:end]
+        params["lslr"] = Array{Float64,2}(p_new[:, 2:end])
     end
-    
+
 
     return params
 end
@@ -126,7 +126,8 @@ function parse_ciam_params!(params, rgn_order, seg_order)
                 error("Regions in dictionary do not match supplied regions, ", keyname)               
             else
                 newvals = p[:,2]
-                params[keyname] = newvals
+                # Coerce to Array{Float64,1}
+                params[keyname] = Array{Float64,1}(newvals)
             end
         elseif size(p,2)>3
             # Country-time data matrices
@@ -140,7 +141,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             ind = filter_index(r,rgn_order)
             p = p[ind, 2:end] 
 
-            params[keyname] = p
+            params[keyname] = Array{Float64,2}(p)
            
         elseif size(p,2)==1 && typeof(p)==Array{Float64,2}
             p_new = p[:,1]
