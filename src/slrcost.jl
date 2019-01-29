@@ -37,7 +37,6 @@ using Mimi
      
     popdens_seg = Variable(index = [segments, time])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [segments, time])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
-    test= Variable()
 
     # ---Land Parameters---  
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
@@ -116,7 +115,7 @@ using Mimi
     s100 = Parameter(index = [segments])
     s1000 = Parameter(index = [segments])
     smax = Parameter(index = [segments])
-    surgeExposure::Float64 = Variable( index = [segments, 5])     # Storm surge exposure levels (corresponding to each designated adaptation option)
+    surgeExposure::Float64 = Variable( index = [segments, 4])     # Storm surge exposure levels (corresponding to each designated adaptation option)
     
 
     # ---Coastal Area Parameters---
@@ -175,18 +174,15 @@ using Mimi
 
     function run_timestep(p, v, d, t)    
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
-        v.test= 1.
-        if isfirst(t)
+        if is_first(t)
           #  1. Initialize non-region dependent intermediate variables
     
-            for i in collect(t:Int(p.ntsteps)) 
+            for i in collect(1:Int(p.ntsteps)) 
                v.discountfactor[i] = 1/(1 + p.discountrate)^(p.tstep * (i-1))
             end
     
             # Put area parameters into an array (using Variable structure to preserve across calls)
-            v.areaparams = [p.area1 p.area2 p.area3 p.area4 p.area5 p.area6 p.area7 p.area8 p.area9 p.area10 p.area11 p.area12 p.area13 p.area14 p.area15]
-            v.surgeExposure = [zeros(length(p.s10)) p.s10 p.s100 p.s1000 p.smax] 
-    
+                
             # 2. Initialize region-dependent intermediate variables
             for r in d.regions
                 # Determine land input value (true = FUND, false = GTAP)
@@ -200,14 +196,14 @@ using Mimi
                     v.landdata_canada = p.gtapland_canada
                 end
     
-                v.wetlandservice[r, t] = p.wbvm * ((p.ypcc[r,t] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
-                v.ρ[r, t] = p.ypcc[r,t] / (p.ypcc[r,t] + p.ypc_usa[1])
-                v.land_appr[r, t] = 1.
+                v.wetlandservice[r, 1] = p.wbvm * ((p.ypcc[r,1] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
+                v.ρ[r, 1] = p.ypcc[r,1] / (p.ypcc[r,1] + p.ypc_usa[1])
+                v.land_appr[r, 1] = 1.
     
                 for i in collect(2:Int(p.ntsteps))
+                    v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[r,i-1], p.ypcc[r,i]) + 0.313 * growthrate(p.pop[r,i-1], p.pop[r,i]))
                     v.wetlandservice[r,i] = v.land_appr[r,i] * v.wetlandservice[r,1]
                     v.ρ[r, i] = p.ypcc[r,i] / (p.ypcc[r,i] + p.ypc_usa[1]) 
-                    v.land_appr[r, i] = v.land_appr[r, i-1] * exp(0.565 * growthrate(p.ypcc[r,i-1], p.ypcc[r,i]) + 0.313 * growthrate(p.pop[r,i-1], p.pop[r,i]))
                 end    
             end
     
@@ -215,23 +211,25 @@ using Mimi
             for m in d.segments
                 rgn_ind = getregion(m, p.xsc)
      
-                v.popdens_seg[m, t] = p.popdens[m]
-    
+                v.popdens_seg[m, 1] = p.popdens[m]
+                v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
+                v.surgeExposure[m,:] = [p.s10[m] p.s100[m] p.s1000[m] p.smax[m]] 
+
                 # Greenland segments treated differently 
                 if isgreenland(m,p.xsc)==1
-                    v.ypc_seg[m,t] =22642*1.01^t   # FLAG: assumes t is an index (1-20)
-                    v.vsl[m, t] = 1e-6 * 216 * p.ypc_usa[t] * (v.ypc_seg[m,t]/p.ypc_usa[t])^0.5
-                    v.coastland[m, t] = (p.land_appr_canada[t] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[m, t])/log(25))
-                    v.landvalue[m, t] = min(v.coastland[m, t], (p.land_appr_canada[t] * v.landdata_canada))
+                    v.ypc_seg[m,1] =22642*1.01^1   # FLAG: assumes t is an index (1-20)
+                    v.vsl[m, 1] = 1e-6 * 216 * p.ypc_usa[1] * (v.ypc_seg[m,1]/p.ypc_usa[1])^0.5
+                    v.coastland[m, 1] = (p.land_appr_canada[1] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[m, 1])/log(25))
+                    v.landvalue[m, 1] = min(v.coastland[m, 1], (p.land_appr_canada[1] * v.landdata_canada))
                 else
-                    v.ypc_seg[m, t] = p.ypcc[rgn_ind,t] * max(0.9, (p.popdens[m]/250.)^0.05)
-                    v.vsl[m, t] = 1e-6 * 216 * p.ypc_usa[t] * (p.ypcc[rgn_ind,t]/p.ypc_usa[t])^0.5
-                    v.coastland[m, t] = max(0.5, log(1+v.popdens_seg[m, t])/log(25)) * (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind])  # Interior * scaling factor
-                    v.landvalue[m, t] = min(v.coastland[m, t], (v.land_appr[rgn_ind, t] * v.landdata[rgn_ind]))
+                    v.ypc_seg[m, 1] = p.ypcc[rgn_ind,1] * max(0.9, (p.popdens[m]/250.)^0.05)
+                    v.vsl[m, 1] = 1e-6 * 216 * p.ypc_usa[1] * (p.ypcc[rgn_ind,1]/p.ypc_usa[1])^0.5
+                    v.coastland[m, 1] = max(0.5, log(1+v.popdens_seg[m, 1])/log(25)) * (v.land_appr[rgn_ind, 1] * v.landdata[rgn_ind])  # Interior * scaling factor
+                    v.landvalue[m, 1] = min(v.coastland[m, 1], (v.land_appr[rgn_ind, 1] * v.landdata[rgn_ind]))
                 end
     
-                v.capital[m, t] = p.kgdp * v.ypc_seg[m, t] * v.popdens_seg[m, t] * 1e-6
-                v.coastArea[m, t] = calcCoastArea(v.areaparams[m,:], p.lslr[m, t])  
+                v.capital[m, 1] = p.kgdp * v.ypc_seg[m, 1] * v.popdens_seg[m, 1] * 1e-6
+                v.coastArea[m, 1] = calcCoastArea(v.areaparams[m,:], p.lslr[m, 1])  
                 
                 
                 for i in 2:Int(p.ntsteps)      
@@ -265,12 +263,12 @@ using Mimi
     
         end
     
-        if (t in p.at)           
+        if (gettime(t) in p.at)           
             adapt_range = collect(1:length(p.adaptoptions))         
     
             # Determine length of adaptation period ("atstep")
-            g(c) = c == t
-            at_index = find(g, p.at)[1] # Find index corresponding to adaptation period in p.at
+            g(c) = c == gettime(t)
+            at_index = findall(g, p.at)[1] # Find index corresponding to adaptation period in p.at
             at_index_next = at_index + 1    # Find index corresponding to next adaptation period
             at_index_prev = max(1,at_index - 1)
             
@@ -288,7 +286,7 @@ using Mimi
                 last_t = at_next
                 last = 1
             end
-            t_range = collect(t:last_t)
+            t_range = collect(gettime(t):last_t)
     
             for m in d.segments
                 if atstep==0
@@ -298,163 +296,162 @@ using Mimi
                 else
                     rgn_ind = getregion(m, p.xsc)
      
-                        # ** Calculate No Adaptation Costs **
-                        for i in t_range
-                            R_NoAdapt = max(0, p.lslr[m,i])
+                    # ** Calculate No Adaptation Costs **
+                    for i in t_range
+                        R_NoAdapt = max(0, p.lslr[m,i])
     
-                            v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[m,i])))) * 
-                                    (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[m, i] * p.floodmortality)
+                        v.StormNoAdapt[m, i] = p.tstep * (1 - v.ρ[rgn_ind , i]) * (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[m,i])))) * 
+                            (v.capital[m, i] + v.popdens_seg[m, i] * v.vsl[m, i] * p.floodmortality)
                                 
-                            v.WetlandNoAdapt[m,i] = p.tstep * v.wetlandservice[rgn_ind, i] * v.wetlandloss[m, i] * 
-                                    min(v.coastArea[m, i], p.wetland[m])
+                        v.WetlandNoAdapt[m,i] = p.tstep * v.wetlandservice[rgn_ind, i] * v.wetlandloss[m, i] * min(v.coastArea[m, i], p.wetland[m])
     
-                            if i==p.ntsteps
-                                v.FloodNoAdapt[m,i] = p.tstep * v.landvalue[m,i-1]*.04 * max(0, v.coastArea[m, i]) + (max(0, v.coastArea[m, i]) - max(0, v.coastArea[m, i-1])) * 
-                                    (1 - p.mobcapfrac) * v.capital[m, i-1]
+                        if i==p.ntsteps
+                            v.FloodNoAdapt[m,i] = p.tstep * v.landvalue[m,i-1]*.04 * max(0, v.coastArea[m, i]) + (max(0, v.coastArea[m, i]) - max(0, v.coastArea[m, i-1])) * 
+                                (1 - p.mobcapfrac) * v.capital[m, i-1]
             
-                                v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m, i]) - max(0,v.coastArea[m, i-1])) * (5 * p.movefactor * v.ypc_seg[m,i-1]*1e-6*v.popdens_seg[m, i-1] +
-                                    p.capmovefactor * p.mobcapfrac * v.capital[m, i-1] + p.democost * (1 - p.mobcapfrac) * v.capital[m, i-1])
-                            else
-                                v.FloodNoAdapt[m,i]  = p.tstep * v.landvalue[m,i]*.04 * max(0, v.coastArea[m, i+1]) + (max(0, v.coastArea[m, i+1]) - max(0, v.coastArea[m,i])) * 
-                                    (1 - p.mobcapfrac) * v.capital[m,i]                    
+                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m, i]) - max(0,v.coastArea[m, i-1])) * (5 * p.movefactor * v.ypc_seg[m,i-1]*1e-6*v.popdens_seg[m, i-1] +
+                                p.capmovefactor * p.mobcapfrac * v.capital[m, i-1] + p.democost * (1 - p.mobcapfrac) * v.capital[m, i-1])
+                        else
+                            v.FloodNoAdapt[m,i]  = p.tstep * v.landvalue[m,i]*.04 * max(0, v.coastArea[m, i+1]) + (max(0, v.coastArea[m, i+1]) - max(0, v.coastArea[m,i])) * 
+                                (1 - p.mobcapfrac) * v.capital[m,i]                    
                             
-                                v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m,i+1]) - max(0,v.coastArea[m,i])) * (5 * p.movefactor * v.ypc_seg[m,i]*1e-6*v.popdens_seg[m,i] +
-                                    p.capmovefactor * p.mobcapfrac * v.capital[m,i] + p.democost * (1 - p.mobcapfrac) * v.capital[m,i])
-                            end
+                            v.RelocateNoAdapt[m,i] = (max(0, v.coastArea[m,i+1]) - max(0,v.coastArea[m,i])) * (5 * p.movefactor * v.ypc_seg[m,i]*1e-6*v.popdens_seg[m,i] +
+                                p.capmovefactor * p.mobcapfrac * v.capital[m,i] + p.democost * (1 - p.mobcapfrac) * v.capital[m,i])
+                        end
                                 
-                            # Put all costs into $Billions and divide by 10
-                            v.WetlandNoAdapt[m,i] = v.WetlandNoAdapt[m,i] * 1e-4
-                            v.FloodNoAdapt[m,i] = v.FloodNoAdapt[m,i] * 1e-4
-                            v.RelocateNoAdapt[m,i] = v.RelocateNoAdapt[m,i] * 1e-4
-                            v.StormNoAdapt[m, i] = v.StormNoAdapt[m, i] * 1e-4
+                        # Put all costs into $Billions and divide by 10
+                        v.WetlandNoAdapt[m,i] = v.WetlandNoAdapt[m,i] * 1e-4
+                        v.FloodNoAdapt[m,i] = v.FloodNoAdapt[m,i] * 1e-4
+                        v.RelocateNoAdapt[m,i] = v.RelocateNoAdapt[m,i] * 1e-4
+                        v.StormNoAdapt[m, i] = v.StormNoAdapt[m, i] * 1e-4
     
-                            v.NoAdaptCost[m,i] = v.WetlandNoAdapt[m,i] + v.FloodNoAdapt[m,i] +  v.RelocateNoAdapt[m,i] + v.StormNoAdapt[m, i]
+                        v.NoAdaptCost[m,i] = v.WetlandNoAdapt[m,i] + v.FloodNoAdapt[m,i] +  v.RelocateNoAdapt[m,i] + v.StormNoAdapt[m, i]
         
     
-                        end
-                        v.NPVNoAdapt[m, at_index] = sum( [ v.discountfactor[j] * v.NoAdaptCost[m,j] for j in t_range] )
+                    end
+                    v.NPVNoAdapt[m, at_index] = sum( [ v.discountfactor[j] * v.NoAdaptCost[m,j] for j in t_range] )
     
-                        # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
-                        lslrPlan_at = p.lslr[m, at_next]
-                        lslrPlan_atprev = p.lslr[m, t]
+                    # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
+                    lslrPlan_at = p.lslr[m, at_next]
+                    println(lslrPlan_at)
+                    lslrPlan_atprev = p.lslr[m, at_prev]
+                    println(lslrPlan_at," ", lslrPlan_atprev)
+
+                    for i in 1:length(p.adaptoptions)
     
-                        for i in 1:length(p.adaptoptions)
-    
-                            v.R[m, t, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                        v.R[m, t, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
                             
-                            if t==1
-                                Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptoptions) 
-                            else
-                                Rprev = v.R[m, convert(Int,p.at[at_index_prev]), i]
-                            end
+                        if is_first(t)
+                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptoptions) 
+                        else
+                            Rprev = v.R[m, convert(Int,p.at[at_index_prev]), i]
+                        end
     
     
-                            v.FloodRetreat[m,t,i] = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) +          
-                                max(0,calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
-                                (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t]) * 1e-4
+                        v.FloodRetreat[m,t,i] = (p.tstep/atstep) * (atstep * v.landvalue[m,t]*.04 * calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) +          
+                            max(0,calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
+                            (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[m,t]) * 1e-4
     
-                            v.RelocateRetreat[m,t,i] = (p.tstep / atstep) * 
-                                max(0, calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
-                                (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
-                                p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t]) * 1e-4
+                        v.RelocateRetreat[m,t,i] = (p.tstep / atstep) * 
+                            max(0, calcCoastArea(v.areaparams[m,:], v.R[m,t,i]) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
+                            (p.movefactor * v.ypc_seg[m,t] * 1e-6 * v.popdens_seg[m,t] +
+                            p.capmovefactor * p.mobcapfrac * v.capital[m,t] + p.democost * (1 - p.mobcapfrac ) * v.capital[m,t]) * 1e-4
            
     
-                            if p.adaptoptions[i] >= 10
-                                v.H[m, t, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                        if p.adaptoptions[i] >= 10
+                            v.H[m, t, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
     
-                                if t==1
-                                    Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptoptions)
-                                else
-                                    Hprev = v.H[m, convert(Int,p.at[at_index_prev]),i-1]
-                                end
+                            if is_first(t)
+                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[m,1], v.surgeExposure[m,:], p.adaptoptions)
+                            else
+                                Hprev = v.H[m, convert(Int,p.at[at_index_prev]),i-1]
+                            end
     
                                 # Island protection costs are higher
-                                if isisland(m,p.xsc)==1
-                                    pc = 2*p.pc0*p.cci[rgn_ind]
-                                else
-                                    pc = p.pc0 * p.cci[rgn_ind]
-                                end
-    
-                                v.Construct[m,t,i-1] = (p.tstep/atstep) * 
-                                    (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
-                                    p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep) * 1e-4
-                                    
+                            if isisland(m,p.xsc)==1
+                                pc = 2*p.pc0*p.cci[rgn_ind]
+                            else
+                                pc = p.pc0 * p.cci[rgn_ind]
                             end
     
-                            for j in t_range
-                                v.R[m,j,i] = v.R[m,t,i]
-                                v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * 
-                                                min(v.coastArea[m, j], p.wetland[m])
+                            v.Construct[m,t,i-1] = (p.tstep/atstep) * 
+                                (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[m, t, i-1]^2 - Hprev^2) + 
+                                p.mc*atstep*v.H[m, t, i-1]) + p.length[m] * 1.7 * v.H[m, t, i-1] * v.landvalue[m,t]*.04/2*atstep) * 1e-4
+                                    
+                        end
     
-                                v.StormRetreat[m,j,i] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
-                                        (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[m,j,i] - p.lslr[m, j])))) * 
-                                        (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[m, j] * p.floodmortality)
+                        for j in t_range
+                            v.R[m,j,i] = v.R[m,t,i]
+                            v.WetlandRetreat[m,j] = p.tstep * v.wetlandservice[rgn_ind, j] * v.wetlandloss[m, j] * min(v.coastArea[m, j], p.wetland[m])
     
-                                v.FloodRetreat[m, j, i] = v.FloodRetreat[m, t, i]
-                                v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,t,i]
+                            v.StormRetreat[m,j,i] = p.tstep * (1 - v.ρ[rgn_ind, j]) * 
+                                (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[m,j,i] - p.lslr[m, j])))) * 
+                                (v.capital[m, j] + v.popdens_seg[m, j] * v.vsl[m, j] * p.floodmortality)
+    
+                            v.FloodRetreat[m, j, i] = v.FloodRetreat[m, t, i]
+                            v.RelocateRetreat[m,j,i] = v.RelocateRetreat[m,t,i]
+    
+                            # Put all other costs intp $Billions from $M and divide by 10
+                            v.StormRetreat[m,j,i]  = v.StormRetreat[m,j,i]  * 1e-4
+                            v.WetlandRetreat[m,j] = v.WetlandRetreat[m,j] * 1e-4
+                                        
+                            v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j,i] + v.WetlandRetreat[m,j]
+                                
+                            if p.adaptoptions[i] >= 10
+                                v.H[m, j, i-1] = v.H[m, t, i-1]
+    
+                                v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
+                                        
+                                v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[m, j])) / 
+                                                        (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[m, j, i-1] - p.lslr[m,j])))) *
+                                                        (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[m, j] * p.floodmortality)
+                                    
+                                v.Construct[m,j,i-1] = v.Construct[m, t, i-1]
     
                                 # Put all other costs intp $Billions from $M and divide by 10
-                               v.StormRetreat[m,j,i]  = v.StormRetreat[m,j,i]  * 1e-4
-                                v.WetlandRetreat[m,j] = v.WetlandRetreat[m,j] * 1e-4
-                                        
-                                v.RetreatCost[m, j, i] = v.FloodRetreat[m,j,i] + v.RelocateRetreat[m,j,i] + v.StormRetreat[m,j,i] + v.WetlandRetreat[m,j]
-                                
-                                if p.adaptoptions[i] >= 10
-                                    v.H[m, j, i-1] = v.H[m, t, i-1]
-    
-                                    v.WetlandProtect[m,j] = p.tstep * p.wetland[m] .* v.wetlandservice[rgn_ind, j]
-                                            
-                                    v.StormProtect[m,j,i-1] = p.tstep * (1 - v.ρ[rgn_ind, j]) * (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[m, j])) / 
-                                                            (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[m, j, i-1] - p.lslr[m,j])))) *
-                                                            (v.capital[m,j] + v.popdens_seg[m,j] * v.vsl[m, j] * p.floodmortality)
-                                    
-                                    v.Construct[m,j,i-1] = v.Construct[m, t, i-1]
-    
-                                    # Put all other costs intp $Billions from $M and divide by 10
-                                    v.WetlandProtect[m,j] = v.WetlandProtect[m,j] * 1e-4
-                                    v.StormProtect[m,j,i-1] = v.StormProtect[m,j,i-1] * 1e-4
+                                v.WetlandProtect[m,j] = v.WetlandProtect[m,j] * 1e-4
+                                v.StormProtect[m,j,i-1] = v.StormProtect[m,j,i-1] * 1e-4
                                                     
-                                    v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
-    
-                                end
+                                v.ProtectCost[m,j,i-1] = v.Construct[m,j,i-1] + v.WetlandProtect[m,j] + v.StormProtect[m,j,i-1]
     
                             end
     
-                            v.NPVRetreat[m, at_index,i] = sum([v.discountfactor[j] * v.RetreatCost[m,findind(j,t_range),i] for j in t_range])
+                        end
     
-                            if p.adaptoptions[i] >=10
-                                v.NPVProtect[m,at_index,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[m,findind(j,t_range),i-1] for j in t_range] ) # Protect
-                            end
-                         end
+                        v.NPVRetreat[m, at_index,i] = sum([v.discountfactor[j] * v.RetreatCost[m,findind(j,t_range),i] for j in t_range])
     
-                        # ** Choose Least Cost Option **
-                        if t==1 && p.fixed
-                            protectInd = indmin(v.NPVProtect[m,at_index,:])
-                            retreatInd = indmin(v.NPVRetreat[m,at_index,:])
+                        if p.adaptoptions[i] >=10
+                            v.NPVProtect[m,at_index,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[m,findind(j,t_range),i-1] for j in t_range] ) # Protect
+                        end
+                    end
+    
+                    # ** Choose Least Cost Option **
+                    if is_first(t) && p.fixed
+                        protectInd = indmin(v.NPVProtect[m,at_index,:])
+                        retreatInd = indmin(v.NPVRetreat[m,at_index,:])
+        
+                        minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
+                        choices = [v.NPVProtect[m,at_index,protectInd], v.NPVRetreat[m,at_index,retreatInd], v.NPVNoAdapt[m,at_index]]
+                        leastcost = -1 * indmin(choices)
+                        leastlevel = minLevels[indmin(choices)]
             
-                            minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
-                            choices = [v.NPVProtect[m,at_index,protectInd], v.NPVRetreat[m,at_index,retreatInd], v.NPVNoAdapt[m,at_index]]
-                            leastcost = -1 * indmin(choices)
-                            leastlevel = minLevels[indmin(choices)]
-            
-                            v.OptimalFixedOption[m] = leastcost
-                            v.OptimalFixedLevel[m] = leastlevel
+                        v.OptimalFixedOption[m] = leastcost
+                        v.OptimalFixedLevel[m] = leastlevel
                             
-                        end
+                    end
                         
-                        if v.OptimalFixedOption[m]==-1
-                            v.OptimalFixedCost[m, t_range] = v.ProtectCost[m, t_range, (find(i->i==v.OptimalFixedLevel[m], p.adaptoptions)-1)] 
-                        elseif v.OptimalFixedOption[m]==-2
-                            v.OptimalFixedCost[m, t_range] = v.RetreatCost[m, t_range, find(i->i==v.OptimalFixedLevel[m], p.adaptoptions)] 
-                        else
-                            v.OptimalFixedCost[m, t_range] = v.NoAdaptCost[m, t_range]
-                        end
+                    if v.OptimalFixedOption[m]==-1
+                        v.OptimalFixedCost[m, t_range] = v.ProtectCost[m, t_range, (findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)-1)] 
+                    elseif v.OptimalFixedOption[m]==-2
+                        v.OptimalFixedCost[m, t_range] = v.RetreatCost[m, t_range, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)] 
+                    else
+                        v.OptimalFixedCost[m, t_range] = v.NoAdaptCost[m, t_range]
+                    end
     
                 end
             end     
         end
     end
-
 end
 
 
@@ -503,7 +500,7 @@ function findind(val, vec)
     # vec - a vector of region or segment names (strings)
     # val - a string corresponding to value in 'vec'
     h(u) = u == val
-    name_ind = find(h, vec)[1]
+    name_ind = findall(h, vec)[1]
     return name_ind
 
 end
