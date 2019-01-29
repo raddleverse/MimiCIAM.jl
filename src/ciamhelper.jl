@@ -5,7 +5,7 @@
 #------------------------------------------------------------------------
 # Assorted functions to process CIAM data and run CIAM model
 #------------------------------------------------------------------------
-include("ciam.jl")
+include("slrcost.jl")
 
 using Mimi
 using Distributions
@@ -27,7 +27,7 @@ end
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
 function preplsl!(lslfile,subset, params)
-    data_dir = "../data/input"
+    data_dir = "../data/lslr"
     lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
 
     # Filter LSL according to subset segments
@@ -241,11 +241,33 @@ function run_model(params, xsc)
     return m
 end
 
+function load_subset(subset=false)
+    dir="../data/subsets"
+    if subset!=false
+        sub=readlines(joinpath(dir,subset))
+        return sub
+    else
+        return false
+    end
+end
+
+function init()
+    dir="../data/meta"
+    header = DelimitedFiles.readdlm(joinpath(dir,"init.txt"),',')
+    lsl=header[1]
+    subset=header[2]
+    return(lsl,subset)
+
+end
 
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile, subset)
+function import_model_data()
+    # Extract lslfile and subset from data
+    (lslfile,sub)=init()
+    subset=load_subset(sub)
+
     # Process main and lsl params
     params = load_ciam_params()
      
@@ -276,7 +298,7 @@ function load_meta()
     metadir = "../data/meta"
 
     # Read header and mappings
-    header = readstring(open(joinpath(metadir,"header.txt")))
+    header = read(open(joinpath(metadir,"header.txt")),String)
 
     varnames = readlines(open(joinpath(metadir,"variablenames.csv")))
     vardict = Dict{Any,Any}(split(varnames[i],',')[1] => (split(varnames[i],',')[2],split(varnames[i],',')[3]) for i in 1:length(varnames))
@@ -315,7 +337,7 @@ function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
     end
     
     for v in vars # Iterate variables
-        d = m[:ciam, parse(v)]
+        d = m[:ciam, Symbol(v)]
             
         level = vardict[v][1]
         costtype = vardict[v][2]
@@ -349,7 +371,7 @@ function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
                                 # Write results to csv 
                  
                         open(joinpath(outputdir,outfile),"a") do g 
-                            writecsv(g, outarr)
+                            writedlm(g, outarr,',')
                         end
     
                     end
@@ -361,7 +383,7 @@ function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
                         outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
                 
                         open(joinpath(outputdir,outfile),"a") do g 
-                            writecsv(g, outarr)
+                            writedlm(g, outarr,',')
                         end
                     end
     
@@ -370,7 +392,7 @@ function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
                     outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
     
                     open(joinpath(outputdir,outfile),"a") do g 
-                        writecsv(g, outarr)
+                        writedlm(g, outarr,',')
                     end
     
                 end
@@ -394,7 +416,7 @@ function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
                     outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
                      
                     open(joinpath(outputdir,outfile),"a") do g 
-                        writecsv(g, outarr)
+                        writedlm(g, outarr,',')
                     end
     
                 end
