@@ -10,6 +10,10 @@ include("slrcost.jl")
 using Mimi
 using Distributions
 using DelimitedFiles
+using DataFrames
+using Query
+using CSV
+
 
 # Function to load CIAM parameters from CSV to dictionary
 function load_ciam_params()
@@ -26,26 +30,22 @@ end
 # lslfile - string; name of lslr file to use; location relative to data/input-data directory
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
-function preplsl!(lslfile,subset, params)
+function preplsl!(lslfile,subset, params,segnames)
     data_dir = "../data/lslr"
-    lsl_params = Dict{Any, Any}("lslr" => readdlm(joinpath(data_dir,lslfile), ',' ))
+    lsl_params = CSV.read(joinpath(data_dir,lslfile)) |> DataFrame
 
-    # Filter LSL according to subset segments
-    p = lsl_params["lslr"]
-    p_new = p[2:end,:]  # Chomp off first row 
-    row_order = sortperm(p_new[:,1])
-    p_new = p_new[row_order,1:end]
-
-    if subset != false # TODO use filter! function instead like in prepxsc
-        s = p_new[:,1]
-        ind_s = filter_index(s,subset)
-        p_new = p_new[ind_s,2:end]
-    
-        params["lslr"] = Array{Float64,2}(p_new)
-    else
-        params["lslr"] = Array{Float64,2}(p_new[:, 2:end])
+    # Filter according to subset segments
+    if subset != false
+        col_names = [i for i in names(lsl_params) if string(i) in subset]
+        lsl_params = lsl_params[col_names]
     end
 
+    # Chomp off unrelated rows and sort alphabetically (do this regardless of whether there's a subset)
+    col_names = [i  for i in names(lsl_params) if string(i) in segnames]
+    col_names = sort(col_names)
+    lsl_params = lsl_params[col_names]
+    
+    params["lslr"] = convert(Array{Float64,2},lsl_params)
 
     return params
 end
@@ -244,8 +244,8 @@ end
 function load_subset(subset=false)
     dir="../data/subsets"
     if subset!=false
-        sub=readlines(joinpath(dir,subset))
-        return sub
+        subs=readlines(joinpath(dir,subset))
+        return subs
     else
         return false
     end
