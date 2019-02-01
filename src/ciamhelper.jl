@@ -20,7 +20,7 @@ function load_ciam_params()
     data_dir = "../data/input"
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
-    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => readdlm(joinpath(data_dir,m), ',' ) for m in files)
+    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
     return params
 
 end
@@ -57,30 +57,25 @@ end
 function parse_ciam_params!(params, rgn_order, seg_order)
     key = [k for k in keys(params)]
 
-    for i in 1:length(key)
-        p = params[key[i]] # Array
-        keyname = key[i]
+    for k in key
+        p = params[k] # Data frame
 
-        if keyname=="data"
-            rownames = copy(p[1:1,:]) # Preserve first row names
+        if k=="data"
+            colnames = filter(f -> string(f)!="NA",names(p)) # Preserve column names 
             
-            # Sort Segments alphabetically
-            segnames= filter(f -> f!="NA",p[:,1])
-            row_order = sortperm(segnames)
-            p = p[2:end,:]
-            p = p[row_order,:]
-
-            segs = p[:,1]
-
-            # Filter segments to desired values based on inputs
+            # Filter segments to subset
+            segs = p[1]
             seg_inds = filter_index(segs, seg_order)
+            p = p[seg_inds,:]
+            # Sort alphabetically
+            seg_alpha = sortperm(p[1])
+            p = p[seg_alpha,:]
 
             if length(seg_inds)>=1
                 # Process all variables
-                for k in 2:size(p,2)
-                    varname = rownames[1,k]
+                for k in 2:(length(colnames)+1)
+                    varname = string(colnames[k-1])
                     newvars = p[1:end,k]
-                    newvars = newvars[seg_inds]
                     newvars = [convert(Float64,v) for v in newvars]     
                     params[varname] = newvars
                 end
@@ -88,25 +83,21 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             else
                 error("Segments in dictionary do not match supplied segments") 
             end
-        elseif keyname=="globalparams"
+        elseif k=="globalparams"
 
-            for k in 1:size(p,1)
-                varname = p[k,1]
-                newval = p[k,2]
+            for k in 1:length(p[1])
+                varname = p[1][k]
+                newval = p[2][k]
 
                 if (varname=="ntsteps" || varname=="adaptPers")
-                    newval = convert(Int64,newval)
+                    newval = parse(Int64,newval)
 
-                elseif typeof(newval)==Int
-                    newval = convert(Float64,newval)
-
-                elseif isa(newval,AbstractString)
-                    if lowercase(newval)=="true"
-                        newval = true
-
-                    elseif lowercase(newval)=="false"
-                        newval = false
-                    end
+                elseif lowercase(newval)=="true"
+                    newval = true
+                elseif lowercase(newval)=="false"
+                    newval = false
+                else
+                    newval=parse(Float64,newval)
                 end                
                 params[varname] = newval
 
@@ -114,38 +105,30 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             delete!(params, "globalparams")
  
         elseif size(p,2) ==2
-            # Alphabetize
-            p = p[sortperm(p[:,1]),:]
-
             # Filter regions
-            r = p[:,1]
-            r_inds = filter_index(r, rgn_order)
+            r_inds = filter_index(p[1], rgn_order)
             p = p[r_inds,:]
+            # Alphabetize
+            p = p[sortperm(p[1]),:]
 
-            if p[:,1]!=rgn_order
-                error("Regions in dictionary do not match supplied regions, ", keyname)               
+            if p[1]!=rgn_order
+                error("Regions in dictionary do not match supplied regions, ", k)               
             else
-                newvals = p[:,2]
+                newvals = p[2]
                 # Coerce to Array{Float64,1}
-                params[keyname] = Array{Float64,1}(newvals)
+                params[k] = Array{Float64,1}(newvals)
             end
         elseif size(p,2)>3
-            # Country-time data matrices
+            # Time-country data matrices
             # Alphabetize
-            p = p[2:end,:]  # cut off time 
-            row_order = sortperm(p[:,1])
-            p = p[row_order, :]
+            col_names = [i for i in names(p) if string(i) in rgn_order]
+            p= p[sort(col_names)]
 
-            # Filter regions and trim name column
-            r = p[:,1]
-            ind = filter_index(r,rgn_order)
-            p = p[ind, 2:end] 
-
-            params[keyname] = Array{Float64,2}(p)
+            params[k] = Array{Float64,2}(p)
            
-        elseif size(p,2)==1 && typeof(p)==Array{Float64,2}
-            p_new = p[:,1]
-            params[keyname] = p_new
+        elseif size(p,2)==1 
+            params[k] = Array{Float64,1}(p[1])
+
         end  
 
     end
@@ -174,7 +157,7 @@ function prepxsc(subset)
     xsc_name = replace(xscfile, r".csv" => s"") # Strip ".csv" from file name
 
     # Read in csv and convert to dictionary format 
-    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => readdlm(joinpath(data_dir, xscfile), ',' ))
+    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => CSV.read(joinpath(data_dir, xscfile)))
     xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3], xsc_params[xsc_name][i,4]) for i in 1:size(xsc_params[xsc_name],1))
 
     # If only a subset of segments is used, filter down to relevant segments
@@ -223,24 +206,6 @@ function findind(val, vec)
 
 end
 
-# Function to run CIAM for given parameters and segment-country mapping
-# Some params are currently hard-coded
-function run_model(params, xsc)
-    m = Model()
-    set_dimension!(m, :time, 20)
-    set_dimension!(m, :adaptPers, 5)  # Todo figure out way not to hardcode these
-    set_dimension!(m, :regions, xsc[2])
-    set_dimension!(m, :segments, xsc[3])
-
-    add_comp!(m, ciam)
-    set_param!(m, :ciam, :xsc, xsc[1])
-    set_leftover_params!(m, params)
-
-    run(m)
-
-    return m
-end
-
 function load_subset(subset=false)
     dir="../data/subsets"
     if subset!=false
@@ -276,21 +241,9 @@ function import_model_data()
 
     # Process params using xsc and format lsl file
     parse_ciam_params!(params, xsc[2], xsc[3])
-    preplsl!(lslfile, subset, params)
+    preplsl!(lslfile, subset, params,xsc[3])
 
     return(params, xsc)
-
-end
-
-function get_ciam(lslfile, subset)
-    # Import model data
-    modelparams = import_model_data(lslfile,subset)
-    params = modelparams[1]
-    xsc = modelparams[2]
-     
-    m = run_model(params, xsc)
-    
-    return (m, xsc)
 
 end
 
