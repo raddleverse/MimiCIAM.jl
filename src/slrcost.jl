@@ -437,9 +437,9 @@ using Mimi
                     
                     println(t_range)
                     if v.OptimalFixedOption[m]==-1
-                        v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,(findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)-1)] 
+                        v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1] 
                     elseif v.OptimalFixedOption[m]==-2
-                        v.OptimalFixedCost[t_range,m,1] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)]
+                        v.OptimalFixedCost[t_range,m,1] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
                     else
                         v.OptimalFixedCost[t_range,m] = v.NoAdaptCost[t_range,m]
                     end
