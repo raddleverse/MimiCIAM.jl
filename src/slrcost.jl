@@ -331,7 +331,6 @@ using Mimi
                     lslrPlan_atprev = p.lslr[t,m]
                     
                     for i in 1:length(p.adaptoptions)
-                        println("newloop")
                         v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
                         if is_first(t)
                             Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions) 
@@ -349,15 +348,12 @@ using Mimi
                             p.capmovefactor * p.mobcapfrac * v.capital[t,m] + p.democost * (1 - p.mobcapfrac ) * v.capital[t,m]) * 1e-4
            
                         if p.adaptoptions[i] >= 10
-                            println(i)
                             v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
-                            println("good")
                             if is_first(t)
                                 Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions)
                             else
                                 Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
                             end
-                            println("okhere")
                                 # Island protection costs are higher
                             if isisland(m,p.xsc)==1
                                 pc = 2*p.pc0*p.cci[rgn_ind]
@@ -414,7 +410,6 @@ using Mimi
                         if p.adaptoptions[i] >=10
                             v.NPVProtect[at_index,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
                         end
-                        println("finlop2")
                     end
     
                     # ** Choose Least Cost Option **
@@ -432,7 +427,6 @@ using Mimi
                             
                     end
                     
-                    println(t_range)
                     if v.OptimalFixedOption[m]==-1
                         v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1] 
                     elseif v.OptimalFixedOption[m]==-2
