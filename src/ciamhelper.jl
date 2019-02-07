@@ -270,112 +270,109 @@ end
 # RCP - string for RCP we're using; todo make automatic from lsl file
 # xsc - segment-region dictionaries
 # outputdir, outfile - where to write results to, relative to test folder
-# sumsegs - whether to sum across segments
-function write_ciam(m, xsc; rcp="na", tag="untagged", sumsegs=false)
+# sumsegs - whether to sum across all segments, to region level, or no sums
+# varnames: to do: if not false, write the passed variable names; if false get defaults from file
+# To do: possibly modify to work with DataVoyager()
+function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
     outputdir = "../output/results-jl"
     meta_output = load_meta()
+    rcp = replace(replace(init()[1],r"lsl_"=>s""),r".csv"=>s"")
 
-    outfile = "results_$(rcp)_$(tag).csv"
-    header = meta_output[1]
-    vardict = meta_output[2]
-    protectdict = meta_output[3]
-    retreatdict = meta_output[4]
-    
-    segmap = xsc[6]
-    
-    vars = [k for k in keys(vardict)]
-    
-    open(joinpath(outputdir,outfile),"w") do g 
-        write(g, "$(header)\n")
+    if tag=="NA"
+        tag=init()[2]
     end
-    
-    for v in vars # Iterate variables
-        d = m[:ciam, Symbol(v)]
-            
-        level = vardict[v][1]
-        costtype = vardict[v][2]
-    
-        s_arr = [segmap[i] for i in 1:size(d,1)]    # List of segments
-            
-        if sumsegs
-            func = x -> sum(x)
-            n = 1
-            s_arr = ["sum$(size(d,1))segs"]
+    if tag==false
+        tag="full"
+    else
+        tag=tag
+    end
+
+    if varnames==false
+        varnames = [k for k in keys(meta_output[2])] # to do change
+    end
+
+    vargroup1 = [] # 2D vars
+    vargroup2 = [] # vars greater than 2D
+
+    for v in varnames
+        if length(size(m[:slrcost,Symbol(v)]))>2
+            push!(vargroup2, Symbol(v))
         else
-            func = x -> identity(x)
-            n = size(d,1)
+            push!(vargroup1, Symbol(v))
         end
-    
-        for i in 1:size(d,2) # Iterate times (t = 1, 2, ...)
-            t = repeat([i], outer=n)
-            rcp_arr = repeat([rcp], outer= n)
-            cost_arr = repeat([costtype], outer = n)
-    
-            if typeof(d)==Array{Float64,2}
-                val = d[:,i] 
-                v_arr = func(val)
-    
-                if level=="protect"
-                    for j in 1:4
-                        p = protectdict[j]
-                        lev_arr = repeat([p], outer = n)
-    
-                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                                # Write results to csv 
-                 
-                        open(joinpath(outputdir,outfile),"a") do g 
-                            writedlm(g, outarr,',')
-                        end
-    
-                    end
-                elseif level=="retreat"
-                    for j in 1:5
-                        q = retreatdict[j]
-                        lev_arr = repeat([q], outer = n)
-    
-                        outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]  
-                
-                        open(joinpath(outputdir,outfile),"a") do g 
-                            writedlm(g, outarr,',')
-                        end
-                    end
-    
-                else
-                    lev_arr = repeat([level], outer = n)
-                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-    
-                    open(joinpath(outputdir,outfile),"a") do g 
-                        writedlm(g, outarr,',')
-                    end
-    
-                end
-    
-            elseif typeof(d)==Array{Float64,3}
-                for j in 1:size(d,3)
-                    val = d[:,i,j] 
-                    v_arr = func(val)
-    
-                    if level=="protect"
-                        p = protectdict[j]
-                        lev_arr = repeat([p], outer = n)
-    
-                    elseif level=="retreat"
-                        q = retreatdict[j]
-                        lev_arr = repeat([q], outer = n)
-                    else
-                        lev_arr = repeat([level], outer = n)
-                    end
-    
-                    outarr= [rcp_arr lev_arr s_arr cost_arr t v_arr]
-                     
-                    open(joinpath(outputdir,outfile),"a") do g 
-                        writedlm(g, outarr,',')
-                    end
-    
-                end
-            end
+
+    end
+ 
+    # Assign 2D variables to dataframe 
+    for i in 1:length(vargroup1)
+        temp = getdataframe(m,:slrcost => vargroup1[i])
+        temp[:level]= fill(0.0,nrow(temp))
+        temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
+        rename!(temp,vargroup1[i]=>:value)
+        temp = temp[[:time,:segments,:level,:variable,:value]]
+        if i==1
+            global df = temp
+        else 
+            df = [df;temp]
         end
     end
+
+    # Assign 3D variables to second data frame and join 
+    for j in 1:length(vargroup2)
+        ndim1 = size(m[:slrcost,vargroup2[j]])[3]
+
+        for k in 1:ndim1
+
+            temp = DataFrame(m[:slrcost,vargroup2[j]][:,:,k])
+            ntime = m[:slrcost,:ntsteps]
+            colnames= [Symbol(xsc[6][parse(Int64,replace(String(i),r"x"=>s""))]) for i in names(temp)]
+            names!(temp,colnames)
+            temp[:time] = 1:ntime
+            
+            if String(vargroup2[j])=="Construct" || occursin("Protect",String(vargroup2[j]))
+                dim1 = k+1
+                adapt=m[:slrcost,:adaptoptions][dim1]
+            else
+                dim1=k
+                adapt=m[:slrcost,:adaptoptions][dim1]
+            end
+
+            temp[:level] = fill(adapt, ntime)
+            temp = stack(temp,colnames)
+            rename!(temp,:variable => :segments)
+            temp[:segments] = [String(i) for i in temp[:segments]]
+
+            temp[:variable]= fill(String(vargroup2[j]),nrow(temp))
+            temp = temp[[:time,:segments,:level,:variable,:value]]
+
+
+            if j==1 && k==1
+                global df2 = temp
+            else
+                df2 = [df2;temp]
+            end
+
+        end
+
+    end
+
+    # Sum to either region-level, global-level, or leave as seg-level  
+    outdf = [df;df2]
+    outfile = "results_$(rcp)_$(tag)_$(sumsegs).csv"
+
+    if sumsegs=="rgn"
+        rgndf = outdf |> @map(merge(_,{region=xsc[4][_.segments][1]})) |> DataFrame
+        rgndf2 = rgndf |> @groupby({_.time,_.region, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
+        CSV.write(joinpath(outputdir,outfile),rgndf2)  
+    elseif sumsegs=="seg"
+        CSV.write(joinpath(outputdir,outfile),outdf)  
+    elseif sumsegs=="global"
+        globdf = outdf |> @groupby({_.time, _.level, _.variable}) |> 
+            @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
+        CSV.write(joinpath(outputdir,outfile),globdf) 
+    end  
+
+    
 end
 
 

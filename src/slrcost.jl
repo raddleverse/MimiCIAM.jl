@@ -115,7 +115,7 @@ using Mimi
     s100 = Parameter(index = [segments])
     s1000 = Parameter(index = [segments])
     smax = Parameter(index = [segments])
-    surgeExposure::Float64 = Variable( index = [segments, 4])     # Storm surge exposure levels (corresponding to each designated adaptation option)
+    surgeExposure::Float64 = Variable( index = [segments, 5])     # Storm surge exposure levels (corresponding to each designated adaptation option)
     
 
     # ---Coastal Area Parameters---
@@ -211,7 +211,7 @@ using Mimi
      
                 v.popdens_seg[t,m] = p.popdens[m]
                 v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
-                v.surgeExposure[m,:] = [p.s10[m] p.s100[m] p.s1000[m] p.smax[m]] 
+                v.surgeExposure[m,:] = [0 p.s10[m] p.s100[m] p.s1000[m] p.smax[m]] 
                 # Greenland segments treated differently 
                 if isgreenland(m,p.xsc)==1
                     v.ypc_seg[t,m] =22642*1.01^1   # FLAG: assumes t is an index (1-20)
@@ -266,8 +266,7 @@ using Mimi
             at_index = findall(g, p.at)[1] # Find index corresponding to adaptation period in p.at
             at_index_next = at_index + 1    # Find index corresponding to next adaptation period
             at_index_prev = max(1,at_index - 1)
-            println(at_index, " ", at_index_next, " ",at_index_prev)
-            
+                        
             at_prev = Int(p.at[at_index_prev])      # TODO pick one - either index into vector or use the period, it's confusing
     
             if at_index_next <= length(p.at)
@@ -329,20 +328,17 @@ using Mimi
     
                     # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
                     lslrPlan_at = p.lslr[at_next,m]
-                    lslrPlan_atprev = p.lslr[at_prev,m]
+                    lslrPlan_atprev = p.lslr[t,m]
                     
                     for i in 1:length(p.adaptoptions)
-
-                        v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], i)
-                        println("ok0")
+                        println("newloop")
+                        v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
                         if is_first(t)
-                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], i) 
+                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions) 
                         else
                             Rprev = v.R[convert(Int,p.at[at_index_prev]),m, i]
                         end
 
-    
-                        println("ok1")
                         v.FloodRetreat[t,m,i] = (p.tstep/atstep) * (atstep * v.landvalue[t,m]*.04 * calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) +          
                             max(0,calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
                             (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[t,m]) * 1e-4
@@ -354,14 +350,14 @@ using Mimi
            
                         if p.adaptoptions[i] >= 10
                             println(i)
-                            v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], i)
-    
+                            v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                            println("good")
                             if is_first(t)
-                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], i)
+                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions)
                             else
                                 Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
                             end
-    
+                            println("okhere")
                                 # Island protection costs are higher
                             if isisland(m,p.xsc)==1
                                 pc = 2*p.pc0*p.cci[rgn_ind]
@@ -372,7 +368,7 @@ using Mimi
                             v.Construct[t,m,i-1] = (p.tstep/atstep) * 
                                 (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[t,m, i-1]^2 - Hprev^2) + 
                                 p.mc*atstep*v.H[t,m, i-1]) + p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4
-                                    
+      
                         end
     
                         for j in t_range
@@ -418,6 +414,7 @@ using Mimi
                         if p.adaptoptions[i] >=10
                             v.NPVProtect[at_index,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
                         end
+                        println("finlop2")
                     end
     
                     # ** Choose Least Cost Option **
@@ -517,18 +514,17 @@ function isisland(seg_ind, xsc)
     return island
 end
 
-function calcHorR(option, level, lslrPlan, surgeExpLevels, ind)
-    if ind==1
-        return lslrPlan
-    end
+function calcHorR(option, level, lslrPlan, surgeExpLevels, adaptOptions)
+    
+    ind = findind(level, adaptOptions)
 
     if option==-1 && level ==10
         # Protect height differs from retreat radius only in case of 10 yr surge exposure
-        H = max(0, lslrPlan + surgeExpLevels[ind-1] / 2)
+        H = max(0, lslrPlan + surgeExpLevels[ind] / 2)
 
         return H
     else
-        H_R = max(0, lslrPlan + surgeExpLevels[ind-1])
+        H_R = max(0, lslrPlan + surgeExpLevels[ind])
         return H_R
     end
 end
