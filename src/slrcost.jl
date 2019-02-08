@@ -137,6 +137,7 @@ using Mimi
     areaparams = Variable(index = [segments, 15])           # Nothing is computed; this is just a convenient container for area params
 
     coastArea = Variable(index=[time, segments])            # Calculate remaining coastal area after slr (m^2)
+    coastAreaRetreat = Variable(index=[time,segments,5])
     
     # ---Intermediate Variables---
     WetlandNoAdapt = Variable(index = [time, segments])
@@ -332,6 +333,8 @@ using Mimi
                     
                     for i in 1:length(p.adaptoptions)
                         v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                        v.coastAreaRetreat[t,m,i] = calcCoastArea(v.areaparams[m,:], v.R[t,m,i])
+
                         if is_first(t)
                             Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions) 
                         else
@@ -369,6 +372,8 @@ using Mimi
     
                         for j in t_range
                             v.R[j,m,i] = v.R[t,m,i]
+                            v.coastAreaRetreat[j,m,i] = v.coastAreaRetreat[t,m,i]
+                            
                             v.WetlandRetreat[j,m] = p.tstep * v.wetlandservice[j,rgn_ind] * v.wetlandloss[j,m] * min(v.coastArea[j,m], p.wetland[m])
     
                             v.StormRetreat[j,m,i] = p.tstep * (1 - v.ρ[j,rgn_ind]) * 
