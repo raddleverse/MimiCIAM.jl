@@ -217,20 +217,20 @@ function load_subset(subset=false)
 end
 
 function init()
-    dir="../data/meta"
+    dir="../data/batch"
     header = DelimitedFiles.readdlm(joinpath(dir,"init.txt"),',')
-    lsl=header[1]
-    subset=header[2]
-    return(lsl,subset)
+    run_name = header[1]
+    lsl=header[2]
+    subset=header[3]
+    return(run_name,lsl,subset)
 
 end
 
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data()
-    # Extract lslfile and subset from data
-    (lslfile,sub)=init()
+function import_model_data(lslfile,sub)
+
     subset=load_subset(sub)
 
     # Process main and lsl params
