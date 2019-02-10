@@ -226,6 +226,13 @@ function init()
 
 end
 
+# In progress create a writelog function to go with a wrapper for the run function 
+# automatically produce a logfile 
+function writelog(m)
+    dir="../data/batch/logs"
+
+end
+
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
@@ -266,25 +273,24 @@ function load_meta()
 end
 
 # Function to write out model results to CSV file
-# m - an instance of the model
+# main - an instance of the model
 # RCP - string for RCP we're using; todo make automatic from lsl file
 # xsc - segment-region dictionaries
 # outputdir, outfile - where to write results to, relative to test folder
 # sumsegs - whether to sum across all segments, to region level, or no sums
 # varnames: to do: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
-function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
+function write_ciam(main; sumsegs="seg", varnames=false)
     outputdir = "../output/results-jl"
     meta_output = load_meta()
-    rcp = replace(replace(init()[1],r"lsl_"=>s""),r".csv"=>s"")
+    rcp = replace(replace(main.lsl,r"lsl_"=>s""),r".csv"=>s"")
+    
+    model = main.m
+    xsc = main.xsc
+    subset = main.subset
 
-    if tag=="NA"
-        tag=init()[2]
-    end
-    if tag==false
-        tag="full"
-    else
-        tag=tag
+    if subset==false
+        subset="full"
     end
 
     if varnames==false
@@ -295,7 +301,7 @@ function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
     vargroup2 = [] # vars greater than 2D
 
     for v in varnames
-        if length(size(m[:slrcost,Symbol(v)]))>2
+        if length(size(model[:slrcost,Symbol(v)]))>2
             push!(vargroup2, Symbol(v))
         else
             push!(vargroup1, Symbol(v))
@@ -303,13 +309,23 @@ function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
 
     end
  
-    # Assign 2D variables to dataframe 
+    # Assign 2D variables to dataframe
+    # 2 cases: 1. adapt pers is first; 2. adapt pers is second 
     for i in 1:length(vargroup1)
-        temp = getdataframe(m,:slrcost => vargroup1[i])
-        temp[:level]= fill(0.0,nrow(temp))
+        temp = getdataframe(model,:slrcost => vargroup1[i])
+        common_order = [:adaptPers,:time,:regions,:segments]
+
+        missing_names = [j for j in common_order if !(j in names(temp))]
+        temp[missing_names]=Missing
+        if :regions in missing_names && !(:segments in missing_names)
+            temp = temp |> @map(merge(_,{regions=xsc[4][_.segments][1]})) |> DataFrame
+        end
+        
+        temp[:level]= Missing
         temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
         rename!(temp,vargroup1[i]=>:value)
-        temp = temp[[:time,:segments,:level,:variable,:value]]
+        temp = temp[[:adaptPers,:time,:regions,:segments,:level, :variable, :value]]
+            
         if i==1
             global df = temp
         else 
@@ -319,22 +335,27 @@ function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
 
     # Assign 3D variables to second data frame and join 
     for j in 1:length(vargroup2)
-        ndim1 = size(m[:slrcost,vargroup2[j]])[3]
+        ndim1 = size(model[:slrcost,vargroup2[j]])[3]
 
         for k in 1:ndim1
 
-            temp = DataFrame(m[:slrcost,vargroup2[j]][:,:,k])
-            ntime = m[:slrcost,:ntsteps]
+            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
+            common_order = [:adaptPers,:time,:regions,:segments]
+
+            missing_names = [j for j in common_order if !(j in names(temp))]
+            temp[missing_names]=Missing
+
+            ntime = model[:slrcost,:ntsteps]
             colnames= [Symbol(xsc[6][parse(Int64,replace(String(i),r"x"=>s""))]) for i in names(temp)]
             names!(temp,colnames)
-            temp[:time] = 1:ntime
+            temp[:time] = 1:ntime       
             
             if String(vargroup2[j])=="Construct" || occursin("Protect",String(vargroup2[j]))
                 dim1 = k+1
-                adapt=m[:slrcost,:adaptoptions][dim1]
+                adapt=model[:slrcost,:adaptoptions][dim1]
             else
                 dim1=k
-                adapt=m[:slrcost,:adaptoptions][dim1]
+                adapt=model[:slrcost,:adaptoptions][dim1]
             end
 
             temp[:level] = fill(adapt, ntime)
@@ -358,7 +379,7 @@ function write_ciam(m, xsc; tag="NA",sumsegs="seg", varnames=false)
 
     # Sum to either region-level, global-level, or leave as seg-level  
     outdf = [df;df2]
-    outfile = "results_$(rcp)_$(tag)_$(sumsegs).csv"
+    outfile = "$(model.run_name)_$(rcp)_$(subset)_$(sumsegs).csv"
 
     if sumsegs=="rgn"
         rgndf = outdf |> @map(merge(_,{region=xsc[4][_.segments][1]})) |> DataFrame

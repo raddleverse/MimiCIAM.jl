@@ -163,9 +163,9 @@ using Mimi
     OptimalFixedCost = Variable(index = [time, segments,1])        # Fixed optimal cost based on NPV in period 1   
     OptimalFixedLevel = Variable(index = [segments])        # Fixed optimal level (1,10,100,1000,10000)
     OptimalFixedOption = Variable(index = [segments])       # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
-    NPVRetreat = Variable(index = [adaptPers,segments, 5])
-    NPVProtect = Variable(index = [adaptPers,segments,  4])
-    NPVNoAdapt = Variable(index = [adaptPers,segments])                     
+    NPVRetreat = Variable(index = [time,segments, 5])
+    NPVProtect = Variable(index = [time,segments,  4])
+    NPVNoAdapt = Variable(index = [time,segments])                     
   
     # ---Outcome Variables---
     AdaptationDecision = Variable(index = [time, segments])   # Option chosen for adaptation period
@@ -325,7 +325,10 @@ using Mimi
         
     
                     end
-                    v.NPVNoAdapt[at_index,m] = sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+                    v.NPVNoAdapt[t,m] = sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+                    for j in t_range
+                        v.NPVNoAdapt[j,m]=v.NPVNoAdapt[t,m]
+                    end
     
                     # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
                     lslrPlan_at = p.lslr[at_next,m]
@@ -410,10 +413,16 @@ using Mimi
     
                         end
     
-                        v.NPVRetreat[at_index,m,i] = sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                        v.NPVRetreat[t,m,i] = sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                        for j in t_range
+                            v.NPVRetreat[j,m,i] = v.NPVRetreat[t,m,i]
+                        end
     
                         if p.adaptoptions[i] >=10
-                            v.NPVProtect[at_index,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                            v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                            for j in t_range
+                                v.NPVProtect[j,m,i-1] = v.NPVProtect[t,m,i-1]
+                            end
                         end
                     end
     

@@ -7,8 +7,8 @@ export m
 include("slrcost.jl")
 include("ciamhelper.jl")
 
-(run_name,lsl,sub) = init()
-modelparams = import_model_data(lsl,sub)
+(run_name,lsl,subset) = init()
+modelparams = import_model_data(lsl,subset)
 params = modelparams[1]
 xsc = modelparams[2]
 
