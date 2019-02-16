@@ -30,10 +30,12 @@ using Mimi
     # ---Socioeconomic Parameters---
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
-    refpopdens_usa = Parameter()                       # Reference population density of USA (people/km^2) 
+    rgn_ind_usa = Parameter()                          # Lookup parameter for USA region index, used in refpopdens and ypc  
+                                                       #    for USA benchmark in vsl, rho and fundland calculations
+ #   refpopdens_usa = Parameter()                       # Reference population density of USA (people/km^2) 
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
-    ypc_usa = Parameter(index = [time])                # GDP per capita in USA; used as benchmark ($2010 per capita)
+ #   ypc_usa = Parameter(index = [time])                # GDP per capita in USA; used as benchmark ($2010 per capita)
      
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
@@ -188,7 +190,7 @@ using Mimi
                 # Determine land input value (true = FUND, false = GTAP)
                 # TODO switch to importing fund land values as param
                 if p.landinput 
-                    v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[t,r] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
+                    v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[t,r] * p.refpopdens[r] / (p.ypcc[1,p.rgn_ind_usa] * p.refpopdens[p.rgn_ind_usa])))
                     v.landdata[r] = v.fundland[r]
                  #   v.landdata_canada = p.fundland_canada
                 else
@@ -196,14 +198,14 @@ using Mimi
                   #  v.landdata_canada = p.gtapland_canada
                 end
     
-                v.wetlandservice[t,r] = p.wbvm * ((p.ypcc[t,r] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
-                v.ρ[t,r] = p.ypcc[t,r] / (p.ypcc[t,r] + p.ypc_usa[1])
+                v.wetlandservice[t,r] = p.wbvm * ((p.ypcc[t,r] / p.ypcc[1,p.rgn_ind_usa])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
+                v.ρ[t,r] = p.ypcc[t,r] / (p.ypcc[t,r] + p.ypcc[1,p.rgn_ind_usa])
                 v.land_appr[t,r] = 1.
     
                 for i in collect(2:Int(p.ntsteps))
                     v.land_appr[i,r] = v.land_appr[i-1,r] * exp(0.565 * growthrate(p.ypcc[i-1,r], p.ypcc[i,r]) + 0.313 * growthrate(p.pop[i-1,r], p.pop[i,r]))
                     v.wetlandservice[i,r] = v.land_appr[i,r] * v.wetlandservice[1,r]
-                    v.ρ[i,r] = p.ypcc[i,r] / (p.ypcc[i,r] + p.ypc_usa[1]) 
+                    v.ρ[i,r] = p.ypcc[i,r] / (p.ypcc[i,r] + p.ypcc[1,p.rgn_ind_usa]) 
                 end    
             end
     
@@ -217,12 +219,12 @@ using Mimi
                 # Greenland segments treated differently 
                 if isgreenland(m,p.xsc)==1
                     v.ypc_seg[t,m] =22642*1.01^1   # FLAG: assumes t is an index (1-20)
-                    v.vsl[t,m] = 1e-6 * 216 * p.ypc_usa[1] * (v.ypc_seg[t,m]/p.ypc_usa[1])^0.5
+                    v.vsl[t,m] = 1e-6 * 216 * p.ypcc[1,p.rgn_ind_usa] * (v.ypc_seg[t,m]/p.ypcc[1,p.rgn_ind_usa])^0.5
                     v.coastland[t,m] = (v.land_appr[1,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1+v.popdens_seg[t,m])/log(25))
                     v.landvalue[t,m] = min(v.coastland[t,m], (v.land_appr[1,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
                 else
                     v.ypc_seg[t,m] = p.ypcc[t,rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05)
-                    v.vsl[t,m] = 1e-6 * 216 * p.ypc_usa[1] * (p.ypcc[t,rgn_ind]/p.ypc_usa[1])^0.5
+                    v.vsl[t,m] = 1e-6 * 216 * p.ypcc[1,p.rgn_ind_usa] * (p.ypcc[t,rgn_ind]/p.ypcc[1,p.rgn_ind_usa])^0.5
                     v.coastland[t,m] = max(0.5, log(1+v.popdens_seg[t,m])/log(25)) * (v.land_appr[t,rgn_ind] * v.landdata[rgn_ind])  # Interior * scaling factor
                     v.landvalue[t,m] = min(v.coastland[t,m], (v.land_appr[t,rgn_ind] * v.landdata[rgn_ind]))
                 end
@@ -236,14 +238,14 @@ using Mimi
                     # Special treatment for Greenland segments 
                     if isgreenland(m,p.xsc)==1
                         v.ypc_seg[i,m] =22642*1.01^i   # FLAG: assumes i is an index (1-20)
-                        v.vsl[i,m] = 1e-6 * 216 * p.ypc_usa[i] * (v.ypc_seg[i,m]/p.ypc_usa[i])^0.5  
+                        v.vsl[i,m] = 1e-6 * 216 * p.ypcc[i,p.rgn_ind_usa] * (v.ypc_seg[i,m]/p.ypcc[i,p.rgn_ind_usa])^0.5  
                         v.coastland[i,m] = (v.land_appr[i,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1+v.popdens_seg[i,m])/log(25))
                         v.landvalue[i,m] = min(v.coastland[i,m], (v.land_appr[i,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
     
                     else
                         v.ypc_seg[i,m] = p.ypcc[i,rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
                         v.coastland[i,m] = max(0.5, log(1+v.popdens_seg[i,m])/log(25)) * (v.land_appr[i,rgn_ind] * v.landdata[rgn_ind])
-                        v.vsl[i,m] = 1e-6 * 216 * p.ypc_usa[i] * (p.ypcc[i,rgn_ind]/p.ypc_usa[i])^0.5     
+                        v.vsl[i,m] = 1e-6 * 216 * p.ypcc[i,p.rgn_ind_usa] * (p.ypcc[i,rgn_ind]/p.ypcc[i,p.rgn_ind_usa])^0.5     
                         v.landvalue[i,m] = min(v.coastland[i,m], (v.land_appr[i,rgn_ind] * v.landdata[rgn_ind]))
      
                     end
