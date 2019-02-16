@@ -42,8 +42,8 @@ using Mimi
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
          
     gtapland = Parameter( index = [regions])        # GTAP land value in 2007 (million 2010$ / km^2)
-    gtapland_canada = Parameter()                   # GTAP land value in 2007 for Canada (million 2010$ / km^2)
-    fundland_canada = Parameter()                   # FUND land value in 1995 for Canada (million 2010$ / km^2)
+ #   gtapland_canada = Parameter()                   # GTAP land value in 2007 for Canada (million 2010$ / km^2)
+ #   fundland_canada = Parameter()                   # FUND land value in 1995 for Canada (million 2010$ / km^2)
     dvbm = Parameter()                              # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     kgdp = Parameter()                              # Capital output ratio (per MERGE) (3 by default) 
     discountrate = Parameter()                      # Discount rate (0.04 by default)
@@ -51,11 +51,12 @@ using Mimi
     
     
     landdata = Variable( index = [regions])         # Takes on value of either fundland or gtapland
-    landdata_canada = Variable()
+#    landdata_canada = Variable()
     fundland = Variable( index = [regions])         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2), 
                                                     #   Q maybe import directly? 
 
-    land_appr_canada = Parameter(index = [time])    # Canada land appreciation rate (used for Greenland)
+    #land_appr_canada = Parameter(index = [time])    # Canada land appreciation rate (used for Greenland)
+    rgn_ind_canada = Parameter()                    # Region index for Canada (Used as reference for Greenland land appreciation)
     land_appr = Variable(index = [time, regions])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott) 
     coastland = Variable(index = [time, segments])  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
     landvalue = Variable(index = [time, segments])  # Total endowment value of land ($2010M per sqkm)
@@ -189,10 +190,10 @@ using Mimi
                 if p.landinput 
                     v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[t,r] * p.refpopdens[r] / (p.ypc_usa[1] * p.refpopdens_usa)))
                     v.landdata[r] = v.fundland[r]
-                    v.landdata_canada = p.fundland_canada
+                 #   v.landdata_canada = p.fundland_canada
                 else
                     v.landdata[r] = p.gtapland[r]
-                    v.landdata_canada = p.gtapland_canada
+                  #  v.landdata_canada = p.gtapland_canada
                 end
     
                 v.wetlandservice[t,r] = p.wbvm * ((p.ypcc[t,r] / p.ypc_usa[1])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
@@ -217,8 +218,8 @@ using Mimi
                 if isgreenland(m,p.xsc)==1
                     v.ypc_seg[t,m] =22642*1.01^1   # FLAG: assumes t is an index (1-20)
                     v.vsl[t,m] = 1e-6 * 216 * p.ypc_usa[1] * (v.ypc_seg[t,m]/p.ypc_usa[1])^0.5
-                    v.coastland[t,m] = (p.land_appr_canada[1] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[t,m])/log(25))
-                    v.landvalue[t,m] = min(v.coastland[t,m], (p.land_appr_canada[1] * v.landdata_canada))
+                    v.coastland[t,m] = (v.land_appr[1,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1+v.popdens_seg[t,m])/log(25))
+                    v.landvalue[t,m] = min(v.coastland[t,m], (v.land_appr[1,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
                 else
                     v.ypc_seg[t,m] = p.ypcc[t,rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05)
                     v.vsl[t,m] = 1e-6 * 216 * p.ypc_usa[1] * (p.ypcc[t,rgn_ind]/p.ypc_usa[1])^0.5
@@ -236,8 +237,8 @@ using Mimi
                     if isgreenland(m,p.xsc)==1
                         v.ypc_seg[i,m] =22642*1.01^i   # FLAG: assumes i is an index (1-20)
                         v.vsl[i,m] = 1e-6 * 216 * p.ypc_usa[i] * (v.ypc_seg[i,m]/p.ypc_usa[i])^0.5  
-                        v.coastland[i,m] = (p.land_appr_canada[i] * v.landdata_canada) * max(0.5, log(1+v.popdens_seg[i,m])/log(25))
-                        v.landvalue[i,m] = min(v.coastland[i,m], (p.land_appr_canada[i] * v.landdata_canada))
+                        v.coastland[i,m] = (v.land_appr[i,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1+v.popdens_seg[i,m])/log(25))
+                        v.landvalue[i,m] = min(v.coastland[i,m], (v.land_appr[i,p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
     
                     else
                         v.ypc_seg[i,m] = p.ypcc[i,rgn_ind] * max(0.9, (p.popdens[m]/250.)^0.05) # ypcc * popdens scaling factor
