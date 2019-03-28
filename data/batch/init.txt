@@ -1,1 +1,5 @@
-run1,lsl_rcp0_p50.csv,false
+run_name,batch1
+lslr,lsl_rcp85_p50.csv
+subset,false
+ssp,1
+discountrate,0.04

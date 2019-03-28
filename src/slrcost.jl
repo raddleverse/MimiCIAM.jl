@@ -30,7 +30,7 @@ using Mimi
     # ---Socioeconomic Parameters---
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
-    rgn_ind_usa = Parameter()                          # Lookup parameter for USA region index, used in refpopdens and ypc  
+    rgn_ind_usa::Int = Parameter()                          # Lookup parameter for USA region index, used in refpopdens and ypc  
                                                        #    for USA benchmark in vsl, rho and fundland calculations
  #   refpopdens_usa = Parameter()                       # Reference population density of USA (people/km^2) 
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
@@ -58,7 +58,7 @@ using Mimi
                                                     #   Q maybe import directly? 
 
     #land_appr_canada = Parameter(index = [time])    # Canada land appreciation rate (used for Greenland)
-    rgn_ind_canada = Parameter()                    # Region index for Canada (Used as reference for Greenland land appreciation)
+    rgn_ind_canada::Int = Parameter()                    # Region index for Canada (Used as reference for Greenland land appreciation)
     land_appr = Variable(index = [time, regions])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott) 
     coastland = Variable(index = [time, segments])  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
     landvalue = Variable(index = [time, segments])  # Total endowment value of land ($2010M per sqkm)

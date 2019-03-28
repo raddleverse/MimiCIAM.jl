@@ -2,6 +2,7 @@ using Mimi
 
 cd("Desktop/ERG/MastersProject/pjt/ciam/src/")
 include("ciam.jl")
+include("slrcost.jl")
 include("ciamhelper.jl")
 using Main.ciam 
 

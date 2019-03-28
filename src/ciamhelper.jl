@@ -13,14 +13,32 @@ using DelimitedFiles
 using DataFrames
 using Query
 using CSV
+using Dates
 
 
 # Function to load CIAM parameters from CSV to dictionary
-function load_ciam_params()
+function load_ciam_params(ssp)
     data_dir = "../data/input"
-    files = readdir(data_dir)
+    ssp_dir = "../data/ssp"
+    files = readdir(data_dir) 
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
-    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
+
+    if ssp!= false
+        ssp_files = readdir(ssp_dir)
+        filter!(i -> (occursin(ssp,i) && i!=".DS_Store"),ssp_files)
+        ssp_names = [replace(i, string("_ssp",ssp,".csv")=>s"") for i in ssp_files]
+        filter!(i -> (!(i in ssp_names.*".csv")), files)
+        #files = [files;joinpath.(ssp_dir,ssp_files)]
+        ssps = zip(ssp_names,ssp_files)
+
+        params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
+        for i in ssps
+            params[i[1]] = CSV.read(joinpath(ssp_dir,i[2])) |> DataFrame
+        end
+    else
+        params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
+    end
+
     return params
 
 end
@@ -218,30 +236,41 @@ end
 
 function init()
     dir="../data/batch"
-    header = DelimitedFiles.readdlm(joinpath(dir,"init.txt"),',')
-    run_name = header[1]
-    lsl=header[2]
-    subset=header[3]
-    return(run_name,lsl,subset)
+    varnames = CSV.read(open(joinpath(dir,"init.txt")),header=false)
+    vardict = Dict{Any,Any}(varnames[i,1] => varnames[i,2] for i in 1:nrow(varnames))
+
+    for (k,v) in vardict
+        if v=="true"
+            vardict[k]=true
+        elseif v=="false"
+            vardict[k] = false
+        end
+    end
+               
+    return(vardict)
 
 end
 
 # In progress create a writelog function to go with a wrapper for the run function 
 # automatically produce a logfile 
-function writelog(m)
+function writelog()
     dir="../data/batch/logs"
+    d = init()
+    run = d["run_name"]
+    date = Dates.now()
+    cp("../data/batch/init.txt",joinpath(dir,"$(run)_$(date).txt"))
 
 end
 
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile,sub)
+function import_model_data(lslfile,sub,ssp)
 
     subset=load_subset(sub)
 
     # Process main and lsl params
-    params = load_ciam_params()
+    params = load_ciam_params(ssp)
      
     # Process XSC (segment-country mapping dictionary)
     xsc = prepxsc(subset)
@@ -280,14 +309,14 @@ end
 # sumsegs - whether to sum across all segments, to region level, or no sums
 # varnames: to do: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
-function write_ciam(main; sumsegs="seg", varnames=false)
-    outputdir = "../output/results-jl"
+function write_ciam(main; sumsegs="seg", varnames=false,tag="")
+    outputdir = "/Volumes/MASTERS/ciam_runs"
     meta_output = load_meta()
-    rcp = replace(replace(main.lsl,r"lsl_"=>s""),r".csv"=>s"")
+    rcp = replace(replace(main.d["lslr"],r"lsl_"=>s""),r".csv"=>s"")
     
     model = main.m
     xsc = main.xsc
-    subset = main.subset
+    subset = main.d["subset"]
 
     if subset==false
         subset="full"
@@ -313,18 +342,19 @@ function write_ciam(main; sumsegs="seg", varnames=false)
     # 2 cases: 1. adapt pers is first; 2. adapt pers is second 
     for i in 1:length(vargroup1)
         temp = getdataframe(model,:slrcost => vargroup1[i])
-        common_order = [:adaptPers,:time,:regions,:segments]
+        common_order = [:time,:regions,:segments,:level]
 
         missing_names = [j for j in common_order if !(j in names(temp))]
-        temp[missing_names]=Missing
+        if length(missing_names)>=1 
+            temp[missing_names]=Missing
+        end
         if :regions in missing_names && !(:segments in missing_names)
             temp = temp |> @map(merge(_,{regions=xsc[4][_.segments][1]})) |> DataFrame
         end
         
-        temp[:level]= Missing
         temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
         rename!(temp,vargroup1[i]=>:value)
-        temp = temp[[:adaptPers,:time,:regions,:segments,:level, :variable, :value]]
+        temp = temp[[:time,:regions,:segments,:level, :variable, :value]]
             
         if i==1
             global df = temp
@@ -340,10 +370,7 @@ function write_ciam(main; sumsegs="seg", varnames=false)
         for k in 1:ndim1
 
             temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
-            common_order = [:adaptPers,:time,:regions,:segments]
-
-            missing_names = [j for j in common_order if !(j in names(temp))]
-            temp[missing_names]=Missing
+            common_order = [:time,:regions,:segments,:level]
 
             ntime = model[:slrcost,:ntsteps]
             colnames= [Symbol(xsc[6][parse(Int64,replace(String(i),r"x"=>s""))]) for i in names(temp)]
@@ -364,7 +391,9 @@ function write_ciam(main; sumsegs="seg", varnames=false)
             temp[:segments] = [String(i) for i in temp[:segments]]
 
             temp[:variable]= fill(String(vargroup2[j]),nrow(temp))
-            temp = temp[[:time,:segments,:level,:variable,:value]]
+            
+            temp = temp |> @map(merge(_,{regions=xsc[4][_.segments][1]})) |> DataFrame
+            temp = temp[[:time,:regions,:segments,:level,:variable,:value]]
 
 
             if j==1 && k==1
@@ -379,12 +408,11 @@ function write_ciam(main; sumsegs="seg", varnames=false)
 
     # Sum to either region-level, global-level, or leave as seg-level  
     outdf = [df;df2]
-    outfile = "$(model.run_name)_$(rcp)_$(subset)_$(sumsegs).csv"
+    outfile = "$(main.run_name)_$(tag).csv"
 
     if sumsegs=="rgn"
-        rgndf = outdf |> @map(merge(_,{region=xsc[4][_.segments][1]})) |> DataFrame
-        rgndf2 = rgndf |> @groupby({_.time,_.region, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
-        CSV.write(joinpath(outputdir,outfile),rgndf2)  
+        rgndf = outdf |> @groupby({_.time,_.regions, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
+        CSV.write(joinpath(outputdir,outfile),rgndf)  
     elseif sumsegs=="seg"
         CSV.write(joinpath(outputdir,outfile),outdf)  
     elseif sumsegs=="global"
