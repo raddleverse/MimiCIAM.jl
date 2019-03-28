@@ -1,23 +1,22 @@
 # Catherine Ledna
-# Jan 24, 2019
+# March 28, 2019
 ##------------------------------------------------------------------------
 # CIAM Model
 #------------------------------------------------------------------------
 # Implements CIAM model adapted from Diaz, 2016. 
 #------------------------------------------------------------------------
-# TODO update to work with Julia 1.1 and Mimi 
 
 using Mimi
 
 @defcomp slrcost begin
+    # Define all variables, parameters and indices used by this module 
     # --- Indices ---
     regions = Index()
     segments = Index()                      
     adaptPers = Index()
 
-   
     # --- Region / segment mapping ---
-    xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping    
+    xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping (dictionary) to keep track of which segments belong to each region   
 
     # ---Time-related Parameters---
     tstep = Parameter()                     # Length of individual time-step (years)
@@ -30,7 +29,7 @@ using Mimi
     # ---Socioeconomic Parameters---
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
-    rgn_ind_usa::Int = Parameter()                          # Lookup parameter for USA region index, used in refpopdens and ypc  
+    rgn_ind_usa::Int = Parameter()                     # Lookup parameter for USA region index, used in refpopdens and ypc  
                                                        #    for USA benchmark in vsl, rho and fundland calculations
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
@@ -139,19 +138,24 @@ using Mimi
     # ---Intermediate Variables---
     WetlandNoAdapt = Variable(index = [time, segments])
     FloodNoAdapt = Variable(index = [time, segments])
-    StormNoAdapt = Variable(index = [time, segments])
+    StormCapitalNoAdapt = Variable(index = [time, segments])
+    StormPopNoAdapt = Variable(index = [time, segments])
     RelocateNoAdapt = Variable(index = [time, segments])
 
     Construct = Variable(index = [time, segments, 4])
     WetlandProtect = Variable(index = [time, segments])
     StormProtect = Variable(index = [time, segments,4])
-    H = Variable(index = [time, segments, 4])
     
     WetlandRetreat = Variable(index = [time, segments])
     StormRetreat = Variable(index = [time, segments,5])
     FloodRetreat = Variable(index = [time, segments, 5])
     RelocateRetreat = Variable(index = [time, segments, 5])
-    R = Variable(index = [time, segments, 5])
+    
+    # --- Decision Variables --- (evaluated brute force)
+    H = Variable(index = [time, segments, 4])       # Height of current sea wall, no retreat (m)
+    R = Variable(index = [time, segments, 5])       # Retreat perimeter (m)
+    SIGMA = Variable(index = [time, segments, 10])  # Expected value of effective exposure area for over-topping surge (all cases)
+                                                    # Order of sigma values: 1 no adapt case, 5 retreat cases, 4 protect cases in ascending order
 
     # ---Decision Variables---   
     NoAdaptCost = Variable(index = [time, segments])         # Cost of not adapting (e.g. reactive retreat) (2010$)
@@ -182,16 +186,15 @@ using Mimi
             # 2. Initialize region-dependent intermediate variables
             for r in d.regions
                 # Determine land input value (true = FUND, false = GTAP)
-                # TODO switch to importing fund land values as param
                 if p.landinput 
                     v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[t,r] * p.refpopdens[r] / (p.ypcc[1,p.rgn_ind_usa] * p.refpopdens[p.rgn_ind_usa])))
                     v.landdata[r] = v.fundland[r]
-                 #   v.landdata_canada = p.fundland_canada
                 else
                     v.landdata[r] = p.gtapland[r]
-                  #  v.landdata_canada = p.gtapland_canada
                 end
     
+                # Calculate regional wetland service, resilience (rho), and land appreciation variables for the first period and 
+                #   subsequent periods 
                 v.wetlandservice[t,r] = p.wbvm * ((p.ypcc[t,r] / p.ypcc[1,p.rgn_ind_usa])^1.16 * (p.refpopdens[r] /27.59)^0.47) 
                 v.ρ[t,r] = p.ypcc[t,r] / (p.ypcc[t,r] + p.ypcc[1,p.rgn_ind_usa])
                 v.land_appr[t,r] = 1.
@@ -205,12 +208,14 @@ using Mimi
     
             # 3. Initialize segment-dependent variables 
             for m in d.segments
-                rgn_ind = getregion(m, p.xsc)
+                rgn_ind = getregion(m, p.xsc) # Identify the region the segment belongs to
      
+                # Initialize first-period population density, coast area and surge parameters
                 v.popdens_seg[t,m] = p.popdens[m]
                 v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
                 v.surgeExposure[m,:] = [0 p.s10[m] p.s100[m] p.s1000[m] p.smax[m]] 
-                # Greenland segments treated differently 
+
+                # Greenland segments are treated differently 
                 if isgreenland(m,p.xsc)==1
                     v.ypc_seg[t,m] =22642*1.01^1   # FLAG: assumes t is an index (1-20)
                     v.vsl[t,m] = 1e-6 * 216 * p.ypcc[1,p.rgn_ind_usa] * (v.ypc_seg[t,m]/p.ypcc[1,p.rgn_ind_usa])^0.5
@@ -292,12 +297,16 @@ using Mimi
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
                         R_NoAdapt = max(0, p.lslr[i,m])
-    
-                        v.StormNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m])))) * 
-                            (v.capital[i,m] + v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality)
-                                
+                        
+                        # Storm Costs 
+                        v.SIGMA[i,m,1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m])))) # expected value of exposure area 
+                        v.StormCapitalNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.SIGMA[i,m,1] * v.capital[i,m]
+                        v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
+                        
+                        # Wetland Costs 
                         v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m])
     
+                        # Flood and relocation costs 
                         if i==p.ntsteps
                             v.FloodNoAdapt[i,m] = p.tstep * v.landvalue[i-1,m]*.04 * max(0, v.coastArea[i,m]) + (max(0, v.coastArea[i,m]) - max(0, v.coastArea[i-1,m])) * 
                                 (1 - p.mobcapfrac) * v.capital[i-1,m]
@@ -316,9 +325,10 @@ using Mimi
                         v.WetlandNoAdapt[i,m] = v.WetlandNoAdapt[i,m] * 1e-4
                         v.FloodNoAdapt[i,m] = v.FloodNoAdapt[i,m] * 1e-4
                         v.RelocateNoAdapt[i,m] = v.RelocateNoAdapt[i,m] * 1e-4
-                        v.StormNoAdapt[i,m] = v.StormNoAdapt[i,m] * 1e-4
+                        v.StormCapitalNoAdapt[i,m] = v.StormCapitalNoAdapt[i,m] * 1e-4
+                        v.StormPopNoAdapt[i,m] = v.StormPopNoAdapt[i,m] * 1e-4
     
-                        v.NoAdaptCost[i,m] = v.WetlandNoAdapt[i,m] + v.FloodNoAdapt[i,m] +  v.RelocateNoAdapt[i,m] + v.StormNoAdapt[i,m]
+                        v.NoAdaptCost[i,m] = v.WetlandNoAdapt[i,m] + v.FloodNoAdapt[i,m] +  v.RelocateNoAdapt[i,m] + v.StormCapitalNoAdapt[i,m] + v.StormPopNoAdapt[i,m]
         
     
                     end
