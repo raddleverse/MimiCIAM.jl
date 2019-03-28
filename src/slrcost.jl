@@ -32,10 +32,8 @@ using Mimi
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
     rgn_ind_usa::Int = Parameter()                          # Lookup parameter for USA region index, used in refpopdens and ypc  
                                                        #    for USA benchmark in vsl, rho and fundland calculations
- #   refpopdens_usa = Parameter()                       # Reference population density of USA (people/km^2) 
     popdens = Parameter( index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
- #   ypc_usa = Parameter(index = [time])                # GDP per capita in USA; used as benchmark ($2010 per capita)
      
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
@@ -44,8 +42,6 @@ using Mimi
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
          
     gtapland = Parameter( index = [regions])        # GTAP land value in 2007 (million 2010$ / km^2)
- #   gtapland_canada = Parameter()                   # GTAP land value in 2007 for Canada (million 2010$ / km^2)
- #   fundland_canada = Parameter()                   # FUND land value in 1995 for Canada (million 2010$ / km^2)
     dvbm = Parameter()                              # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     kgdp = Parameter()                              # Capital output ratio (per MERGE) (3 by default) 
     discountrate = Parameter()                      # Discount rate (0.04 by default)
@@ -53,11 +49,9 @@ using Mimi
     
     
     landdata = Variable( index = [regions])         # Takes on value of either fundland or gtapland
-#    landdata_canada = Variable()
     fundland = Variable( index = [regions])         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2), 
                                                     #   Q maybe import directly? 
 
-    #land_appr_canada = Parameter(index = [time])    # Canada land appreciation rate (used for Greenland)
     rgn_ind_canada::Int = Parameter()                    # Region index for Canada (Used as reference for Greenland land appreciation)
     land_appr = Variable(index = [time, regions])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott) 
     coastland = Variable(index = [time, segments])  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
