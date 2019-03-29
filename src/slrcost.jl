@@ -144,10 +144,12 @@ using Mimi
 
     Construct = Variable(index = [time, segments, 4])
     WetlandProtect = Variable(index = [time, segments])
-    StormProtect = Variable(index = [time, segments,4])
+    StormCapitalProtect = Variable(index = [time, segments,4])
+    StormPopProtect = Variable(index = [time, segments,4])
     
     WetlandRetreat = Variable(index = [time, segments])
-    StormRetreat = Variable(index = [time, segments,5])
+    StormCapitalRetreat = Variable(index = [time, segments,5])
+    StormPopRetreat = Variable(index = [time, segments,5])
     FloodRetreat = Variable(index = [time, segments, 5])
     RelocateRetreat = Variable(index = [time, segments, 5])
     
@@ -301,7 +303,7 @@ using Mimi
                         # Storm Costs 
                         v.SIGMA[i,m,1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m])))) # expected value of exposure area 
                         v.StormCapitalNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.SIGMA[i,m,1] * v.capital[i,m]
-                        v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
+                        v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         
                         # Wetland Costs 
                         v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m])
@@ -343,6 +345,7 @@ using Mimi
                     
                     for i in 1:length(p.adaptoptions)
                         v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                        v.SIGMA[t,m, i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[t,m,i] - p.lslr[t,m]))))
                         v.coastAreaRetreat[t,m,i] = calcCoastArea(v.areaparams[m,:], v.R[t,m,i])
 
                         if is_first(t)
@@ -362,6 +365,8 @@ using Mimi
            
                         if p.adaptoptions[i] >= 10
                             v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                            v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
+
                             if is_first(t)
                                 Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions)
                             else
@@ -382,39 +387,42 @@ using Mimi
     
                         for j in t_range
                             v.R[j,m,i] = v.R[t,m,i]
+                            v.SIGMA[j,m,i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[j,m,i] - p.lslr[j,m]))))
                             v.coastAreaRetreat[j,m,i] = v.coastAreaRetreat[t,m,i]
                             
                             v.WetlandRetreat[j,m] = p.tstep * v.wetlandservice[j,rgn_ind] * v.wetlandloss[j,m] * min(v.coastArea[j,m], p.wetland[m])
     
-                            v.StormRetreat[j,m,i] = p.tstep * (1 - v.ρ[j,rgn_ind]) * 
-                                (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[j,m,i] - p.lslr[j,m])))) * 
-                                (v.capital[j,m] + v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality)
+                            v.StormCapitalRetreat[j,m,i] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,i+1]* v.capital[j,m] 
+                            v.StormPopRetreat[j,m,i] =  p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,i+1]* v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality
     
                             v.FloodRetreat[j,m, i] = v.FloodRetreat[t,m,i]
                             v.RelocateRetreat[j,m,i] = v.RelocateRetreat[t,m,i]
     
                             # Put all other costs intp $Billions from $M and divide by 10
-                            v.StormRetreat[j,m,i]  = v.StormRetreat[j,m,i]  * 1e-4
+                            v.StormCapitalRetreat[j,m,i]  = v.StormCapitalRetreat[j,m,i]  * 1e-4
+                            v.StormPopRetreat[j,m,i]  = v.StormPopRetreat[j,m,i]  * 1e-4
                             v.WetlandRetreat[j,m] = v.WetlandRetreat[j,m] * 1e-4
                                         
-                            v.RetreatCost[j,m, i] = v.FloodRetreat[j,m,i] + v.RelocateRetreat[j,m,i] + v.StormRetreat[j,m,i] + v.WetlandRetreat[j,m]
+                            v.RetreatCost[j,m, i] = v.FloodRetreat[j,m,i] + v.RelocateRetreat[j,m,i] + v.StormCapitalRetreat[j,m,i] + v.StormPopRetreat[j,m,i] + v.WetlandRetreat[j,m]
                                 
                             if p.adaptoptions[i] >= 10
                                 v.H[j,m, i-1] = v.H[t,m, i-1]
+                                v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
+                                (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m]))))
     
                                 v.WetlandProtect[j,m] = p.tstep * p.wetland[m] .* v.wetlandservice[j,rgn_ind]
                                         
-                                v.StormProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
-                                                        (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m])))) *
-                                                        (v.capital[j,m] + v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality)
+                                v.StormCapitalProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+6] * v.capital[j,m]                                              
+                                v.StormPopProtect[j,m,i-1] =  p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+6] * v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality
                                     
                                 v.Construct[j,m,i-1] = v.Construct[t,m, i-1]
     
                                 # Put all other costs intp $Billions from $M and divide by 10
                                 v.WetlandProtect[j,m] = v.WetlandProtect[j,m] * 1e-4
-                                v.StormProtect[j,m,i-1] = v.StormProtect[j,m,i-1] * 1e-4
+                                v.StormCapitalProtect[j,m,i-1] = v.StormCapitalProtect[j,m,i-1] * 1e-4
+                                v.StormPopProtect[j,m,i-1] = v.StormPopProtect[j,m,i-1] * 1e-4
                                                     
-                                v.ProtectCost[j,m,i-1] = v.Construct[j,m,i-1] + v.WetlandProtect[j,m] + v.StormProtect[j,m,i-1]
+                                v.ProtectCost[j,m,i-1] = v.Construct[j,m,i-1] + v.WetlandProtect[j,m] + v.StormCapitalProtect[j,m,i-1] + v.StormPopProtect[j,m,i-1]
     
                             end
     
