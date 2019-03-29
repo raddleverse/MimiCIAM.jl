@@ -159,22 +159,18 @@ using Mimi
     SIGMA = Variable(index = [time, segments, 10])  # Expected value of effective exposure area for over-topping surge (all cases)
                                                     # Order of sigma values: 1 no adapt case, 5 retreat cases, 4 protect cases in ascending order
 
-    # ---Decision Variables---   
+    # ---Outcome Variables---   
     NoAdaptCost = Variable(index = [time, segments])         # Cost of not adapting (e.g. reactive retreat) (2010$)
     ProtectCost = Variable(index = [time, segments, 4])      # Total cost of protection at each level      
     RetreatCost = Variable(index = [time, segments, 5])      # Total cost of retreat at each level   
-    OptimalFixedCost = Variable(index = [time, segments,1])        # Fixed optimal cost based on NPV in period 1   
-    OptimalFixedLevel = Variable(index = [segments])        # Fixed optimal level (1,10,100,1000,10000)
-    OptimalFixedOption = Variable(index = [segments])       # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
-    NPVRetreat = Variable(index = [time,segments, 5])
+    OptimalRetreatLevel = Variable(index = [segments])
+    OptimalProtectLevel = Variable(index = [segments])
+    OptimalFixedCost = Variable(index = [time, segments,1])  # Fixed optimal cost based on NPV in period 1   
+    OptimalFixedLevel = Variable(index = [segments])         # Fixed optimal level (1,10,100,1000,10000)
+    OptimalFixedOption = Variable(index = [segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
+    NPVRetreat = Variable(index = [time,segments, 5])        
     NPVProtect = Variable(index = [time,segments,  4])
-    NPVNoAdapt = Variable(index = [time,segments])                     
-  
-    # ---Outcome Variables---
-    AdaptationDecision = Variable(index = [time, segments])   # Option chosen for adaptation period
-    AdaptationCost = Variable(index = [time, segments])       # Cost of option chosen for adaptation period (B 2010$ / yr) 
-    AdaptationLevel = Variable(index = [time, segments])      # Level of protect or retreat (if chosen)
-    RegionalCost = Variable(index = [time, regions])          # Cost of adaptation at level of region
+    NPVNoAdapt = Variable(index = [time,segments])
 
     function run_timestep(p, v, d, t)    
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
@@ -290,9 +286,6 @@ using Mimi
 
             for m in d.segments
                 if atstep==0
-                    v.AdaptationCost[t,m] = v.AdaptationCost[t-1,m]
-                    v.AdaptationDecision[t,m] = v.AdaptationDecision[t-1,m]
-                    v.AdaptationLevel[t,m] = v.AdaptationLevel[t-1,m]
                 else
                     rgn_ind = getregion(m, p.xsc)
      
@@ -446,6 +439,8 @@ using Mimi
                         protectInd = findmin(v.NPVProtect[at_index,m,:])[2]
                         retreatInd = findmin(v.NPVRetreat[at_index,m,:])[2]
         
+                        v.OptimalProtectLevel[m] = protectInd
+                        v.OptimalRetreatLevel[m] = retreatInd
                         minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
                         choices = [v.NPVProtect[at_index,m,protectInd], v.NPVRetreat[at_index,m,retreatInd], v.NPVNoAdapt[at_index,m]]
                         leastcost = -1 * findmin(choices)[2]
