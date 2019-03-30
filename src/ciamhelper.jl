@@ -236,17 +236,8 @@ end
 
 function init()
     dir="../data/batch"
-    varnames = CSV.read(open(joinpath(dir,"init.txt")),header=false)
-    vardict = Dict{Any,Any}(varnames[i,1] => varnames[i,2] for i in 1:nrow(varnames))
-
-    for (k,v) in vardict
-        if v=="true"
-            vardict[k]=true
-        elseif v=="false"
-            vardict[k] = false
-        end
-    end
-               
+    varnames = CSV.read(open(joinpath(dir,"init.txt")),header=true)
+    vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))               
     return(vardict)
 
 end
