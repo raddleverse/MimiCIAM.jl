@@ -107,11 +107,7 @@ using Mimi
     lslr = Parameter(index = [time, segments])                # Local sea level rise (m) 
 
     adaptoptions = Parameter(index = [5])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
-    s10 = Parameter(index = [segments])
-    s100 = Parameter(index = [segments])
-    s1000 = Parameter(index = [segments])
-    smax = Parameter(index = [segments])
-    surgeExposure::Float64 = Variable( index = [segments, 5])     # Storm surge exposure levels (corresponding to each designated adaptation option)
+    surgeexposure::Float64 = Parameter( index = [segments, 5])     # Storm surge exposure levels (corresponding to each designated adaptation option)
     
 
     # ---Coastal Area Parameters---
@@ -210,8 +206,7 @@ using Mimi
      
                 # Initialize first-period population density, coast area and surge parameters
                 v.popdens_seg[t,m] = p.popdens[m]
-                v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
-                v.surgeExposure[m,:] = [0 p.s10[m] p.s100[m] p.s1000[m] p.smax[m]] 
+                v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]] 
 
                 # Greenland segments are treated differently 
                 if isgreenland(m,p.xsc)==1
@@ -337,12 +332,12 @@ using Mimi
                     lslrPlan_atprev = p.lslr[t,m]
                     
                     for i in 1:length(p.adaptoptions)
-                        v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                        v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
                         v.SIGMA[t,m, i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[t,m,i] - p.lslr[t,m]))))
                         v.coastAreaRetreat[t,m,i] = calcCoastArea(v.areaparams[m,:], v.R[t,m,i])
 
                         if is_first(t)
-                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions) 
+                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions) 
                         else
                             Rprev = v.R[convert(Int,p.at[at_index_prev]),m, i]
                         end
@@ -357,15 +352,16 @@ using Mimi
                             p.capmovefactor * p.mobcapfrac * v.capital[t,m] + p.democost * (1 - p.mobcapfrac ) * v.capital[t,m]) * 1e-4
            
                         if p.adaptoptions[i] >= 10
-                            v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, v.surgeExposure[m,:], p.adaptoptions)
+                            v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
                             v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
 
                             if is_first(t)
-                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], v.surgeExposure[m,:], p.adaptoptions)
+                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions)
                             else
                                 Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
                             end
-                                # Island protection costs are higher
+
+                            # Island protection costs are higher
                             if isisland(m,p.xsc)==1
                                 pc = 2*p.pc0*p.cci[rgn_ind]
                             else
@@ -375,6 +371,12 @@ using Mimi
                             v.Construct[t,m,i-1] = (p.tstep/atstep) * 
                                 (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[t,m, i-1]^2 - Hprev^2) + 
                                 p.mc*atstep*v.H[t,m, i-1]) + p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4
+                            
+                            if Hprev > v.H[t,m,i-1]
+                                v.H[t,m,i-1] = Hprev
+                                # Just maintenance cost + land value
+                                v.Construct[t,m,i-1] = (p.tstep/atstep) * (p.length[m] * pc *p.mc*atstep*v.H[t,m, i-1]+ p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4 
+                            end
       
                         end
     
