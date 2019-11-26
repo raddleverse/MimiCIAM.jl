@@ -1,6 +1,6 @@
 using Mimi
 
-cd("Desktop/ERG/MastersProject/pjt/ciam/src/")
+cd("Desktop/ERG/Research/ciam/mimi-ciam.jl/src")
 include("ciam.jl")
 include("slrcost.jl")
 include("ciamhelper.jl")

@@ -7,18 +7,19 @@ export m
 include("slrcost.jl")
 include("ciamhelper.jl")
 
+# To do wrap in function 
 # Load initialization parameters: run name, lsl source, segments to run, SSP, discountrate 
 d = init()
 run_name = d["run_name"]
-modelparams = import_model_data(d["lslr"],d["subset"],d["ssp"])
+modelparams = import_model_data(d["lslr"][1],d["subset"][1])
 params = modelparams[1]
 xsc = modelparams[2]
-discountrate = parse(Float64,d["discountrate"])
+discountrate = 0.04#parse(Float64,d["discountrate"])
 
 # Dynamically find indices corresponding to USA and CAN and manually set time steps 
 rgn_ind_canada = [k for (k,v) in xsc[5] if v=="CAN"][1]
 rgn_ind_usa = [k for (k,v) in xsc[5] if v=="USA"][1]
-t=10 # Running 10 periods (thru 2100)
+t=10 # Running 10 periods (thru 2100) # To do - make an input argument
 
 # Set model dimensions 
 m = Model()
