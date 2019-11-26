@@ -51,7 +51,7 @@ function get_model(t::Int=20)
     m=Model()
 
     set_dimension!(m, :time, t)
-    set_dimension!(m, :adaptPers, 1)  # Todo figure out way not to hardcode these TODO change to default adapt periods 
+    set_dimension!(m, :adaptPers, length(params["at"]))  
     set_dimension!(m, :regions, xsc[2])
     set_dimension!(m, :segments, xsc[3])
 

@@ -322,10 +322,18 @@ using Mimi
         
     
                     end
-                    v.NPVNoAdapt[t,m] = sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+
+                    if is_first(t)
+                        v.NPVNoAdapt[t,m] = sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+                    else
+                        v.NPVNoAdapt[t,m] = v.NPVNoAdapt[gettime(t)-1,m] + sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+                    end
+
                     for j in t_range
                         v.NPVNoAdapt[j,m]=v.NPVNoAdapt[t,m]
                     end
+
+
     
                     # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
                     lslrPlan_at = p.lslr[at_next,m]
@@ -423,13 +431,25 @@ using Mimi
     
                         end
     
-                        v.NPVRetreat[t,m,i] = sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                        if is_first(t)
+                            v.NPVRetreat[t,m,i] = sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                        else
+                            v.NPVRetreat[t,m,i] = v.NPVRetreat[gettime(t)-1,m,i] + sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                        end
+
+                        
                         for j in t_range
                             v.NPVRetreat[j,m,i] = v.NPVRetreat[t,m,i]
                         end
     
                         if p.adaptoptions[i] >=10
-                            v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                            if is_first(t)
+                                v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                            else
+                                v.NPVProtect[t,m,i-1] = v.NPVProtect[gettime(t)-1,m,i-1] + sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                            end
+
+                            
                             for j in t_range
                                 v.NPVProtect[j,m,i-1] = v.NPVProtect[t,m,i-1]
                             end
