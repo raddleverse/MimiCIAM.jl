@@ -6,7 +6,7 @@ include("slrcost.jl")
 include("ciamhelper.jl")
 using Main.ciam 
 
-run(ciam.m)
+run(ciam.getciam)
 
 # Write model results to data frame ('output/results-jl')
 write_ciam(ciam) # Write segment-level results

@@ -2,7 +2,7 @@ module ciam
 
 using Mimi
 
-export m
+export getciam
 
 include("slrcost.jl")
 include("ciamhelper.jl")
@@ -13,7 +13,7 @@ function buildciam(m::Model)
 
 end
 
-function initciam(xsc, params, m::Model, num_pers::Int=20)
+function initciam(xsc, params, m::Model, t::Int=20)
 
     discountrate = 0.04#parse(Float64,d["discountrate"])
     
@@ -26,11 +26,12 @@ function initciam(xsc, params, m::Model, num_pers::Int=20)
     set_param!(m, :slrcost, :rgn_ind_canada, rgn_ind_canada)
     set_param!(m, :slrcost, :rgn_ind_usa, rgn_ind_usa)
     set_param!(m, :slrcost, :discountrate, discountrate)
+    set_param!(m, :slrcost, :ntsteps, t)
 
     # Shorten some time-dependent parameters to correspond to the correct number of timesteps 
     for k in keys(params)
-        if size(params[k])!=() && length(size(params[k]))==2 && size(params[k])[1]>num_pers && k!="surgeexposure"
-            params[k]=params[k][1:num_pers,:]
+        if size(params[k])!=() && length(size(params[k]))==2 && size(params[k])[1]>t && k!="surgeexposure"
+            params[k]=params[k][1:t,:]
         end
     end
 
@@ -39,7 +40,7 @@ function initciam(xsc, params, m::Model, num_pers::Int=20)
 
 end
 
-function get_model(num_pers::Int=20)
+function get_model(t::Int=20)
     d = init()
     run_name = d["run_name"]
 
@@ -49,18 +50,18 @@ function get_model(num_pers::Int=20)
     
     m=Model()
 
-    set_dimension!(m, :time, num_pers)
+    set_dimension!(m, :time, t)
     set_dimension!(m, :adaptPers, 1)  # Todo figure out way not to hardcode these TODO change to default adapt periods 
     set_dimension!(m, :regions, xsc[2])
     set_dimension!(m, :segments, xsc[3])
 
     buildciam(m)
-    initciam(xsc, params, m, num_pers)
+    initciam(xsc, params, m, t)
 
     return m 
 
 end
 
-getciam=get_model 
+getciam = get_model() 
 
 end
