@@ -37,7 +37,7 @@ set_param!(m, :slrcost, :discountrate, discountrate)
 
 # Shorten some time-dependent parameters to correspond to the correct number of timesteps 
 for k in keys(params)
-    if size(params[k])!=() && length(size(params[k]))==2 && size(params[k])[1]>t
+    if size(params[k])!=() && length(size(params[k]))==2 && size(params[k])[1]>t && k!="surgeexposure"
         params[k]=params[k][1:t,:]
     end
 end

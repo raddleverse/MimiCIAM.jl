@@ -17,27 +17,12 @@ using Dates
 
 
 # Function to load CIAM parameters from CSV to dictionary
-function load_ciam_params(ssp)
+function load_ciam_params()
     data_dir = "../data/input"
-    ssp_dir = "../data/ssp"
     files = readdir(data_dir) 
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
 
-    if ssp!= false
-        ssp_files = readdir(ssp_dir)
-        filter!(i -> (occursin(ssp,i) && i!=".DS_Store"),ssp_files)
-        ssp_names = [replace(i, string("_ssp",ssp,".csv")=>s"") for i in ssp_files]
-        filter!(i -> (!(i in ssp_names.*".csv")), files)
-        #files = [files;joinpath.(ssp_dir,ssp_files)]
-        ssps = zip(ssp_names,ssp_files)
-
-        params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
-        for i in ssps
-            params[i[1]] = CSV.read(joinpath(ssp_dir,i[2])) |> DataFrame
-        end
-    else
-        params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
-    end
+    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
 
     return params
 
@@ -121,6 +106,15 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
             end
             delete!(params, "globalparams")
+        elseif k=="surgeexposure"
+            p=@from i in p begin
+                @where i.segments in seg_order
+                @select i
+                @collect DataFrame
+            end
+            # Sort alphabetically
+            sort!(p, :segments)
+            params["surgeexposure"] = convert(Array{Float64,2},p[:,2:6])
  
         elseif size(p,2) ==2
             # Filter regions
@@ -256,12 +250,12 @@ end
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile,sub,ssp)
+function import_model_data(lslfile,sub) 
 
     subset=load_subset(sub)
 
     # Process main and lsl params
-    params = load_ciam_params(ssp)
+    params = load_ciam_params()
      
     # Process XSC (segment-country mapping dictionary)
     xsc = prepxsc(subset)
