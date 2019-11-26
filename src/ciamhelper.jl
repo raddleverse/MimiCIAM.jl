@@ -295,13 +295,13 @@ end
 # varnames: to do: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
 function write_ciam(main; sumsegs="seg", varnames=false,tag="")
-    outputdir = "/Volumes/MASTERS/ciam_runs"
+    outputdir = "../output"
     meta_output = load_meta()
-    rcp = replace(replace(main.d["lslr"],r"lsl_"=>s""),r".csv"=>s"")
+    rcp = replace(replace(main.initparams["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
     
-    model = main.m
+    model = main.getciam
     xsc = main.xsc
-    subset = main.d["subset"]
+    subset = main.initparams["subset"][1]
 
     if subset==false
         subset="full"
@@ -393,7 +393,8 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
 
     # Sum to either region-level, global-level, or leave as seg-level  
     outdf = [df;df2]
-    outfile = "$(main.run_name)_$(tag).csv"
+    run_name=main.initparams["run_name"][1]
+    outfile = "$(run_name)_$(sumsegs)_$(rcp)_$(tag).csv"
 
     if sumsegs=="rgn"
         rgndf = outdf |> @groupby({_.time,_.regions, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
