@@ -5,15 +5,7 @@
 #------------------------------------------------------------------------
 # Assorted functions to process CIAM data and run CIAM model
 #------------------------------------------------------------------------
-include("slrcost.jl")
 
-using Mimi
-using Distributions
-using DelimitedFiles
-using DataFrames
-using Query
-using CSV
-using Dates
 
 
 # Function to load CIAM parameters from CSV to dictionary

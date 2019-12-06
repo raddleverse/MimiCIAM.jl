@@ -528,16 +528,6 @@ function getsegments(rgn_name, xsc)
 
 end
 
-function findind(val, vec)
-    # Look up index corresponding to name
-    # vec - a vector of region or segment names (strings)
-    # val - a string corresponding to value in 'vec'
-    h(u) = u == val
-    name_ind = findall(h, vec)[1]
-    return name_ind
-
-end
-
 function getregion(seg_ind, xsc)
     rgn = xsc[seg_ind][1]
     

@@ -1,11 +1,3 @@
-module ciam
-
-using Mimi
-
-export getciam
-
-include("slrcost.jl")
-include("ciamhelper.jl")
 
 function buildciam(m::Model)
     add_comp!(m, slrcost)
@@ -57,11 +49,9 @@ function get_model(initparams,xsc,params,t::Int=20)
 
 end
 
-initparams=init()
-modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
-params = modelparams[1]
-xsc = modelparams[2]
+# initparams=init()
+# modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
+# params = modelparams[1]
+# xsc = modelparams[2]
 
-getciam = get_model(initparams,xsc,params) 
-
-end
+# getciam = get_model(initparams,xsc,params) 
