@@ -1,7 +1,7 @@
+param,value
 refpopdens_usa,51.42127388
 dvbm,5.376
 kgdp,3
-discountrate,0.04
 depr,1
 mobcapfrac,0.25
 movefactor,1
@@ -14,7 +14,6 @@ floodmortality,0.01
 wbvm,0.376
 wmaxrate,0.01
 tstep,10
-ntsteps,20
 fixed,TRUE
 landinput,TRUE
 fundland_canada,0.162801546

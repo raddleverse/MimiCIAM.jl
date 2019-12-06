@@ -1,8 +1,14 @@
+using Mimi
+
+cd("Desktop/ERG/Research/ciam/mimi-ciam.jl/src")
+include("ciam.jl")
+include("slrcost.jl")
 include("ciamhelper.jl")
+using Main.ciam 
 
-lslfile = "lsl_rcp0_p50.csv"
-subset = false  # use string of subset file location relative to main.jl to run for a subset of coastal segments
+run(ciam.getciam)
 
-m = get_ciam(lslfile, subset)  # Run ciam for SLR of rcp0p50 and all 12148 coastal segments
-
-write_ciam(m[1], m[2], rcp="rcp0p50", tag="allsegs", sumsegs=false) # Write ciam results to output/results-jl directory
+# Write model results to data frame ('output/results-jl')ff
+write_ciam(ciam) # Write segment-level results
+write_ciam(ciam,sumsegs="rgn") # Write results summed to region
+write_ciam(ciam,sumsegs="global") # Write results summed to global 
