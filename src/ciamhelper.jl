@@ -289,11 +289,11 @@ end
 function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     outputdir = "../output"
     meta_output = load_meta()
-    rcp = replace(replace(main.initparams["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
+    rcp = replace(replace(main[3]["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
     
-    model = main.getciam
-    xsc = main.xsc
-    subset = main.initparams["subset"][1]
+    model = main[1]
+    xsc = main[2]
+    subset = main[3]["subset"][1]
 
     if subset==false
         subset="full"
@@ -385,7 +385,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
 
     # Sum to either region-level, global-level, or leave as seg-level  
     outdf = [df;df2]
-    run_name=main.initparams["run_name"][1]
+    run_name=main[3]["run_name"][1]
     outfile = "$(run_name)_$(sumsegs)_$(rcp)_$(tag).csv"
 
     if sumsegs=="rgn"

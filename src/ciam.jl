@@ -32,8 +32,14 @@ function initciam(xsc, params, m::Model, t::Int=20)
 
 end
 
-function get_model(initparams,xsc,params,t::Int=20)
+function get_model(t::Int=20)
+    initparams=init()
+    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
+    params = modelparams[1]
+    xsc = modelparams[2]
+
     run_name = initparams["run_name"]
+
     
     m=Model()
 
@@ -45,13 +51,7 @@ function get_model(initparams,xsc,params,t::Int=20)
     buildciam(m)
     initciam(xsc, params, m, t)
 
-    return m 
+    return (m,xsc,initparams) 
 
 end
 
-# initparams=init()
-# modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
-# params = modelparams[1]
-# xsc = modelparams[2]
-
-# getciam = get_model(initparams,xsc,params) 
