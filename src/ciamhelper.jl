@@ -279,12 +279,11 @@ function load_meta()
 end
 
 # Function to write out model results to CSV file
-# main - an instance of the model
-# RCP - string for RCP we're using; todo make automatic from lsl file
-# xsc - segment-region dictionaries
-# outputdir, outfile - where to write results to, relative to test folder
+# main - output from get_model() (tuple: first argument is model, 2nd is segment-region dictonary (xsc),
+#       third is run info (initparams argument)
+# RCP - string for RCP we're using; taken from lsl file
 # sumsegs - whether to sum across all segments, to region level, or no sums
-# varnames: to do: if not false, write the passed variable names; if false get defaults from file
+# varnames: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
 function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     outputdir = "../output"
@@ -293,7 +292,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     
     model = main[1]
     xsc = main[2]
-    subset = main[3]["subset"][1]
+    subset = main[3]["subset"][1] # from initparams
 
     if subset==false
         subset="full"

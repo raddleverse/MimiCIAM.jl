@@ -38,9 +38,6 @@ function get_model(t::Int=20)
     params = modelparams[1]
     xsc = modelparams[2]
 
-    run_name = initparams["run_name"]
-
-    
     m=Model()
 
     set_dimension!(m, :time, t)
