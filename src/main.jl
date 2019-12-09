@@ -1,6 +1,7 @@
 using Mimi
 
-include("MimiCIAM.jl")
+include("ciam.jl")
+include("slrcost.jl")
 include("ciamhelper.jl")
 using Main.MimiCIAM
 
