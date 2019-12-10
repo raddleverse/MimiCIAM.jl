@@ -220,12 +220,13 @@ function load_subset(subset=false)
     end
 end
 
-function init()
-    dir=joinpath(dirname(pathof(MimiCIAM)),"../data/batch")
-    varnames = CSV.read(open(joinpath(dir,"init.txt")),header=true)
-    vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))               
+function init(f=nothing)
+    if f==nothing
+        f=joinpath(dirname(pathof(MimiCIAM)),"../data/batch/init.txt")
+    end
+    varnames=CSV.read(open(f),header=true)
+    vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))
     return(vardict)
-
 end
 
 # In progress create a writelog function to go with a wrapper for the run function 

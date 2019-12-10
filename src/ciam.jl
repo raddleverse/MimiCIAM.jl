@@ -32,8 +32,8 @@ function initciam(xsc, params, m::Model, t::Int=20)
 
 end
 
-function get_model(t::Int=20)
-    initparams=init()
+function get_model(initfile=nothing,t::Int=20)
+    initparams= init(initfile)
     modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
     params = modelparams[1]
     xsc = modelparams[2]
