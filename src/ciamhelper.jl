@@ -10,7 +10,7 @@
 
 # Function to load CIAM parameters from CSV to dictionary
 function load_ciam_params()
-    data_dir = joinpath(dirname(pathof(MimiCIAM)), "../data/input")
+    data_dir = joinpath(@__DIR__, "..","data","input")
     files = readdir(data_dir) 
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
 
@@ -26,7 +26,7 @@ end
 # subset - list of segments you want
 # params - parameter dictionary you want to add lslr to 
 function preplsl!(lslfile,subset, params,segnames)
-    data_dir = joinpath(dirname(pathof(MimiCIAM)),"../data/lslr")
+    data_dir = joinpath(@__DIR__,"..","data","lslr")
     lsl_params = CSV.read(joinpath(data_dir,lslfile)) |> DataFrame
 
     # Filter according to subset segments
@@ -156,7 +156,7 @@ end
 #   Filters xsc file to desired segments/regions
 function prepxsc(subset)
 
-    data_dir = joinpath(dirname(pathof(MimiCIAM)),"../data/input")
+    data_dir = joinpath(@__DIR__,"..","data","input")
     xscfile = "xsc.csv"
     xsc_name = replace(xscfile, r".csv" => s"") # Strip ".csv" from file name
 
@@ -211,7 +211,7 @@ function findind(val, vec)
 end
 
 function load_subset(subset=false)
-    dir=joinpath(dirname(pathof(MimiCIAM)),"../data/subsets")
+    dir=joinpath(@__DIR__,"..","data","subsets")
     if subset!=false
         subs=readlines(joinpath(dir,subset))
         return subs
@@ -222,7 +222,7 @@ end
 
 function init(f=nothing)
     if f==nothing
-        f=joinpath(dirname(pathof(MimiCIAM)),"../data/batch/init.txt")
+        f=joinpath(@__DIR__,"..","data","batch","init.txt")
     end
     varnames=CSV.read(open(f),header=true)
     vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))
@@ -232,7 +232,7 @@ end
 # In progress create a writelog function to go with a wrapper for the run function 
 # automatically produce a logfile 
 function writelog()
-    dir=joinpath(dirname(pathof(MimiCIAM)),"../data/batch/logs")
+    dir=joinpath(@__DIR__,"..","data","batch","logs")
     d = init()
     run = d["run_name"]
     date = Dates.now()
@@ -262,7 +262,7 @@ function import_model_data(lslfile,sub)
 end
 
 function load_meta()
-    metadir = joinpath(dirname(pathof(MimiCIAM)),"../data/meta")
+    metadir = joinpath(@__DIR__,"..","data","meta")
 
     # Read header and mappings
     header = read(open(joinpath(metadir,"header.txt")),String)
@@ -287,7 +287,7 @@ end
 # varnames: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
 function write_ciam(main; sumsegs="seg", varnames=false,tag="")
-    outputdir = joinpath(dirname(pathof(MimiCIAM)),"../output")
+    outputdir = joinpath(@__DIR__,"..","output")
     meta_output = load_meta()
     rcp = replace(replace(main[3]["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
     
