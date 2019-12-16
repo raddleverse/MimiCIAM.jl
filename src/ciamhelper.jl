@@ -166,7 +166,7 @@ function prepxsc(subset)
 
     # If only a subset of segments is used, filter down to relevant segments
     if subset!=false
-        filter!((k,v)-> k in subset, xsc_char)
+        filter!(p-> (first(p) in subset), xsc_char)
     end
 
     # Create region and segment indices
