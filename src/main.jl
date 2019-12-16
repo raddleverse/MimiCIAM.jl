@@ -3,7 +3,7 @@ using Mimi
 include("ciam.jl")
 include("slrcost.jl")
 include("ciamhelper.jl")
-using Main.MimiCIAM
+using MimiCIAM
 
 m = MimiCIAM.get_model()
 run(m[1])
