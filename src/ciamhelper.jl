@@ -196,7 +196,7 @@ function prepxsc(subset)
         xsc_ind[i] = new_val
     end
    
-    return (xsc_ind, rgns, segs, xsc_char, xsc_rgnmap, xsc_segmap)
+    return (xsc_ind, rgns, segs, xsc_rgnmap)
 
 end
 
@@ -289,11 +289,12 @@ end
 function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     outputdir = joinpath(@__DIR__,"..","output")
     meta_output = load_meta()
-    rcp = replace(replace(main[3]["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
+    rcp = replace(replace(main[2]["lslr"][1],r"lsl_"=>s""),r".csv"=>s"")
     
     model = main[1]
-    xsc = main[2]
-    subset = main[3]["subset"][1] # from initparams
+    xsc = load_xsc()
+    segmap = load_segmap()
+    subset = main[2]["subset"][1] # from initparams
 
     if subset==false
         subset="full"
@@ -326,7 +327,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
             temp[missing_names]=Missing
         end
         if :regions in missing_names && !(:segments in missing_names)
-            temp = temp |> @map(merge(_,{regions=xsc[4][_.segments][1]})) |> DataFrame
+            temp = temp |> @map(merge(_,{regions=segStr_to_rgnStr([_.segments],xsc)})) |> DataFrame
         end
         
         temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
@@ -350,7 +351,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
             common_order = [:time,:regions,:segments,:level]
 
             ntime = model[:slrcost,:ntsteps]
-            colnames= [Symbol(xsc[6][parse(Int64,replace(String(i),r"x"=>s""))]) for i in names(temp)]
+            colnames = Symbol.(segID_to_seg(Int64.(segID),segmap))
             names!(temp,colnames)
             temp[:time] = 1:ntime       
             
@@ -369,7 +370,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
 
             temp[:variable]= fill(String(vargroup2[j]),nrow(temp))
             
-            temp = temp |> @map(merge(_,{regions=xsc[4][_.segments][1]})) |> DataFrame
+            temp = temp |> @map(merge(_,{regions=segStr_to_rgnStr([_.segments],xsc)})) |> DataFrame
             temp = temp[[:time,:regions,:segments,:level,:variable,:value]]
 
 
@@ -385,7 +386,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
 
     # Sum to either region-level, global-level, or leave as seg-level  
     outdf = [df;df2]
-    run_name=main[3]["run_name"][1]
+    run_name=main[2]["run_name"][1]
     outfile = "$(run_name)_$(sumsegs)_$(rcp)_$(tag).csv"
 
     if sumsegs=="rgn"
@@ -402,5 +403,45 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     
 end
 
+### Basic Functions for Segment-Region Lookup
+function load_segmap()
+    segmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "segIDmap.csv")) |> DataFrame
+    segmap[:segID] = [Int64(i) for i in segmap[:segID]]
+    return(segmap)
+end
 
+function load_rgnmap()
+    rgnmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "rgnIDmap.csv")) |> DataFrame
+    rgnmap[:rgnID] = [Int64(i) for i in rgnmap[:rgnID]]
+    return(rgnmap)
+end
 
+function load_xsc()
+    xsc = CSV.read(joinpath(@__DIR__,"..","data","input","xsc.csv")) |> DataFrame
+    return(xsc)
+end
+
+# Look up string name of segment or region from ID
+# ID = int or array of ints
+# map = output of load_rgnmap or load_segmap() (DataFrame)
+# Returns only first result for each ID entry as an array 
+function segID_to_seg(segID, segmap)
+    seg = [String(segmap[:seg][segmap.segID.==i][1]) for i in segID]
+    return(seg)
+end
+
+function rgnID_to_rgn(rgnID, rgnmap)
+    rgns = [String(rgnmap[:rgn][rgnmap.rgnID.==i][1]) for i in rgnID]
+    return(rgns)
+end
+
+# Segstr must be an array of strings 
+function segStr_to_segID(segstr)
+    ids = [parse(Int64,replace(i, r"[^0-9]"=> "")) for i in segstr] 
+    return(ids)
+end
+
+function segStr_to_rgnStr(segstr,xsc)
+    rgn = xsc[:rgn][xsc.seg.==segstr][1] 
+    return(rgn)
+end

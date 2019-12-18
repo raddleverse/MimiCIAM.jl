@@ -16,6 +16,8 @@ using Mimi
     adaptPers = Index()
 
     # --- Region / segment mapping ---
+    #rgnID = Parameter( index = [regions])    # Unique region numeric identifier 
+    segID = Parameter( index = [segments])   # Unique segment numeric identifier 
     xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping (dictionary) to keep track of which segments belong to each region   
 
     # ---Time-related Parameters---

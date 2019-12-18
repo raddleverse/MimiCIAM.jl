@@ -10,10 +10,12 @@ function initciam(xsc, params, m::Model, t::Int=20)
     discountrate = 0.04#parse(Float64,d["discountrate"])
     
     # Dynamically find indices corresponding to USA and CAN and manually set time steps 
-    rgn_ind_canada = [k for (k,v) in xsc[5] if v=="CAN"][1]
-    rgn_ind_usa = [k for (k,v) in xsc[5] if v=="USA"][1]
+    rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"][1]
+    rgn_ind_usa = [k for (k,v) in xsc[4] if v=="USA"][1]
 
     # Add component: slrcost and set some parameters manually 
+    segID = segStr_to_segID(xsc[3])
+    set_param!(m, :slrcost ,:segID, segID)
     set_param!(m, :slrcost, :xsc, xsc[1])
     set_param!(m, :slrcost, :rgn_ind_canada, rgn_ind_canada)
     set_param!(m, :slrcost, :rgn_ind_usa, rgn_ind_usa)
@@ -48,7 +50,7 @@ function get_model(initfile=nothing,t::Int=20)
     buildciam(m)
     initciam(xsc, params, m, t)
 
-    return (m,xsc,initparams) 
+    return (m,initparams) 
 
 end
 
