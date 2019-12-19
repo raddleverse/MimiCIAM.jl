@@ -294,11 +294,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
     model = main[1]
     xsc = load_xsc()
     segmap = load_segmap()
-    subset = main[2]["subset"][1] # from initparams
-
-    if subset==false
-        subset="full"
-    end
+    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
 
     if varnames==false
         varnames = [k for k in keys(meta_output[2])] # to do change
@@ -318,16 +314,16 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
  
     # Assign 2D variables to dataframe
     # 2 cases: 1. adapt pers is first; 2. adapt pers is second 
+    common_order = [:time,:regions,:segments,:level]
     for i in 1:length(vargroup1)
         temp = getdataframe(model,:slrcost => vargroup1[i])
-        common_order = [:time,:regions,:segments,:level]
 
         missing_names = [j for j in common_order if !(j in names(temp))]
         if length(missing_names)>=1 
             temp[missing_names]=Missing
         end
         if :regions in missing_names && !(:segments in missing_names)
-            temp = temp |> @map(merge(_,{regions=segStr_to_rgnStr([_.segments],xsc)})) |> DataFrame
+            temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
         end
         
         temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
@@ -341,17 +337,18 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
         end
     end
 
-    # Assign 3D variables to second data frame and join 
+    # Assign 3D variables to second data frame and join
+    ntime = model[:slrcost,:ntsteps]
+    segID = model[:slrcost,:segID]
+    colnames = Symbol.(segID_to_seg(Int64.(segID),segmap))
+
     for j in 1:length(vargroup2)
         ndim1 = size(model[:slrcost,vargroup2[j]])[3]
 
         for k in 1:ndim1
 
             temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
-            common_order = [:time,:regions,:segments,:level]
 
-            ntime = model[:slrcost,:ntsteps]
-            colnames = Symbol.(segID_to_seg(Int64.(segID),segmap))
             names!(temp,colnames)
             temp[:time] = 1:ntime       
             
@@ -370,7 +367,7 @@ function write_ciam(main; sumsegs="seg", varnames=false,tag="")
 
             temp[:variable]= fill(String(vargroup2[j]),nrow(temp))
             
-            temp = temp |> @map(merge(_,{regions=segStr_to_rgnStr([_.segments],xsc)})) |> DataFrame
+            temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
             temp = temp[[:time,:regions,:segments,:level,:variable,:value]]
 
 
@@ -429,9 +426,4 @@ end
 function segStr_to_segID(segstr)
     ids = [parse(Int64,replace(i, r"[^0-9]"=> "")) for i in segstr] 
     return(ids)
-end
-
-function segStr_to_rgnStr(segstr,xsc)
-    rgn = xsc[:rgn][xsc.seg.==segstr][1] 
-    return(rgn)
 end
