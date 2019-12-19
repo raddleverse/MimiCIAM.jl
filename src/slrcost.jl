@@ -18,6 +18,8 @@ using Mimi
     # --- Region / segment mapping ---
     segID = Parameter( index = [segments])   # Unique segment numeric identifier 
     xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping (dictionary) to keep track of which segments belong to each region   
+    rcp::Int=Parameter()                     # RCP being run (metadata; not used in run)
+    percentile::Int=Parameter()              # Percentile of RCP being run (metadata; not used in run)
 
     # ---Time-related Parameters---
     tstep = Parameter()                     # Length of individual time-step (years)
