@@ -410,31 +410,21 @@ function load_segmap()
     return(segmap)
 end
 
-function load_rgnmap()
-    rgnmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "rgnIDmap.csv")) |> DataFrame
-    rgnmap[:rgnID] = [Int64(i) for i in rgnmap[:rgnID]]
-    return(rgnmap)
-end
-
 function load_xsc()
     xsc = CSV.read(joinpath(@__DIR__,"..","data","input","xsc.csv")) |> DataFrame
     return(xsc)
 end
 
-# Look up string name of segment or region from ID
-# ID = int or array of ints
-# map = output of load_rgnmap or load_segmap() (DataFrame)
+# Look up string name of segment from segID
+# segID = int or array of ints
+# segmap = output of load_rgnmap or load_segmap() (DataFrame)
 # Returns only first result for each ID entry as an array 
 function segID_to_seg(segID, segmap)
     seg = [String(segmap[:seg][segmap.segID.==i][1]) for i in segID]
     return(seg)
 end
 
-function rgnID_to_rgn(rgnID, rgnmap)
-    rgns = [String(rgnmap[:rgn][rgnmap.rgnID.==i][1]) for i in rgnID]
-    return(rgns)
-end
-
+# Get segID from string name of segment
 # Segstr must be an array of strings 
 function segStr_to_segID(segstr)
     ids = [parse(Int64,replace(i, r"[^0-9]"=> "")) for i in segstr] 
