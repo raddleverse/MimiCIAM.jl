@@ -107,7 +107,15 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             # Sort alphabetically
             sort!(p, :segments)
             params["surgeexposure"] = convert(Array{Float64,2},p[:,2:6])
- 
+        elseif k=="refa"
+            p = @from i in p begin
+                @where i.segments in seg_order
+                @select i
+                @collect DataFrame
+            end
+            sort!(p,:segments)
+            params["refA"]= convert(Array{Float64},p[:value])
+            delete!(params,"refa")
         elseif size(p,2) ==2
             # Filter regions
             r_inds = filter_index(p[1], rgn_order)

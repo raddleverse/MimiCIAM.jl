@@ -39,6 +39,7 @@ using Mimi
      
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
+    refA = Parameter(index = [segments])                # Reference level of adaptation in 0 period 
 
     # ---Land Parameters---  
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
@@ -290,9 +291,14 @@ using Mimi
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
                         R_NoAdapt = max(0, p.lslr[i,m])
+
+                        # For initial state in SLR cases, make adaptation decision relative to baseline (refA)
+                        if p.rcp>0
+                            R_NoAdapt = max(R_NoAdapt, p.refA[m])
+                        end
                         
                         # Storm Costs 
-                        v.SIGMA[i,m,1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m])))) # expected value of exposure area 
+                        v.SIGMA[i,m,1] = p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m]))) # expected value of exposure area 
                         v.StormCapitalNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.SIGMA[i,m,1] * v.capital[i,m]
                         v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         
