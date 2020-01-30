@@ -288,9 +288,7 @@ function load_meta()
 end
 
 # Function to write out model results to CSV file
-# main - output from get_model() (tuple: first argument is model, 2nd is segment-region dictonary (xsc),
-#       third is run info (initparams argument)
-# RCP - string for RCP we're using; taken from lsl file
+# m - output from get_model() 
 # sumsegs - whether to sum across all segments, to region level, or no sums
 # varnames: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
@@ -407,6 +405,44 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     end  
 
     
+end
+
+# Function to streamline writing results for optimal adaptation costs 
+function write_optimal_costs(m;runname="base")
+    # Output: Data Frame with segment,region,time,level,option, suboption
+    #   E.g. 'OptimalFixedProtect', 'Construct'
+    # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with 
+    #   detailed subcategories
+    outputdir = joinpath(@__DIR__,"..","output")
+    rcp = m[:slrcost,:rcp]
+    pctl = m[:slrcost,:percentile]
+    rcp_str = "$(rcp)p$(pctl)"
+    
+    model = m
+    xsc = load_xsc()
+    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+
+    common_order = [:time,:regions,:segments]
+
+    temp1 = getdataframe(model, :slrcost => :OptimalFixedCost)
+    temp1 = temp1 |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
+
+    temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
+    temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+
+    # Join dataframes and reorganize
+    out = join(temp1,temp2, on=:segments)
+    out = join(out,temp3, on=:segments)
+    
+    # Replace OptimalFixedOption numeric value with string
+    lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
+    out = out |> @map(merge(_,{variable=lookup[_.OptimalFixedOption]})) |> DataFrame
+    rename!(out, Dict(:OptimalFixedLevel => :level))
+    out = out[[:time,:regions,:segments,:variable,:level,:OptimalFixedCost]]
+
+    outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
+    CSV.write(joinpath(outputdir,outfile),out)  
+
 end
 
 ### Basic Functions for Segment-Region Lookup
