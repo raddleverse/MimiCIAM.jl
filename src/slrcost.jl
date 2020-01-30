@@ -165,7 +165,7 @@ using Mimi
     RetreatCost = Variable(index = [time, segments, 5])      # Total cost of retreat at each level   
     OptimalRetreatLevel = Variable(index = [segments])
     OptimalProtectLevel = Variable(index = [segments])
-    OptimalFixedCost = Variable(index = [time, segments,1])  # Fixed optimal cost based on NPV in period 1   
+    OptimalFixedCost = Variable(index = [time, segments])  # Fixed optimal cost based on NPV in period 1   
     OptimalFixedLevel = Variable(index = [segments])         # Fixed optimal level (1,10,100,1000,10000)
     OptimalFixedOption = Variable(index = [segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
     NPVRetreat = Variable(index = [time,segments, 5])        
@@ -485,7 +485,7 @@ using Mimi
                     if v.OptimalFixedOption[m]==-1
                         v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1] 
                     elseif v.OptimalFixedOption[m]==-2
-                        v.OptimalFixedCost[t_range,m,1] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedCost[t_range,m] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
                     else
                         v.OptimalFixedCost[t_range,m] = v.NoAdaptCost[t_range,m]
                     end

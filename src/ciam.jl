@@ -9,8 +9,8 @@ function initciam(xsc, params, initparams, m::Model, t::Int=20)
 
     discountrate = 0.04#parse(Float64,d["discountrate"])
     if initparams["lslr"][1] !="lsl_rcp0_p50.csv"
-        rcp = parse(Int64,replace(replace(initparams["lslr"][1],r"lsl_rcp"=>s""),r"_.*"=>s""))
-        pctl = parse(Int64,replace(replace(initparams["lslr"][1], r"lsl_rcp[0-9][0-9]_p"=>s""),r".csv"=>s""))
+        rcp = parse(Int64,replace(replace(initparams["lslr"][1],r"^[^l]*lsl_rcp"=>s""),r"_.*"=>s""))
+        pctl = parse(Int64,replace(replace(initparams["lslr"][1], r"^[^l]*lsl_rcp[0-9][0-9]_p"=>s""),r".csv"=>s""))
     else
         rcp=0
         pctl=50
@@ -63,3 +63,7 @@ function get_model(initfile=nothing,t::Int=20)
 
 end
 
+# Code to run a batch instance of the model 
+function update_model(updateparams,updatevalues)
+
+end
