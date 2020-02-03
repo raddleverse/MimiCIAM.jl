@@ -5,15 +5,26 @@ function buildciam(m::Model)
 
 end
 
-function initciam(xsc, params, m::Model, t::Int=20)
+function initciam(xsc, params, initparams, m::Model, t::Int=20)
 
     discountrate = 0.04#parse(Float64,d["discountrate"])
+    if initparams["lslr"][1] !="lsl_rcp0_p50.csv"
+        rcp = parse(Int64,replace(replace(initparams["lslr"][1],r"^[^l]*lsl_rcp"=>s""),r"_.*"=>s""))
+        pctl = parse(Int64,replace(replace(initparams["lslr"][1], r"^[^l]*lsl_rcp[0-9][0-9]_p"=>s""),r".csv"=>s""))
+    else
+        rcp=0
+        pctl=50
+    end
     
     # Dynamically find indices corresponding to USA and CAN and manually set time steps 
-    rgn_ind_canada = [k for (k,v) in xsc[5] if v=="CAN"][1]
-    rgn_ind_usa = [k for (k,v) in xsc[5] if v=="USA"][1]
+    rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"][1]
+    rgn_ind_usa = [k for (k,v) in xsc[4] if v=="USA"][1]
 
     # Add component: slrcost and set some parameters manually 
+    segID = segStr_to_segID(xsc[3])
+    set_param!(m, :slrcost, :segID, segID)
+    set_param!(m, :slrcost, :rcp, rcp)
+    set_param!(m, :slrcost, :percentile, pctl)
     set_param!(m, :slrcost, :xsc, xsc[1])
     set_param!(m, :slrcost, :rgn_ind_canada, rgn_ind_canada)
     set_param!(m, :slrcost, :rgn_ind_usa, rgn_ind_usa)
@@ -32,9 +43,12 @@ function initciam(xsc, params, m::Model, t::Int=20)
 
 end
 
-function get_model(initparams,xsc,params,t::Int=20)
-    run_name = initparams["run_name"]
-    
+function get_model(initfile=nothing,t::Int=20)
+    initparams= init(initfile)
+    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
+    params = modelparams[1]
+    xsc = modelparams[2]
+
     m=Model()
 
     set_dimension!(m, :time, t)
@@ -43,15 +57,13 @@ function get_model(initparams,xsc,params,t::Int=20)
     set_dimension!(m, :segments, xsc[3])
 
     buildciam(m)
-    initciam(xsc, params, m, t)
+    initciam(xsc, params, initparams, m, t)
 
     return m 
 
 end
 
-# initparams=init()
-# modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
-# params = modelparams[1]
-# xsc = modelparams[2]
+# Code to run a batch instance of the model 
+function update_model(updateparams,updatevalues)
 
-# getciam = get_model(initparams,xsc,params) 
+end

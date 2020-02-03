@@ -16,7 +16,10 @@ using Mimi
     adaptPers = Index()
 
     # --- Region / segment mapping ---
+    segID = Parameter( index = [segments])   # Unique segment numeric identifier 
     xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping (dictionary) to keep track of which segments belong to each region   
+    rcp::Int=Parameter()                     # RCP being run (metadata; not used in run)
+    percentile::Int=Parameter()              # Percentile of RCP being run (metadata; not used in run)
 
     # ---Time-related Parameters---
     tstep = Parameter()                     # Length of individual time-step (years)
@@ -36,6 +39,7 @@ using Mimi
      
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
+    refA = Parameter(index = [segments])                # Reference level of adaptation in 0 period 
 
     # ---Land Parameters---  
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
@@ -161,12 +165,20 @@ using Mimi
     RetreatCost = Variable(index = [time, segments, 5])      # Total cost of retreat at each level   
     OptimalRetreatLevel = Variable(index = [segments])
     OptimalProtectLevel = Variable(index = [segments])
-    OptimalFixedCost = Variable(index = [time, segments,1])  # Fixed optimal cost based on NPV in period 1   
+    OptimalFixedCost = Variable(index = [time, segments])  # Fixed optimal cost based on NPV in period 1   
     OptimalFixedLevel = Variable(index = [segments])         # Fixed optimal level (1,10,100,1000,10000)
     OptimalFixedOption = Variable(index = [segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
     NPVRetreat = Variable(index = [time,segments, 5])        
     NPVProtect = Variable(index = [time,segments,  4])
     NPVNoAdapt = Variable(index = [time,segments])
+
+    # ---Subcategories of Optimal Choice----
+    OptimalFixedStormCapital = Variable(index = [time, segments])
+    OptimalFixedStormPop = Variable(index = [time, segments])
+    OptimalFixedConstruct = Variable(index = [time, segments])
+    OptimalFixedWetland = Variable(index = [time, segments])
+    OptimalFixedFlood = Variable(index = [time, segments])
+    OptimalFixedRelocate = Variable(index = [time, segments])
 
     function run_timestep(p, v, d, t)    
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
@@ -287,9 +299,14 @@ using Mimi
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
                         R_NoAdapt = max(0, p.lslr[i,m])
+
+                        # For initial state in SLR cases, make adaptation decision relative to baseline (refA)
+                        if p.rcp>0
+                            R_NoAdapt = max(R_NoAdapt, p.refA[m])
+                        end
                         
                         # Storm Costs 
-                        v.SIGMA[i,m,1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m])))) # expected value of exposure area 
+                        v.SIGMA[i,m,1] = p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m]))) # expected value of exposure area 
                         v.StormCapitalNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.SIGMA[i,m,1] * v.capital[i,m]
                         v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         
@@ -473,12 +490,37 @@ using Mimi
                             
                     end
                     
+                    # Assign costs to optimal variables
                     if v.OptimalFixedOption[m]==-1
+                        # Protect Cost
                         v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1] 
+                        # Assign Subcosts 
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalProtect[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopProtect[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedConstruct[t_range,m] = v.Construct[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandProtect[t_range,m]
+                        v.OptimalFixedRelocate[t_range,m] = 0
+                        v.OptimalFixedFlood[t_range,m] = 0
                     elseif v.OptimalFixedOption[m]==-2
-                        v.OptimalFixedCost[t_range,m,1] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        # Retreat Cost
+                        v.OptimalFixedCost[t_range,m] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        # Assign Subcosts  
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalRetreat[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopRetreat[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedConstruct[t_range,m] = 0
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandRetreat[t_range,m]
+                        v.OptimalFixedFlood[t_range,m] = v.FloodRetreat[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedRelocate[t_range,m] = v.RelocateRetreat[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
                     else
+                        # No Adaptation 
                         v.OptimalFixedCost[t_range,m] = v.NoAdaptCost[t_range,m]
+                        # Assign Subcosts 
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalNoAdapt[t_range,m]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopNoAdapt[t_range,m]
+                        v.OptimalFixedConstruct[t_range,m] = 0
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandNoAdapt[t_range,m]
+                        v.OptimalFixedFlood[t_range,m] = v.FloodNoAdapt[t_range,m]
+                        v.OptimalFixedRelocate[t_range,m] = v.RelocateNoAdapt[t_range,m]
                     end
     
                 end
