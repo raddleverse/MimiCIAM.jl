@@ -422,8 +422,7 @@ function write_optimal_costs(m;runname="base")
     xsc = load_xsc()
     segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
 
-    common_order = [:time,:regions,:segments]
-
+    # 1. Create aggregate adaptation decision DF 
     temp1 = getdataframe(model, :slrcost => :OptimalFixedCost)
     temp1 = temp1 |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
 
@@ -440,8 +439,46 @@ function write_optimal_costs(m;runname="base")
     rename!(out, Dict(:OptimalFixedLevel => :level))
     out = out[[:time,:regions,:segments,:variable,:level,:OptimalFixedCost]]
 
+    # Write to file 
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
     CSV.write(joinpath(outputdir,outfile),out)  
+
+    # Write Sub-Costs 
+    vars = [:OptimalFixedStormCapital, :OptimalFixedStormPop, :OptimalFixedConstruct,
+            :OptimalFixedFlood, :OptimalFixedRelocate, :OptimalFixedWetland]
+
+    
+    for i in 1:length(vars)
+        temp = getdataframe(model, :slrcost => vars[i])
+        temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
+
+        temp[:variable]= fill(String(vars[i]),nrow(temp))
+
+        temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
+        temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+
+        # Join dataframes and reorganize
+        out = join(temp,temp2, on=:segments)
+        out = join(out,temp3, on=:segments)
+
+        # Replace OptimalFixedOption numeric value with string
+        lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
+        out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalFixedOption]})) |> DataFrame
+        rename!(out, Dict(:OptimalFixedLevel => :level))
+        rename!(out,vars[i]=>:value)
+        out = out[[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
+
+        if i==1
+            global df = out
+        else
+            df = [df;out]
+        end
+
+    end
+
+    # Write to CSV 
+    outfile2 = "$(runname)_seg_$(rcp_str)_optimal_subcost.csv"
+    CSV.write(joinpath(outputdir,outfile2),df)  
 
 end
 

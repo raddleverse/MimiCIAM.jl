@@ -172,6 +172,14 @@ using Mimi
     NPVProtect = Variable(index = [time,segments,  4])
     NPVNoAdapt = Variable(index = [time,segments])
 
+    # ---Subcategories of Optimal Choice----
+    OptimalFixedStormCapital = Variable(index = [time, segments])
+    OptimalFixedStormPop = Variable(index = [time, segments])
+    OptimalFixedConstruct = Variable(index = [time, segments])
+    OptimalFixedWetland = Variable(index = [time, segments])
+    OptimalFixedFlood = Variable(index = [time, segments])
+    OptimalFixedRelocate = Variable(index = [time, segments])
+
     function run_timestep(p, v, d, t)    
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
         if is_first(t)
@@ -482,12 +490,37 @@ using Mimi
                             
                     end
                     
+                    # Assign costs to optimal variables
                     if v.OptimalFixedOption[m]==-1
+                        # Protect Cost
                         v.OptimalFixedCost[t_range,m] = v.ProtectCost[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1] 
+                        # Assign Subcosts 
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalProtect[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopProtect[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedConstruct[t_range,m] = v.Construct[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]-1]
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandProtect[t_range,m]
+                        v.OptimalFixedRelocate[t_range,m] = 0
+                        v.OptimalFixedFlood[t_range,m] = 0
                     elseif v.OptimalFixedOption[m]==-2
+                        # Retreat Cost
                         v.OptimalFixedCost[t_range,m] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        # Assign Subcosts  
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalRetreat[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopRetreat[t_range,m, findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedConstruct[t_range,m] = 0
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandRetreat[t_range,m]
+                        v.OptimalFixedFlood[t_range,m] = v.FloodRetreat[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
+                        v.OptimalFixedRelocate[t_range,m] = v.RelocateRetreat[t_range,m,findall(i->i==v.OptimalFixedLevel[m], p.adaptoptions)[1]]
                     else
+                        # No Adaptation 
                         v.OptimalFixedCost[t_range,m] = v.NoAdaptCost[t_range,m]
+                        # Assign Subcosts 
+                        v.OptimalFixedStormCapital[t_range,m] = v.StormCapitalNoAdapt[t_range,m]
+                        v.OptimalFixedStormPop[t_range,m] = v.StormPopNoAdapt[t_range,m]
+                        v.OptimalFixedConstruct[t_range,m] = 0
+                        v.OptimalFixedWetland[t_range,m] = v.WetlandNoAdapt[t_range,m]
+                        v.OptimalFixedFlood[t_range,m] = v.FloodNoAdapt[t_range,m]
+                        v.OptimalFixedRelocate[t_range,m] = v.RelocateNoAdapt[t_range,m]
                     end
     
                 end
