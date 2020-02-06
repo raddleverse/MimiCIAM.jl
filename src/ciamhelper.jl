@@ -430,8 +430,8 @@ function write_optimal_costs(m;runname="base")
     temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
 
     # Join dataframes and reorganize
-    out = join(temp1,temp2, on=:segments)
-    out = join(out,temp3, on=:segments)
+    out = join(temp1,temp2, on=[:time,:segments])
+    out = join(out,temp3, on=[:time,:segments])
     
     # Replace OptimalFixedOption numeric value with string
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
@@ -458,8 +458,8 @@ function write_optimal_costs(m;runname="base")
         temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
 
         # Join dataframes and reorganize
-        out = join(temp,temp2, on=:segments)
-        out = join(out,temp3, on=:segments)
+        out = join(temp,temp2, on=[:time,:segments])
+        out = join(out,temp3, on=[:time,:segments])
 
         # Replace OptimalFixedOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
