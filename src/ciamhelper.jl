@@ -318,7 +318,8 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     meta_output = load_meta()
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    rcp_str = "$(rcp)p$(pctl)"
+    ssp = m[:slrcost,:ssp]
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
     
     model = m
     xsc = load_xsc()
@@ -437,7 +438,8 @@ function write_optimal_costs(m;runname="base")
     outputdir = joinpath(@__DIR__,"..","output")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    rcp_str = "$(rcp)p$(pctl)"
+    ssp = m[:slrcost,:ssp]
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
     
     model = m
     xsc = load_xsc()
@@ -507,7 +509,8 @@ function write_optimal_protect_retreat(m; runname="base")
     outputdir = joinpath(@__DIR__,"..","output")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    rcp_str = "$(rcp)p$(pctl)"
+    ssp = m[:slrcost,:ssp]
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
 
     model = m
     xsc = load_xsc()
