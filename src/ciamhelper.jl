@@ -45,6 +45,26 @@ function preplsl!(lslfile,subset, params,segnames)
     return params
 end
 
+function prepssp!(ssp,params,rgnnames)
+    data_dir = joinpath(@__DIR__,"..","data","ssp")
+    if ssp==false # Do nothing, base ssp data already loaded 
+        return params
+    else
+        pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")))
+        ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")))
+
+        col_names = [i  for i in names(pop) if string(i) in rgnnames]
+        col_names = sort(col_names)
+        pop = pop[col_names]
+        ypc = ypc[col_names]
+        
+        params["pop"] = Array{Float64,2}(pop)
+        params["ypcc"]= Array{Float64,2}(ypc)
+
+    end
+    return params
+end
+
 # Function to process CIAM data from csv to usable format
 #   Stores outputs in params
 # rgn_order, seg_order - alphabetized lists of regions/segments used
@@ -251,7 +271,7 @@ end
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile,sub) 
+function import_model_data(lslfile,sub,ssp) 
 
     subset=load_subset(sub)
 
@@ -264,6 +284,7 @@ function import_model_data(lslfile,sub)
     # Process params using xsc and format lsl file
     parse_ciam_params!(params, xsc[2], xsc[3])
     preplsl!(lslfile, subset, params,xsc[3])
+    prepssp!(ssp,params,xsc[2])
 
     return(params, xsc)
 
@@ -479,6 +500,41 @@ function write_optimal_costs(m;runname="base")
     # Write to CSV 
     outfile2 = "$(runname)_seg_$(rcp_str)_optimal_subcost.csv"
     CSV.write(joinpath(outputdir,outfile2),df)  
+
+end
+
+function write_optimal_protect_retreat(m; runname="base")
+    outputdir = joinpath(@__DIR__,"..","output")
+    rcp = m[:slrcost,:rcp]
+    pctl = m[:slrcost,:percentile]
+    rcp_str = "$(rcp)p$(pctl)"
+
+    model = m
+    xsc = load_xsc()
+    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+
+    # 1. Create aggregate adaptation decision DF 
+    pl = getdataframe(model, :slrcost => :OptimalProtectLevel)
+    rl = getdataframe(model, :slrcost => :OptimalRetreatLevel)
+    out = join(pl,rl, on=[:time,:segments]) 
+
+    ## To do: read in protect, retreat variables and filter to optimal levels; add to out
+    protect = model[:slrcost, :ProtectCost]
+    retreat = model[:slrcost, :RetreatCost]
+    for i in 1:5
+        if i>1
+            prot = DataFrame(model[:slrcost,:ProtectCost][:,:,i-1])
+            ret = DataFrame(model[:slrcost,:RetreatCost][:,:,i])
+        else
+            ret = DataFrame(model[:slrcost,:RetreatCost][:,:,i])
+        end
+
+
+    end
+
+    outfile = "$(runname)_seg_$(rcp_str)_ProtectRetreat.csv"
+    CSV.write(joinpath(outputdir,outfile),out) 
+
 
 end
 

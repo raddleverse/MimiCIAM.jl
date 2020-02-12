@@ -20,6 +20,7 @@ using Mimi
     xsc::Dict{Any, Any} = Parameter()        # Region to segment mapping (dictionary) to keep track of which segments belong to each region   
     rcp::Int=Parameter()                     # RCP being run (metadata; not used in run)
     percentile::Int=Parameter()              # Percentile of RCP being run (metadata; not used in run)
+    ssp::Int=Parameter()                     # SSP being used (0 for base case)
 
     # ---Time-related Parameters---
     tstep = Parameter()                     # Length of individual time-step (years)
@@ -484,8 +485,8 @@ using Mimi
                         # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level. 
                         protectInd = findmin(v.NPVProtect[at_index,m,:])[2]
                         retreatInd = findmin(v.NPVRetreat[at_index,m,:])[2]
-                        v.OptimalProtectLevel[t_range, m] = protectInd
-                        v.OptimalRetreatLevel[t_range,m] = retreatInd
+                        v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
+                        v.OptimalRetreatLevel[t_range,m] = p.adaptoptions[retreatInd]
                         minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
                         choices = [v.NPVProtect[at_index,m,protectInd], v.NPVRetreat[at_index,m,retreatInd], v.NPVNoAdapt[at_index,m]]
                         leastcost = -1 * findmin(choices)[2]

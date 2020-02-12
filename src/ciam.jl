@@ -16,6 +16,12 @@ function initciam(xsc, params, initparams, m::Model, t::Int=20)
         pctl=50
     end
     
+    if initparams["ssp"][1]==false
+        ssp=0
+    else
+        ssp = parse(Int64,replace(replace(initparams["ssp"][1],r"^[^l]*SSP"=>s""),r"_.*"=>s""))
+    end
+
     # Dynamically find indices corresponding to USA and CAN and manually set time steps 
     rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"][1]
     rgn_ind_usa = [k for (k,v) in xsc[4] if v=="USA"][1]
@@ -25,6 +31,7 @@ function initciam(xsc, params, initparams, m::Model, t::Int=20)
     set_param!(m, :slrcost, :segID, segID)
     set_param!(m, :slrcost, :rcp, rcp)
     set_param!(m, :slrcost, :percentile, pctl)
+    set_param!(m, :slrcost, :ssp, ssp)
     set_param!(m, :slrcost, :xsc, xsc[1])
     set_param!(m, :slrcost, :rgn_ind_canada, rgn_ind_canada)
     set_param!(m, :slrcost, :rgn_ind_usa, rgn_ind_usa)
@@ -45,7 +52,7 @@ end
 
 function get_model(initfile=nothing,t::Int=20)
     initparams= init(initfile)
-    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1])
+    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1],initparams["ssp"][1])
     params = modelparams[1]
     xsc = modelparams[2]
 
