@@ -319,7 +319,12 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
     ssp = m[:slrcost,:ssp]
-    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
     
     model = m
     xsc = load_xsc()
@@ -438,8 +443,13 @@ function write_optimal_costs(m;runname="base")
     outputdir = joinpath(@__DIR__,"..","output")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    ssp = m[:slrcost,:ssp]
-    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
+    ssp = m[:slrcost,:ssp]   
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
     
     model = m
     xsc = load_xsc()
@@ -510,7 +520,12 @@ function write_optimal_protect_retreat(m; runname="base")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
     ssp = m[:slrcost,:ssp]
-    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)"
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
 
     model = m
     xsc = load_xsc()

@@ -344,7 +344,9 @@ using Mimi
                     if is_first(t)
                         v.NPVNoAdapt[t,m] = sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
                     else
-                        v.NPVNoAdapt[t,m] = v.NPVNoAdapt[gettime(t)-1,m] + sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
+                        # Compute NPV Relative to planner's perspective (discounting relative to time t)
+                        v.NPVNoAdapt[t,m] = sum([v.discountfactor[findind(j,t_range)] *v.NoAdaptCost[j,m] for j in t_range])
+                        #v.NPVNoAdapt[gettime(t)-1,m] + sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
                     end
 
                     for j in t_range
@@ -450,9 +452,11 @@ using Mimi
                         end
     
                         if is_first(t)
-                            v.NPVRetreat[t,m,i] = sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                            v.NPVRetreat[t,m,i] = sum([v.discountfactor[j] * v.RetreatCost[j,m,i] for j in t_range])
                         else
-                            v.NPVRetreat[t,m,i] = v.NPVRetreat[gettime(t)-1,m,i] + sum([v.discountfactor[j] * v.RetreatCost[findind(j,t_range),m,i] for j in t_range])
+                            # Compute NPV Relative to planner's perspective (discounting relative to time t)
+                            v.NPVRetreat[t,m,i] = sum([v.discountfactor[findind(j,t_range)]*v.RetreatCost[j,m,i] for j in t_range])
+                            #v.NPVRetreat[gettime(t)-1,m,i] + sum([v.discountfactor[j] * v.RetreatCost[j,m,i] for j in t_range])
                         end
 
                         
@@ -462,9 +466,11 @@ using Mimi
     
                         if p.adaptoptions[i] >=10
                             if is_first(t)
-                                v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                                v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[j,m,i-1] for j in t_range] ) # Protect
                             else
-                                v.NPVProtect[t,m,i-1] = v.NPVProtect[gettime(t)-1,m,i-1] + sum( [ v.discountfactor[j] * v.ProtectCost[findind(j,t_range),m,i-1] for j in t_range] ) # Protect
+                                # Compute NPV Relative to planner's perspective (discounting relative to time t)
+                                v.NPVProtect[t,m,i-1] = sum([v.discountfactor[findind(j,t_range)]*v.ProtectCost[j,m,i-1] for j in t_range])
+                                #v.NPVProtect[gettime(t)-1,m,i-1] + sum( [ v.discountfactor[j] * v.ProtectCost[j,m,i-1] for j in t_range] ) # Protect
                             end
 
                             
@@ -482,15 +488,24 @@ using Mimi
                         v.OptimalFixedOption[t_range,m] = v.OptimalFixedOption[1,m]
                         v.OptimalFixedLevel[t_range,m] = v.OptimalFixedLevel[1,m]
                     else
-                        # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level. 
-                        protectInd = findmin(v.NPVProtect[at_index,m,:])[2]
-                        retreatInd = findmin(v.NPVRetreat[at_index,m,:])[2]
+                        # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level.
+                        #println()
+                        #println("Segment $(m) Time $(gettime(t))") 
+                        protectInd = findmin(v.NPVProtect[Int(p.at[at_index]),m,:])[2]
+                        #println("ProtectInd: $(protectInd)")
+                        retreatInd = findmin(v.NPVRetreat[Int(p.at[at_index]),m,:])[2]
+                        #println("RetreatInd: $(retreatInd)")
                         v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
                         v.OptimalRetreatLevel[t_range,m] = p.adaptoptions[retreatInd]
                         minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
-                        choices = [v.NPVProtect[at_index,m,protectInd], v.NPVRetreat[at_index,m,retreatInd], v.NPVNoAdapt[at_index,m]]
+                        #println("MinLevels: $(minLevels)")
+                        #println("AT Index: $(at_index)")
+                        choices = [v.NPVProtect[Int(p.at[at_index]),m,protectInd], v.NPVRetreat[Int(p.at[at_index]),m,retreatInd], v.NPVNoAdapt[Int(p.at[at_index]),m]]
+                        #println("Choices: $(choices)")
                         leastcost = -1 * findmin(choices)[2]
+                        #println("LeastCost: $(leastcost)")
                         leastlevel = minLevels[findmin(choices)[2]]
+                        #println("LeastCost: $(leastlevel)")
                         v.OptimalFixedOption[t_range,m] = leastcost
                         v.OptimalFixedLevel[t_range,m] = leastlevel
 
