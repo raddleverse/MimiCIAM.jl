@@ -19,8 +19,8 @@ gr()
     isneg(x)=length(x[isless.(x,0)])
     
     vargroup2D = [:WetlandNoAdapt,:FloodNoAdapt,:StormCapitalNoAdapt,:StormPopNoAdapt,:RelocateNoAdapt,
-                :NoAdaptCost,:OptimalFixedCost,:OptimalFixedStormCapital,:OptimalFixedStormPop,:OptimalFixedConstruct,
-                :OptimalFixedWetland,:OptimalFixedFlood,:OptimalFixedRelocate,:WetlandRetreat,:WetlandProtect]
+                :NoAdaptCost,:OptimalCost,:OptimalStormCapital,:OptimalStormPop,:OptimalConstruct,
+                :OptimalWetland,:OptimalFlood,:OptimalRelocate,:WetlandRetreat,:WetlandProtect]
     vargroup3D = [:Construct,:StormCapitalProtect,:StormPopProtect,:StormCapitalRetreat,
                 :StormPopRetreat,:FloodRetreat,:RelocateRetreat,:RetreatCost,:ProtectCost]
 
