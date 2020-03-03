@@ -437,7 +437,7 @@ end
 # Function to streamline writing results for optimal adaptation costs 
 function write_optimal_costs(m;runname="base")
     # Output: Data Frame with segment,region,time,level,option, suboption
-    #   E.g. 'OptimalFixedProtect', 'Construct'
+    #   E.g. 'OptimalProtect', 'Construct'
     # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with 
     #   detailed subcategories
     outputdir = joinpath(@__DIR__,"..","output")
@@ -456,29 +456,29 @@ function write_optimal_costs(m;runname="base")
     segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
 
     # 1. Create aggregate adaptation decision DF 
-    temp1 = getdataframe(model, :slrcost => :OptimalFixedCost)
+    temp1 = getdataframe(model, :slrcost => :OptimalCost)
     temp1 = temp1 |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
 
-    temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
-    temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+    temp2 = getdataframe(model, :slrcost => :OptimalLevel)
+    temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
     # Join dataframes and reorganize
     out = join(temp1,temp2, on=[:time,:segments])
     out = join(out,temp3, on=[:time,:segments])
     
-    # Replace OptimalFixedOption numeric value with string
+    # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
-    out = out |> @map(merge(_,{variable=lookup[_.OptimalFixedOption]})) |> DataFrame
-    rename!(out, Dict(:OptimalFixedLevel => :level))
-    out = out[[:time,:regions,:segments,:variable,:level,:OptimalFixedCost]]
+    out = out |> @map(merge(_,{variable=lookup[_.OptimalOption]})) |> DataFrame
+    rename!(out, Dict(:OptimalLevel => :level))
+    out = out[[:time,:regions,:segments,:variable,:level,:OptimalCost]]
 
     # Write to file 
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
     CSV.write(joinpath(outputdir,outfile),out)  
 
     # Write Sub-Costs 
-    vars = [:OptimalFixedStormCapital, :OptimalFixedStormPop, :OptimalFixedConstruct,
-            :OptimalFixedFlood, :OptimalFixedRelocate, :OptimalFixedWetland]
+    vars = [:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
+            :OptimalFlood, :OptimalRelocate, :OptimalWetland]
 
     
     for i in 1:length(vars)
@@ -487,17 +487,17 @@ function write_optimal_costs(m;runname="base")
 
         temp[:variable]= fill(String(vars[i]),nrow(temp))
 
-        temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
-        temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+        temp2 = getdataframe(model, :slrcost => :OptimalLevel)
+        temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
         # Join dataframes and reorganize
         out = join(temp,temp2, on=[:time,:segments])
         out = join(out,temp3, on=[:time,:segments])
 
-        # Replace OptimalFixedOption numeric value with string
+        # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
-        out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalFixedOption]})) |> DataFrame
-        rename!(out, Dict(:OptimalFixedLevel => :level))
+        out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalOption]})) |> DataFrame
+        rename!(out, Dict(:OptimalLevel => :level))
         rename!(out,vars[i]=>:value)
         out = out[[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
 
