@@ -166,12 +166,13 @@ using Mimi
     RetreatCost = Variable(index = [time, segments, 5])      # Total cost of retreat at each level   
     OptimalRetreatLevel = Variable(index = [time, segments])
     OptimalProtectLevel = Variable(index = [time, segments])
-    OptimalCost = Variable(index = [time, segments])  # Fixed optimal cost based on NPV in period 1   
+    OptimalCost = Variable(index = [time, segments])          # Optimal cost based on NPV relative to start of adaptation period 
     OptimalLevel = Variable(index = [time, segments])         # Fixed optimal level (1,10,100,1000,10000)
     OptimalOption = Variable(index = [time, segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
     NPVRetreat = Variable(index = [time,segments, 5])        
     NPVProtect = Variable(index = [time,segments,  4])
     NPVNoAdapt = Variable(index = [time,segments])
+    NPVOptimal = Variable(index = [segments])            # NPV of cost of optimal decisions relative to t=1
 
     # ---Subcategories of Optimal Choice----
     OptimalStormCapital = Variable(index = [time, segments])
@@ -535,6 +536,10 @@ using Mimi
                         v.OptimalWetland[t_range,m] = v.WetlandNoAdapt[t_range,m]
                         v.OptimalFlood[t_range,m] = v.FloodNoAdapt[t_range,m]
                         v.OptimalRelocate[t_range,m] = v.RelocateNoAdapt[t_range,m]
+                    end
+
+                    if last==1
+                        v.NPVOptimal[m] = sum( [ v.discountfactor[j] * v.OptimalCost[j,m] for j in 1:p.ntsteps] )
                     end
                 end
             end     
