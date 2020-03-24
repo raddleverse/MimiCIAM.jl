@@ -173,6 +173,7 @@ using Mimi
     NPVProtect = Variable(index = [time,segments,  4])
     NPVNoAdapt = Variable(index = [time,segments])
     NPVOptimal = Variable(index = [segments])            # NPV of cost of optimal decisions relative to t=1
+    NPVOptimalTotal = Variable()                         # Total NPV of all segments 
 
     # ---Subcategories of Optimal Choice----
     OptimalStormCapital = Variable(index = [time, segments])
@@ -540,9 +541,14 @@ using Mimi
 
                     if last==1
                         v.NPVOptimal[m] = sum( [ v.discountfactor[j] * v.OptimalCost[j,m] for j in 1:p.ntsteps] )
+                        
                     end
                 end
-            end     
+            end  
+            
+            if last==1
+                v.NPVOptimalTotal = sum(v.NPVOptimal)
+            end
         end
     end
 end

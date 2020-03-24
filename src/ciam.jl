@@ -51,7 +51,7 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
 
 end
 
-function get_model(initfile=nothing,fixed::Bool=false,t::Int=20)
+function get_model(;initfile=nothing,fixed::Bool=false,t::Int=20)
     initparams= init(initfile)
     modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1],initparams["ssp"][1])
     params = modelparams[1]
@@ -65,6 +65,7 @@ function get_model(initfile=nothing,fixed::Bool=false,t::Int=20)
     set_dimension!(m, :segments, xsc[3])
 
     buildciam(m)
+
     initciam(xsc, params, initparams, m, fixed, t)
 
     return m 
