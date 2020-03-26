@@ -45,6 +45,26 @@ function preplsl!(lslfile,subset, params,segnames)
     return params
 end
 
+function prepssp!(ssp,params,rgnnames)
+    data_dir = joinpath(@__DIR__,"..","data","ssp")
+    if ssp==false # Do nothing, base ssp data already loaded 
+        return params
+    else
+        pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")))
+        ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")))
+
+        col_names = [i  for i in names(pop) if string(i) in rgnnames]
+        col_names = sort(col_names)
+        pop = pop[col_names]
+        ypc = ypc[col_names]
+        
+        params["pop"] = Array{Float64,2}(pop)
+        params["ypcc"]= Array{Float64,2}(ypc)
+
+    end
+    return params
+end
+
 # Function to process CIAM data from csv to usable format
 #   Stores outputs in params
 # rgn_order, seg_order - alphabetized lists of regions/segments used
@@ -251,7 +271,7 @@ end
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile,sub) 
+function import_model_data(lslfile,sub,ssp) 
 
     subset=load_subset(sub)
 
@@ -264,6 +284,7 @@ function import_model_data(lslfile,sub)
     # Process params using xsc and format lsl file
     parse_ciam_params!(params, xsc[2], xsc[3])
     preplsl!(lslfile, subset, params,xsc[3])
+    prepssp!(ssp,params,xsc[2])
 
     return(params, xsc)
 
@@ -297,7 +318,13 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     meta_output = load_meta()
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    rcp_str = "$(rcp)p$(pctl)"
+    ssp = m[:slrcost,:ssp]
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
     
     model = m
     xsc = load_xsc()
@@ -410,42 +437,48 @@ end
 # Function to streamline writing results for optimal adaptation costs 
 function write_optimal_costs(m;runname="base")
     # Output: Data Frame with segment,region,time,level,option, suboption
-    #   E.g. 'OptimalFixedProtect', 'Construct'
+    #   E.g. 'OptimalProtect', 'Construct'
     # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with 
     #   detailed subcategories
     outputdir = joinpath(@__DIR__,"..","output")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
-    rcp_str = "$(rcp)p$(pctl)"
+    ssp = m[:slrcost,:ssp]   
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
     
     model = m
     xsc = load_xsc()
     segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
 
     # 1. Create aggregate adaptation decision DF 
-    temp1 = getdataframe(model, :slrcost => :OptimalFixedCost)
+    temp1 = getdataframe(model, :slrcost => :OptimalCost)
     temp1 = temp1 |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
 
-    temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
-    temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+    temp2 = getdataframe(model, :slrcost => :OptimalLevel)
+    temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
     # Join dataframes and reorganize
-    out = join(temp1,temp2, on=:segments)
-    out = join(out,temp3, on=:segments)
+    out = join(temp1,temp2, on=[:time,:segments])
+    out = join(out,temp3, on=[:time,:segments])
     
-    # Replace OptimalFixedOption numeric value with string
+    # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
-    out = out |> @map(merge(_,{variable=lookup[_.OptimalFixedOption]})) |> DataFrame
-    rename!(out, Dict(:OptimalFixedLevel => :level))
-    out = out[[:time,:regions,:segments,:variable,:level,:OptimalFixedCost]]
+    out = out |> @map(merge(_,{variable=lookup[_.OptimalOption]})) |> DataFrame
+    rename!(out, Dict(:OptimalLevel => :level))
+    out = out[[:time,:regions,:segments,:variable,:level,:OptimalCost]]
 
     # Write to file 
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
     CSV.write(joinpath(outputdir,outfile),out)  
 
     # Write Sub-Costs 
-    vars = [:OptimalFixedStormCapital, :OptimalFixedStormPop, :OptimalFixedConstruct,
-            :OptimalFixedFlood, :OptimalFixedRelocate, :OptimalFixedWetland]
+    vars = [:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
+            :OptimalFlood, :OptimalRelocate, :OptimalWetland]
 
     
     for i in 1:length(vars)
@@ -454,17 +487,17 @@ function write_optimal_costs(m;runname="base")
 
         temp[:variable]= fill(String(vars[i]),nrow(temp))
 
-        temp2 = getdataframe(model, :slrcost => :OptimalFixedLevel)
-        temp3 = getdataframe(model, :slrcost => :OptimalFixedOption)
+        temp2 = getdataframe(model, :slrcost => :OptimalLevel)
+        temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
         # Join dataframes and reorganize
-        out = join(temp,temp2, on=:segments)
-        out = join(out,temp3, on=:segments)
+        out = join(temp,temp2, on=[:time,:segments])
+        out = join(out,temp3, on=[:time,:segments])
 
-        # Replace OptimalFixedOption numeric value with string
+        # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
-        out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalFixedOption]})) |> DataFrame
-        rename!(out, Dict(:OptimalFixedLevel => :level))
+        out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalOption]})) |> DataFrame
+        rename!(out, Dict(:OptimalLevel => :level))
         rename!(out,vars[i]=>:value)
         out = out[[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
 
@@ -479,6 +512,47 @@ function write_optimal_costs(m;runname="base")
     # Write to CSV 
     outfile2 = "$(runname)_seg_$(rcp_str)_optimal_subcost.csv"
     CSV.write(joinpath(outputdir,outfile2),df)  
+
+end
+
+function write_optimal_protect_retreat(m; runname="base")
+    outputdir = joinpath(@__DIR__,"..","output")
+    rcp = m[:slrcost,:rcp]
+    pctl = m[:slrcost,:percentile]
+    ssp = m[:slrcost,:ssp]
+    if m[:slrcost,:fixed]
+        fixed="fixed"
+    else
+        fixed="flex"
+    end
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
+
+    model = m
+    xsc = load_xsc()
+    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+
+    # 1. Create aggregate adaptation decision DF 
+    pl = getdataframe(model, :slrcost => :OptimalProtectLevel)
+    rl = getdataframe(model, :slrcost => :OptimalRetreatLevel)
+    out = join(pl,rl, on=[:time,:segments]) 
+
+    ## To do: read in protect, retreat variables and filter to optimal levels; add to out
+    protect = model[:slrcost, :ProtectCost]
+    retreat = model[:slrcost, :RetreatCost]
+    for i in 1:5
+        if i>1
+            prot = DataFrame(model[:slrcost,:ProtectCost][:,:,i-1])
+            ret = DataFrame(model[:slrcost,:RetreatCost][:,:,i])
+        else
+            ret = DataFrame(model[:slrcost,:RetreatCost][:,:,i])
+        end
+
+
+    end
+
+    outfile = "$(runname)_seg_$(rcp_str)_ProtectRetreat.csv"
+    CSV.write(joinpath(outputdir,outfile),out) 
+
 
 end
 

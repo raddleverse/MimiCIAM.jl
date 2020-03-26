@@ -14,7 +14,6 @@ floodmortality,0.01
 wbvm,0.376
 wmaxrate,0.01
 tstep,10
-fixed,TRUE
 landinput,TRUE
 fundland_canada,0.162801546
 gtapland_canada,0.131428128

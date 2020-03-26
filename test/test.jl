@@ -7,8 +7,40 @@
 using DataFrames
 using Plots
 using StatPlots
+using Test
 include("../src/ciamhelper.jl")
 gr()
+
+
+@testset "MimiCIAM" begin
+    m = MimiCIAM.get_model()
+    run(m)
+
+    isneg(x)=length(x[isless.(x,0)])
+    
+    vargroup2D = [:WetlandNoAdapt,:FloodNoAdapt,:StormCapitalNoAdapt,:StormPopNoAdapt,:RelocateNoAdapt,
+                :NoAdaptCost,:OptimalCost,:OptimalStormCapital,:OptimalStormPop,:OptimalConstruct,
+                :OptimalWetland,:OptimalFlood,:OptimalRelocate,:WetlandRetreat,:WetlandProtect]
+    vargroup3D = [:Construct,:StormCapitalProtect,:StormPopProtect,:StormCapitalRetreat,
+                :StormPopRetreat,:FloodRetreat,:RelocateRetreat,:RetreatCost,:ProtectCost]
+
+    for v in vargroup2D
+        var = m[:slrcost,v]
+        @test isneg(var)==0
+                    
+    end
+            
+    for v in vargroup3D
+        var=m[:slrcost,v]
+        levels= size(var)[3]
+        for k in 1:levels
+            var2 = var[:,:,k]
+            @test isneg(var2)==0
+        end
+    end
+
+end
+
 
 function compare_outputs(A, B, header, metadata, file, tol=1e-5)
 
