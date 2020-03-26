@@ -67,7 +67,7 @@ function choose_ensemble_members(time, ens, n, low, high, yend)
         ens_inds = findall(x -> x >= val_low && x <= val_high, ens[end_year,:])
 
         
-        chosen_inds = ens_inds[rand(1:end,n)]
+        chosen_inds = ens_inds[sample(1:end,n,replace=false)]
         return chosen_inds 
       
     else
