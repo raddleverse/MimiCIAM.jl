@@ -3,8 +3,7 @@
 
 # Retrieve BRICK fingerprints from NetCDF file 
 function get_fingerprints()
-    #fp_file = joinpath(@__DIR__,"..","data","lslr","FINGERPRINTS_SLANGEN_Bakker.nc")
-    fp_file = "data/lslr/FINGERPRINTS_SLANGEN_Bakker.nc"
+    fp_file = datadep"BRICK fingerprints/FINGERPRINTS_SLANGEN_Bakker.nc"
     fplat = ncread(fp_file,"lat")
     fplon = ncread(fp_file,"lon")
     fpAIS = ncread(fp_file,"AIS")
