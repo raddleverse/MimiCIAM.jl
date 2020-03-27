@@ -34,8 +34,7 @@ end
 # Get CIAM lonlat tuples for specified segIDs
 # segID order does not matter; will sort tuples alphabetically by segment name
 function get_lonlat(segIDs)
-    ciamlonlat = CSV.read("data/diva_segment_latlon.csv")
-    #ciamlonlat = joinpath(@__DIR__,"..","data","diva_segment_latlon.csv")
+    ciamlonlat = joinpath(@__DIR__,"..","data","diva_segment_latlon.csv")
 
     if segIDs==false
         filt = DataFrame(ciamlonlat)
