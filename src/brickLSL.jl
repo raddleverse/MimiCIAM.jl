@@ -246,11 +246,17 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
     # Set up CIAM using init.txt defaults for SSP and subsets 
     m = MimiCIAM.get_model(t=t) 
     globalNPV = zeros(n)
+    globalWetlandLoss = zeros(n)
+    globalDrylandLoss = zeros(n)
+    globalStormLoss = zeros(n)
     for i in 1:n
         update_param!(m, :lslr, lsl[i,:,:])
         run(m)
         # store output 
         globalNPV[i] = m[:slrcost,:NPVOptimalTotal]
+        globalWetlandLoss[i]= sum(m[:slrcost,:WetlandAreaOptimal][t,:])
+        globalDrylandLoss[i] = sum(m[:slrcost,:DryLandLossOptimal][t,:])
+        globalStormLoss[i] = sum(m[:slrcost,:StormLossOptimal][t,:])
     end 
 
     return globalNPV
