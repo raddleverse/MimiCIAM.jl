@@ -144,7 +144,7 @@ using Mimi
     RelocateNoAdapt = Variable(index = [time, segments])
 
     Construct = Variable(index = [time, segments, 4])
-    WetlandProtect = Variable(index = [time, segments])
+    WetlandProtect = Variable(index = [time, segments])    
     StormCapitalProtect = Variable(index = [time, segments,4])
     StormPopProtect = Variable(index = [time, segments,4])
     
@@ -172,8 +172,11 @@ using Mimi
     NPVRetreat = Variable(index = [time,segments, 5])        
     NPVProtect = Variable(index = [time,segments,  4])
     NPVNoAdapt = Variable(index = [time,segments])
-    NPVOptimal = Variable(index = [segments])            # NPV of cost of optimal decisions relative to t=1
-    NPVOptimalTotal = Variable()                         # Total NPV of all segments 
+    NPVOptimal = Variable(index = [segments])               # NPV of cost of optimal decisions relative to t=1
+    NPVOptimalTotal = Variable()                            # Total NPV of all segments from optimal decision 
+    WetlandAreaOptimal = Variable( index = [time,segments]) # Cumulative wetland loss (km2) from optimal decision
+    StormLossOptimal = Variable( index = [time, segments])  # Cumulative expected loss of life (thousand people) from storm surges from optimal decision
+    LandLossOptimal = Variable( index = [time, segments])   # Cumulative loss of land (km2) from optimal decision 
 
     # ---Subcategories of Optimal Choice----
     OptimalStormCapital = Variable(index = [time, segments])
@@ -517,6 +520,11 @@ using Mimi
                         v.OptimalWetland[t_range,m] = v.WetlandProtect[t_range,m]
                         v.OptimalRelocate[t_range,m] = 0
                         v.OptimalFlood[t_range,m] = 0
+
+                        # Assign Alternative Metrics 
+                        # Assume once seawall is built, wetland area is permanently destroyed 
+                        v.WetlandAreaOptimal[t_range,m] = p.wetland[m]
+
                     elseif v.OptimalOption[t,m]==-2
                         # Retreat Cost
                         v.OptimalCost[t_range,m] = v.RetreatCost[t_range,m, findall(i->i==v.OptimalLevel[t,m], p.adaptoptions)[1]]
@@ -527,6 +535,16 @@ using Mimi
                         v.OptimalWetland[t_range,m] = v.WetlandRetreat[t_range,m]
                         v.OptimalFlood[t_range,m] = v.FloodRetreat[t_range,m,findall(i->i==v.OptimalLevel[t,m], p.adaptoptions)[1]]
                         v.OptimalRelocate[t_range,m] = v.RelocateRetreat[t_range,m,findall(i->i==v.OptimalLevel[t,m], p.adaptoptions)[1]]
+
+                        if gettime(t)==1
+                            v.WetlandAreaOptimal[t_range,m] = v.wetlandloss[t_range,m] * p.wetland[m]
+                        else
+                            for i in t_range
+                                v.WetlandAreaOptimal[i,m] = max(v.WetlandAreaOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*p.wetland[m])
+                            end
+                           
+                        end
+
                     else
                         # No Adaptation 
                         v.OptimalCost[t_range,m] = v.NoAdaptCost[t_range,m]
@@ -537,6 +555,16 @@ using Mimi
                         v.OptimalWetland[t_range,m] = v.WetlandNoAdapt[t_range,m]
                         v.OptimalFlood[t_range,m] = v.FloodNoAdapt[t_range,m]
                         v.OptimalRelocate[t_range,m] = v.RelocateNoAdapt[t_range,m]
+
+                        if gettime(t)==1
+                            # Wetland is same as Retreat 
+                            v.WetlandAreaOptimal[t_range,m] = v.wetlandloss[t_range,m] * p.wetland[m]
+                        else
+                            for i in t_range
+                                v.WetlandAreaOptimal[i,m] = max(v.WetlandAreaOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*p.wetland[m])
+                            end
+                           
+                        end
                     end
 
                     if last==1
