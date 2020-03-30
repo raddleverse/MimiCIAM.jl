@@ -259,7 +259,7 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
         globalStormLoss[i] = sum(m[:slrcost,:StormLossOptimal][t,:])
     end 
 
-    return globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss
+    return globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss,gmsl
 end
 
 
