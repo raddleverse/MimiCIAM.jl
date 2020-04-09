@@ -29,6 +29,7 @@ using Mimi
 
     # ---Model Parameters ---
     fixed::Bool = Parameter()               # Run model as fixed (T) or flexible (F) with respect to adaptation
+    noRetreat::Bool = Parameter()           # Default (F). If T, segments will either protect or not adapt. 
 
     # ---Socioeconomic Parameters---
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
@@ -511,14 +512,29 @@ using Mimi
                         protectInd = findmin(v.NPVProtect[Int(p.at[at_index]),m,:])[2]
                         retreatInd = findmin(v.NPVRetreat[Int(p.at[at_index]),m,:])[2]
                         v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
-                        v.OptimalRetreatLevel[t_range,m] = p.adaptoptions[retreatInd]
-                        minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
-                        
-                        choices = [v.NPVProtect[Int(p.at[at_index]),m,protectInd], v.NPVRetreat[Int(p.at[at_index]),m,retreatInd], v.NPVNoAdapt[Int(p.at[at_index]),m]]
-                        leastcost = -1 * findmin(choices)[2]
-                        leastlevel = minLevels[findmin(choices)[2]]
-                        v.OptimalOption[t_range,m] = leastcost
-                        v.OptimalLevel[t_range,m] = leastlevel
+
+                        if p.noRetreat==true 
+                            minLevels = [p.adaptoptions[protectInd+1], 0]
+                            choices = [v.NPVProtect[Int(p.at[at_index]),m,protectInd], v.NPVNoAdapt[Int(p.at[at_index]),m]]
+
+                            leastcost = -1 * findmin(choices)[2]
+                            if leastcost==-2
+                                leastcost=-3 # Account for retreat being removed from choice set 
+                            end
+                            leastlevel = minLevels[findmin(choices)[2]]
+                            v.OptimalOption[t_range,m] = leastcost
+                            v.OptimalLevel[t_range,m] = leastlevel
+
+                        else
+                            v.OptimalRetreatLevel[t_range,m] = p.adaptoptions[retreatInd]
+                            minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
+                            
+                            choices = [v.NPVProtect[Int(p.at[at_index]),m,protectInd], v.NPVRetreat[Int(p.at[at_index]),m,retreatInd], v.NPVNoAdapt[Int(p.at[at_index]),m]]
+                            leastcost = -1 * findmin(choices)[2]
+                            leastlevel = minLevels[findmin(choices)[2]]
+                            v.OptimalOption[t_range,m] = leastcost
+                            v.OptimalLevel[t_range,m] = leastlevel
+                        end
 
                     end
                     
