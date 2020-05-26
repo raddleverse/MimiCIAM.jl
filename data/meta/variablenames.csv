@@ -15,4 +15,4 @@ WetlandProtect,protect,wetland
 StormPopProtect,protect,stormPop
 StormCapitalProtect,protect,stormCap
 ProtectCost,protect,total
-OptimalFixedCost,optimalFixed,total
+OptimalCost,optimalFixed,total
