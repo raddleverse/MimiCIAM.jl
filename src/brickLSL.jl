@@ -215,7 +215,7 @@ function brick_lsl(rcp,segIDs,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
     return lsl,gmsl
 end
 
-function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10)
+function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10,noRetreat=false)
 
     # Get segIDs from initfile pre-specified subset
     ciamparams = MimiCIAM.init()
@@ -244,11 +244,24 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
     end
 
     # Set up CIAM using init.txt defaults for SSP and subsets 
-    m = MimiCIAM.get_model(t=t) 
+    m = MimiCIAM.get_model(t=t,noRetreat=noRetreat) 
     globalNPV = zeros(n)
     globalWetlandLoss = zeros(n)
     globalDrylandLoss = zeros(n)
     globalStormLoss = zeros(n)
+
+    segNpv=zeros(12148,n)
+    segOption=zeros(12148,n)
+    segLevel=zeros(12148,n)
+
+    segWetland=zeros(12148,n)
+    segStormPop=zeros(12148,n)
+    segStormCap=zeros(12148,n)
+    segConstruct=zeros(12148,n)
+    segFlood=zeros(12148,n)
+    segRelocate=zeros(12148,n)
+
+
     for i in 1:n
         update_param!(m, :lslr, lsl[i,:,:])
         run(m)
@@ -257,9 +270,23 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
         globalWetlandLoss[i]= sum(m[:slrcost,:WetlandAreaOptimal][t,:])
         globalDrylandLoss[i] = sum(m[:slrcost,:DryLandLossOptimal][t,:])
         globalStormLoss[i] = sum(m[:slrcost,:StormLossOptimal][t,:])
-    end 
 
-    return globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss,gmsl
+        segNpv=m[:slrcost,:NPVOptimal]
+        segOption=m[:slrcost,:OptimalOption]
+        segLevel=m[:slrcost,:OptimalLevel]
+    
+        segWetland[:,i]=m[:slrcost,:OptimalWetland]
+        segStormPop[:,i]=m[:slrcost,:OptimalStormPop]
+        segStormCap[:,i]=m[:slrcost,:OptimalStormCapital]
+        segConstruct[:,i]=m[:slrcost,:OptimalConstruct]
+        segFlood[:,i]=m[:slrcost,:OptimalFlood]
+        segRelocate[:,i]=m[:slrcost,:OptimalRelocate]
+
+    end 
+    results_global = (globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss)
+    results_seg = (segNpv,segOption,segLevel,segWetland,segStormPop,segStormCap,segConstruct,segFlood,segRelocate)
+
+    return results_global,results_seg,gmsl
 end
 
 
