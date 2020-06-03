@@ -55,18 +55,23 @@ end
 # ens - BRICK GMSL matrix, time x num ensembles
 # low - minimum percentile threshold (integer - e.g. 5 = 5th percentile)
 # high - maximum percentile threshold
-function choose_ensemble_members(time, ens, n, low, high, yend)
+function choose_ensemble_members(time, ens, n, low, high, yend,ensInds)
     if length(time)==size(ens)[1]
         end_year = findall(x -> x==yend, time)[1]
         
         val_low = percentile(ens[end_year,:],low)
         val_high = percentile(ens[end_year,:],high)
 
-        ens_inds = findall(x -> x >= val_low && x <= val_high, ens[end_year,:])
+        if ensInds==false
+            ens_inds = findall(x -> x >= val_low && x <= val_high, ens[end_year,:])
 
-        
-        chosen_inds = ens_inds[sample(1:end,n,replace=false)]
-        return chosen_inds 
+            
+            chosen_inds = ens_inds[sample(1:end,n,replace=false)]
+            return chosen_inds 
+        else
+            chosen_inds = ensInds
+            return chosen_inds
+        end
       
     else
         println("Error: time dimension mismatch")
@@ -205,17 +210,17 @@ function downscale_brick(brickcomps,lonlat, ensInds, ystart=2010, yend=2100, tst
 end
 
 # Driver function to downscale BRICK gmsl for specified segments 
-function brick_lsl(rcp,segIDs,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10)
+function brick_lsl(rcp,segIDs,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10,ensInds=false)
     brickGMSL = get_brickGMSL(brickfile,rcp)
-    brickEnsInds = choose_ensemble_members(brickGMSL[1],brickGMSL[7],n,low,high,yend)
+    brickEnsInds = choose_ensemble_members(brickGMSL[1],brickGMSL[7],n,low,high,yend,ensInds)
     lonlat = get_lonlat(segIDs)
 
     (lsl,gmsl) = downscale_brick(brickGMSL, lonlat, brickEnsInds,ystart,yend,tstep)
 
-    return lsl,gmsl
+    return lsl,gmsl,brickEnsInds
 end
 
-function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10,noRetreat=false)
+function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,tstep=10,noRetreat=false,ens_Inds=false)
 
     # Get segIDs from initfile pre-specified subset
     ciamparams = MimiCIAM.init()
@@ -227,7 +232,7 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
         segIDs = MimiCIAM.segStr_to_segID(subs)
     end
 
-    (lsl, gmsl) = brick_lsl(rcp,segIDs,brickfile,n,low,high,ystart,yend,tstep)
+    (lsl, gmsl,ensInds) = brick_lsl(rcp,segIDs,brickfile,n,low,high,ystart,yend,tstep,ens_Inds)
     num_ens = n
 
     if yend==2100
@@ -286,7 +291,7 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
     results_global = (globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss)
     results_seg = (segNpv,segOption,segLevel,segWetland,segStormPop,segStormCap,segConstruct,segFlood,segRelocate)
 
-    return results_global,results_seg,gmsl
+    return results_global,results_seg,gmsl,ensInds
 end
 
 
