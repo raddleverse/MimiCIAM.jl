@@ -161,6 +161,7 @@ using Mimi
     RelocateRetreat = Variable(index = [time, segments, 5])
     DryLandLossRetreat = Variable(index=[time,segments,5])
     coastAreaRetreat = Variable(index = [time,segments,5])
+    coastAreaNoAdapt=Variable(index=[time,segments])
     
     # --- Decision Variables --- (evaluated brute force)
     H = Variable(index = [time, segments, 4])       # Height of current sea wall, no retreat (m)
@@ -325,6 +326,22 @@ using Mimi
                         if p.rcp>0
                             R_NoAdapt = max(R_NoAdapt, p.refA[m])
                         end
+
+                        # Incorporate any previous period adaptation
+                        if p.fixed==false
+                            if is_first(t)
+                                # Calculate first-period costs: wetland
+                                v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
+                            else
+                                R_NoAdapt = max(R_NoAdapt, v.OptimalR[gettime(t)-1,m])
+                                v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
+                            end
+                            v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
+                        else
+                            v.coastAreaNoAdapt[i,m]= v.coastArea[i,m]
+                            v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
+                        end
+                        
                         
                         # Storm Costs 
                         v.SIGMA[i,m,1] = p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, R_NoAdapt - p.lslr[i,m]))) # expected value of exposure area 
@@ -332,27 +349,22 @@ using Mimi
                         v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         
                         # Wetland Costs 
-                        v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m])
                         v.StormLossNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
-                        if i>1
-                            v.DryLandLossNoAdapt[i,m] = max(0,v.DryLandLossNoAdapt[i-1,m],v.coastArea[i,m]) # km^2
+                        if i==p.ntsteps
+                            v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m]) # km^2
                         else
-                            v.DryLandLossNoAdapt[i,m] = max(0,v.coastArea[i,m]) # km^2
+                            v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m],v.coastArea[i+1,m]) # includes future period loss
                         end
-                        
 
                         # Flood and relocation costs 
                         if i==p.ntsteps
-                            v.FloodNoAdapt[i,m] = p.tstep * v.landvalue[i-1,m]*.04 * max(0, v.coastArea[i,m]) + max(0,(max(0, v.coastArea[i,m]) - max(0, v.coastArea[i-1,m]))) * 
-                                (1 - p.mobcapfrac) * v.capital[i-1,m]
-            
-                            v.RelocateNoAdapt[i,m] = max(0,(max(0, v.coastArea[i,m]) - max(0,v.coastArea[i-1,m]))) * (5 * p.movefactor * v.ypc_seg[i-1,m]*1e-6*v.popdens_seg[i-1,m] +
-                                p.capmovefactor * p.mobcapfrac * v.capital[i-1,m] + p.democost * (1 - p.mobcapfrac) * v.capital[i-1,m])
+                            v.FloodNoAdapt[i,m] = v.FloodNoAdapt[i-1,m]
+                            v.RelocateNoAdapt[i,m] = v.RelocateNoAdapt[i-1,m]
                         else
-                            v.FloodNoAdapt[i,m]  = p.tstep * v.landvalue[i,m]*.04 * max(0, v.coastArea[i+1,m]) + max(0,(max(0, v.coastArea[i+1,m]) - max(0, v.coastArea[i,m]))) * 
+                            v.FloodNoAdapt[i,m]  = p.tstep * v.landvalue[i,m]*.04 * v.DryLandLossNoAdapt[i,m] + max(0,v.DryLandLossNoAdapt[i,m] - v.coastAreaNoAdapt[i,m]) * 
                                 (1 - p.mobcapfrac) * v.capital[i,m]                    
                             
-                            v.RelocateNoAdapt[i,m] = max(0,(max(0, v.coastArea[i+1,m]) - max(0,v.coastArea[i,m]))) * (5 * p.movefactor * v.ypc_seg[i,m]*1e-6*v.popdens_seg[i,m] +
+                            v.RelocateNoAdapt[i,m] = max(0,v.DryLandLossNoAdapt[i,m] - v.coastAreaNoAdapt[i,m]) * (5 * p.movefactor * v.ypc_seg[i,m]*1e-6*v.popdens_seg[i,m] +
                                 p.capmovefactor * p.mobcapfrac * v.capital[i,m] + p.democost * (1 - p.mobcapfrac) * v.capital[i,m])
                         end
                                 
@@ -549,7 +561,7 @@ using Mimi
                         end
 
                     end
-          
+                    
                     # Assign costs to optimal variables
                     if v.OptimalOption[t,m]==-1
               
@@ -605,14 +617,14 @@ using Mimi
                         v.OptimalFlood[t_range,m] = v.FloodRetreat[t_range,m,retInd]
                         v.OptimalRelocate[t_range,m] = v.RelocateRetreat[t_range,m,retInd]
                       
-                        if gettime(t)==1
+                        if is_first(t)
                            
-                            v.WetlandLossOptimal[t_range,m] = v.wetlandloss[t_range,m] * p.wetland[m]
                             v.DryLandLossOptimal[t_range,m] = v.DryLandLossRetreat[t_range,m,retInd]
                             v.OptimalH[t_range,m]=0
                            
                             for i in t_range
                                 v.OptimalR[i,m]=max(0,v.R[i,m,retInd])
+                                v.WetlandLossOptimal[i,m] = v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m])
                                 if i==1
                                     v.StormLossOptimal[i,m] = v.StormLossRetreat[i,m,findall(k->k==v.OptimalLevel[t,m], p.adaptoptions)[1]] 
                                 else 
@@ -625,7 +637,7 @@ using Mimi
                             for i in t_range
                                 v.OptimalR[i,m]=max(v.R[i,m,retInd],v.OptimalR[gettime(t)-1,m])
                                 # Cumulative total wetland area lost; if protected previously, all wetland is lost 
-                                v.WetlandLossOptimal[i,m] = max(v.WetlandLossOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*p.wetland[m])
+                                v.WetlandLossOptimal[i,m] = max(v.WetlandLossOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*min(v.coastArea[i,m], p.wetland[m]))
                                 v.StormLossOptimal[i,m] = v.StormLossOptimal[i-1,m] + p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * p.floodmortality * v.SIGMA[i,m,retInd] 
                                 v.DryLandLossOptimal[i,m] = max(v.DryLandLossOptimal[i-1,m],v.DryLandLossRetreat[i,m,retInd])
                             end
@@ -644,11 +656,9 @@ using Mimi
                         v.OptimalFlood[t_range,m] = v.FloodNoAdapt[t_range,m]
                         v.OptimalRelocate[t_range,m] = v.RelocateNoAdapt[t_range,m]
 
-                        if gettime(t)==1
+                        if is_first(t)
                             v.OptimalH[t_range,m]=0
                             
-                            # Wetland is same as Retreat 
-                            v.WetlandLossOptimal[t_range,m] = v.wetlandloss[t_range,m] * p.wetland[m]
                             v.DryLandLossOptimal[t_range,m] = v.DryLandLossNoAdapt[t_range,m]
                             v.OptimalR[t,m]=max(0,p.lslr[t,m])
                             for i in t_range
@@ -657,7 +667,7 @@ using Mimi
                                 else
                                     v.OptimalR[i,m]=max(v.OptimalR[t,m],p.lslr[i,m])
                                 end
-                                
+                                v.WetlandLossOptimal[i,m] = v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m])
                                 if i==1
                                     v.StormLossOptimal[i,m] = v.StormLossNoAdapt[i,m]
                                 else 
@@ -671,7 +681,7 @@ using Mimi
                                 
                                 v.OptimalR[i,m]=max(v.OptimalR[gettime(t)-1,m],v.OptimalR[i-1,m],p.lslr[i,m])
                                 
-                                v.WetlandLossOptimal[i,m] = max(v.WetlandLossOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*p.wetland[m])
+                                v.WetlandLossOptimal[i,m] = max(v.WetlandLossOptimal[gettime(t)-1,m], v.wetlandloss[i,m]*min(v.coastArea[i,m], p.wetland[m]))
                                 v.StormLossOptimal[i,m] = v.StormLossOptimal[i-1,m] + v.StormLossNoAdapt[i,m]
                                 v.DryLandLossOptimal[i,m] = max(v.DryLandLossOptimal[i-1,m], v.DryLandLossNoAdapt[i,m])
                             end
@@ -684,14 +694,14 @@ using Mimi
                         
                     end
                 end
-            end  
+            end  # end segment loop 
             
             if last==1
                 v.NPVOptimalTotal = sum(v.NPVOptimal)
             end
-        end
-    end
-end
+        end # end if t in adaptation period statement  
+    end # end function 
+end # end module 
 
 
 # Helper functions
