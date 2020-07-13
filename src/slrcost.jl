@@ -152,6 +152,7 @@ using Mimi
     StormCapitalProtect = Variable(index = [time, segments,4])
     StormPopProtect = Variable(index = [time, segments,4])
     StormLossProtect = Variable(index = [time,segments,4])
+    FloodProtect = Variable(index = [time,segments])
     
     WetlandRetreat = Variable(index = [time, segments])
     StormCapitalRetreat = Variable(index = [time, segments,5])
@@ -328,22 +329,16 @@ using Mimi
                         end
 
                         # Incorporate any previous period adaptation
-                        if p.fixed==false
-                            if is_first(t)
-                                # Calculate first-period costs: wetland and coast area
-                                # First period costs should be identical for both fixed and flexible modes 
-                                v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
-                                v.coastAreaNoAdapt[i,m] = v.coastArea[i,m] # Ignoring refA adaptation for all but storms b/c Delavane does in her script
+                        if p.fixed==false && !(is_first(t))
+                            
+                            R_NoAdapt = max(R_NoAdapt, v.OptimalR[gettime(t)-1,m])
+                            v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
+                            if i==gettime(t)   
+                                # For start of new adaptation period, take into account (lack of) retreat done in previous periods (i.e. if they protected instead)
+                                # This results in double-costs for this period b/c no adaptation is set up to compute relative to t+1 lslr 
+                                v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],v.OptimalR[gettime(t)-1,m])
                             else
-                                R_NoAdapt = max(R_NoAdapt, v.OptimalR[gettime(t)-1,m])
-                                v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
-                                if i==gettime(t)   
-                                    # For start of new adaptation period, take into account (lack of) retreat done in previous periods (i.e. if they protected instead)
-                                    # This results in double-costs for this period b/c no adaptation is set up to compute relative to t+1 lslr 
-                                    v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],v.OptimalR[gettime(t)-1,m])
-                                else
-                                    v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
-                                end
+                                v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
                             end
                             
                         else
@@ -362,6 +357,7 @@ using Mimi
                         if i==p.ntsteps
                             v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m]) # km^2
                         else
+                            # In case of negative or decreasing slr, can assume that previous inundated area is reclaimed 
                             v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m],v.coastArea[i+1,m]) # includes future period loss and previous adaptation if applicable
                         end
 
@@ -408,15 +404,23 @@ using Mimi
                     lslrPlan_atprev = p.lslr[t,m]
                     
                     for i in 1:length(p.adaptoptions)
-                        v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
-                        v.SIGMA[t,m, i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[t,m,i] - p.lslr[t,m]))))
-                        v.coastAreaRetreat[t,m,i] = calcCoastArea(v.areaparams[m,:], v.R[t,m,i])
-
+               
                         if is_first(t)
                             Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions) 
+                            v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
                         else
-                            Rprev = v.R[convert(Int,p.at[at_index_prev]),m, i]
+                            if p.fixed==false
+                                Rprev=v.OptimalR[gettime(t)-1,m]
+                                # Assumption: prior protection does not count because it is no longer maintained 
+                                v.R[t,m,i] = max(v.OptimalR[gettime(t)-1,m], calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions))
+                            else
+                                Rprev = v.R[convert(Int,p.at[at_index_prev]),m, i]
+                                v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
+                            end
+                            
                         end
+                        v.SIGMA[t,m, i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[t,m,i] - p.lslr[t,m]))))
+                        v.coastAreaRetreat[t,m,i] = calcCoastArea(v.areaparams[m,:], v.R[t,m,i])
 
                         v.FloodRetreat[t,m,i] = (p.tstep/atstep) * (atstep * v.landvalue[t,m]*.04 * calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) +          
                             max(0,calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
@@ -427,16 +431,30 @@ using Mimi
                             (p.movefactor * v.ypc_seg[t,m] * 1e-6 * v.popdens_seg[t,m] +
                             p.capmovefactor * p.mobcapfrac * v.capital[t,m] + p.democost * (1 - p.mobcapfrac ) * v.capital[t,m]) * 1e-4
            
-                        v.DryLandLossRetreat[t,m,i] = max(0,v.coastAreaRetreat[t,m,i],v.coastArea[t,m])
+                        v.DryLandLossRetreat[t,m,i] = max(0,v.coastAreaRetreat[t,m,i]) # Already takes into account prior adaptation  
 
                         if p.adaptoptions[i] >= 10
-                            v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
-                            v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
-
+                            
                             if is_first(t)
                                 Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions)
+                                v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
+                                v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
+                                v.FloodProtect[t,m] = 0
                             else
-                                Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
+                                if p.fixed==false
+                                    Hprev = v.OptimalH[gettime(t)-1,m]
+                                    ### Assumption: any prior retreat is credited toward required height, since not starting from original position on coast
+                                    lslrPlan_Prot = lslrPlan_at - v.OptimalR[gettime(t)-1,m]
+                                    v.H[t,m,i-1] = max(v.OptimalH[gettime(t)-1,m],calcHorR(-1,p.adaptoptions[i], lslrPlan_Prot, p.surgeexposure[m,:], p.adaptoptions))
+                                    v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[t,m]))))
+                                    v.FloodProtect[t,m] = p.tstep * v.landvalue[t,m]*.04 * v.DryLandLossOptimal[gettime(t)-1,m]
+                                else
+                                    Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
+                                    v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
+                                    v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
+                                    v.FloodProtect[t,m] = 0
+                                end
+                                
                             end
 
                             # Island protection costs are higher
@@ -450,7 +468,7 @@ using Mimi
                                 (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[t,m, i-1]^2 - Hprev^2) + 
                                 p.mc*atstep*v.H[t,m, i-1]) + p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4
                             
-                            if Hprev > v.H[t,m,i-1]
+                            if Hprev >= v.H[t,m,i-1]
                                 v.H[t,m,i-1] = Hprev
                                 # Just maintenance cost + land value
                                 v.Construct[t,m,i-1] = (p.tstep/atstep) * (p.length[m] * pc *p.mc*atstep*v.H[t,m, i-1]+ p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4 
@@ -463,7 +481,11 @@ using Mimi
                             v.SIGMA[j,m,i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[j,m,i] - p.lslr[j,m]))))
                             v.coastAreaRetreat[j,m,i] = v.coastAreaRetreat[t,m,i]
                             
-                            v.WetlandRetreat[j,m] = p.tstep * v.wetlandservice[j,rgn_ind] * v.wetlandloss[j,m] * min(v.coastArea[j,m], p.wetland[m])
+                            if p.fixed==false && !(is_first(t))
+                                v.WetlandRetreat[j,m] = p.tstep * v.wetlandservice[j,rgn_ind]* max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
+                            else
+                                v.WetlandRetreat[j,m] = p.tstep * v.wetlandservice[j,rgn_ind] * v.wetlandloss[j,m] * min(v.coastArea[j,m], p.wetland[m])
+                            end
     
                             v.StormCapitalRetreat[j,m,i] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,i+1]* v.capital[j,m] 
                             v.StormPopRetreat[j,m,i] =  p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,i+1]* v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality
@@ -482,8 +504,16 @@ using Mimi
                                 
                             if p.adaptoptions[i] >= 10
                                 v.H[j,m, i-1] = v.H[t,m, i-1]
-                                v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
-                                (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m]))))
+                                v.FloodProtect[j,m]=v.FloodProtect[t,m]
+                                if p.fixed==false && !(is_first(t))
+                                    v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
+                                    (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[j,m]))))
+                                    
+                                else
+                                    v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
+                                    (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m]))))
+                                end
+                               
     
                                 v.WetlandProtect[j,m] = p.tstep * p.wetland[m] .* v.wetlandservice[j,rgn_ind]
                                         
@@ -497,8 +527,9 @@ using Mimi
                                 v.WetlandProtect[j,m] = v.WetlandProtect[j,m] * 1e-4
                                 v.StormCapitalProtect[j,m,i-1] = v.StormCapitalProtect[j,m,i-1] * 1e-4
                                 v.StormPopProtect[j,m,i-1] = v.StormPopProtect[j,m,i-1] * 1e-4
+                                v.FloodProtect[j,m] = v.FloodProtect[j,m] * 1e-4
                                                     
-                                v.ProtectCost[j,m,i-1] = v.Construct[j,m,i-1] + v.WetlandProtect[j,m] + v.StormCapitalProtect[j,m,i-1] + v.StormPopProtect[j,m,i-1]
+                                v.ProtectCost[j,m,i-1] = v.Construct[j,m,i-1] + v.WetlandProtect[j,m] + v.StormCapitalProtect[j,m,i-1] + v.StormPopProtect[j,m,i-1] + v.FloodProtect[j,m]
     
                             end
     
@@ -583,7 +614,7 @@ using Mimi
                         v.OptimalConstruct[t_range,m] = v.Construct[t_range,m,protInd]
                         v.OptimalWetland[t_range,m] = v.WetlandProtect[t_range,m]
                         v.OptimalRelocate[t_range,m] = 0
-                        v.OptimalFlood[t_range,m] = 0 #TODO update to account for cumulatives 
+                        v.OptimalFlood[t_range,m] = v.FloodProtect[t_range,m] #TODO update to account for cumulatives 
 
                         # Assign Alternative Metrics 
                         # Assume once seawall is built, wetland area is permanently destroyed 
