@@ -330,13 +330,20 @@ using Mimi
                         # Incorporate any previous period adaptation
                         if p.fixed==false
                             if is_first(t)
-                                # Calculate first-period costs: wetland
+                                # Calculate first-period costs: wetland and coast area
+                                # First period costs should be identical for both fixed and flexible modes 
                                 v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
                                 v.coastAreaNoAdapt[i,m] = v.coastArea[i,m] # Ignoring refA adaptation for all but storms b/c Delavane does in her script
                             else
                                 R_NoAdapt = max(R_NoAdapt, v.OptimalR[gettime(t)-1,m])
                                 v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
-                                v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
+                                if i==gettime(t)   
+                                    # For start of new adaptation period, take into account (lack of) retreat done in previous periods (i.e. if they protected instead)
+                                    # This results in double-costs for this period b/c no adaptation is set up to compute relative to t+1 lslr 
+                                    v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],v.OptimalR[gettime(t)-1,m])
+                                else
+                                    v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
+                                end
                             end
                             
                         else
@@ -350,12 +357,12 @@ using Mimi
                         v.StormCapitalNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.SIGMA[i,m,1] * v.capital[i,m]
                         v.StormPopNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * v.vsl[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         
-                        # Wetland Costs 
+                         
                         v.StormLossNoAdapt[i,m] = p.tstep * (1 - v.ρ[i,rgn_ind ]) * v.popdens_seg[i,m] * p.floodmortality * v.SIGMA[i,m,1] 
                         if i==p.ntsteps
                             v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m]) # km^2
                         else
-                            v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m],v.coastArea[i+1,m]) # includes future period loss
+                            v.DryLandLossNoAdapt[i,m] = max(0,v.coastAreaNoAdapt[i,m],v.coastArea[i+1,m]) # includes future period loss and previous adaptation if applicable
                         end
 
                         # Flood and relocation costs 
@@ -396,7 +403,7 @@ using Mimi
 
 
     
-                    # ** Calculate Protectio and Retreat Costs for Each Adaptation Option **
+                    # ** Calculate Protection and Retreat Costs for Each Adaptation Option **
                     lslrPlan_at = p.lslr[at_next,m]
                     lslrPlan_atprev = p.lslr[t,m]
                     
