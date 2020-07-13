@@ -332,11 +332,13 @@ using Mimi
                             if is_first(t)
                                 # Calculate first-period costs: wetland
                                 v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
+                                v.coastAreaNoAdapt[i,m] = v.coastArea[i,m] # Ignoring refA adaptation for all but storms b/c Delavane does in her script
                             else
                                 R_NoAdapt = max(R_NoAdapt, v.OptimalR[gettime(t)-1,m])
                                 v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * max(v.WetlandLossOptimal[gettime(t)-1,m],v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]))
+                                v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
                             end
-                            v.coastAreaNoAdapt[i,m] = calcCoastArea(v.areaparams[m,:],R_NoAdapt)
+                            
                         else
                             v.coastAreaNoAdapt[i,m]= v.coastArea[i,m]
                             v.WetlandNoAdapt[i,m] = p.tstep * v.wetlandservice[i,rgn_ind] * v.wetlandloss[i,m] * min(v.coastArea[i,m], p.wetland[m]) 
