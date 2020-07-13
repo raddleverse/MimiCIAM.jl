@@ -375,8 +375,10 @@ using Mimi
                                 
                         # Put all costs into $Billions and divide by 10
                         v.WetlandNoAdapt[i,m] = v.WetlandNoAdapt[i,m] * 1e-4
-                        v.FloodNoAdapt[i,m] = v.FloodNoAdapt[i,m] * 1e-4
-                        v.RelocateNoAdapt[i,m] = v.RelocateNoAdapt[i,m] * 1e-4
+                        if i<p.ntsteps # already occurred in previous timestep
+                            v.FloodNoAdapt[i,m] = v.FloodNoAdapt[i,m] * 1e-4
+                            v.RelocateNoAdapt[i,m] = v.RelocateNoAdapt[i,m] * 1e-4
+                        end
                         v.StormCapitalNoAdapt[i,m] = v.StormCapitalNoAdapt[i,m] * 1e-4
                         v.StormPopNoAdapt[i,m] = v.StormPopNoAdapt[i,m] * 1e-4
     
