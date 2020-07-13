@@ -5,11 +5,11 @@
 # Functions
 #------------------------------------------------------------------------
 using DataFrames
-using Plots
-using StatPlots
+#using Plots
+#using StatPlots
 using Test
 include("../src/ciamhelper.jl")
-gr()
+
 
 
 @testset "MimiCIAM" begin
@@ -23,11 +23,22 @@ gr()
                 :OptimalWetland,:OptimalFlood,:OptimalRelocate,:WetlandRetreat,:WetlandProtect]
     vargroup3D = [:Construct,:StormCapitalProtect,:StormPopProtect,:StormCapitalRetreat,
                 :StormPopRetreat,:FloodRetreat,:RelocateRetreat,:RetreatCost,:ProtectCost]
+    vargroup4=[:OptimalH,:OptimalR,:DryLandLossOptimal]
 
     for v in vargroup2D
         var = m[:slrcost,v]
         @test isneg(var)==0
                     
+    end
+
+    for v in vargroup4
+        var=m[:slrcost,v]
+        tsteps=m[:slrcost,:ntsteps]
+        for i in 2:tsteps
+            @test sum(var[i,:].< var[i-1,:])==0
+
+        end
+
     end
             
     for v in vargroup3D
@@ -40,6 +51,10 @@ gr()
     end
 
 end
+
+
+
+
 
 
 function compare_outputs(A, B, header, metadata, file, tol=1e-5)
