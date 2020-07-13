@@ -504,14 +504,16 @@ using Mimi
                                 
                             if p.adaptoptions[i] >= 10
                                 v.H[j,m, i-1] = v.H[t,m, i-1]
-                                v.FloodProtect[j,m]=v.FloodProtect[t,m]
+                                
                                 if p.fixed==false && !(is_first(t))
                                     v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
                                     (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[j,m]))))
-                                    
+                                    v.FloodProtect[j,m]=p.tstep * v.landvalue[j,m]*.04 * v.DryLandLossOptimal[gettime(t)-1,m]
+                                   
                                 else
                                     v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
                                     (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m]))))
+                                    v.FloodProtect[j,m]=v.FloodProtect[t,m]
                                 end
                                
     
@@ -614,7 +616,7 @@ using Mimi
                         v.OptimalConstruct[t_range,m] = v.Construct[t_range,m,protInd]
                         v.OptimalWetland[t_range,m] = v.WetlandProtect[t_range,m]
                         v.OptimalRelocate[t_range,m] = 0
-                        v.OptimalFlood[t_range,m] = v.FloodProtect[t_range,m] #TODO update to account for cumulatives 
+                        v.OptimalFlood[t_range,m] = v.FloodProtect[t_range,m] 
 
                         # Assign Alternative Metrics 
                         # Assume once seawall is built, wetland area is permanently destroyed 
