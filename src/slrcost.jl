@@ -29,7 +29,8 @@ using Mimi
 
     # ---Model Parameters ---
     fixed::Bool = Parameter()               # Run model as fixed (T) or flexible (F) with respect to adaptation
-    noRetreat::Bool = Parameter()           # Default (F). If T, segments will either protect or not adapt. 
+    noRetreat::Bool = Parameter()           # Default (F). If T, segments will either protect or not adapt.
+    allowMaintain::Bool=Parameter()         # Default T. If T, segments will have the option to maintain current defenses 
 
     # ---Socioeconomic Parameters---
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE)
@@ -579,9 +580,18 @@ using Mimi
                         v.OptimalLevel[t_range,m] = v.OptimalLevel[1,m]
                     else
                         # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level.
-                        protectInd = findmin(v.NPVProtect[Int(p.at[at_index]),m,:])[2]
-                        retreatInd = findmin(v.NPVRetreat[Int(p.at[at_index]),m,:])[2]
-                        v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
+                        if p.allowMaintain==true
+                            
+                            protectInd = findmin(v.NPVProtect[Int(p.at[at_index]),m,:])[2]
+                            retreatInd = findmin(v.NPVRetreat[Int(p.at[at_index]),m,:])[2]
+                            v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
+                        else
+                            protDims=size(v.NPVProtect)[3]
+                            retDims=size(v.NPVRetreat)[3]
+                            protectInd = findmin(v.NPVProtect[Int(p.at[at_index]),m,1:protDims-1])[2]
+                            retreatInd = findmin(v.NPVRetreat[Int(p.at[at_index]),m,1:retDims-1])[2]
+                            v.OptimalProtectLevel[t_range, m] = p.adaptoptions[protectInd+1]
+                        end
 
                         if p.noRetreat==true 
                             minLevels = [p.adaptoptions[protectInd+1], 0]
