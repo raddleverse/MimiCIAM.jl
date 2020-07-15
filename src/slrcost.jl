@@ -41,7 +41,8 @@ using Mimi
      
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)    
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
-    refA = Parameter(index = [segments])                # Reference level of adaptation in 0 period 
+    refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period 
+    refA_H = Parameter(index=[segments])                # Reference height for adaptation in 0 period
 
     # ---Land Parameters---  
     landinput::Bool = Parameter()                   # Set to T for FUND or F for GTAP
@@ -113,7 +114,7 @@ using Mimi
     # ---Sea Level Rise Parameters---
     lslr = Parameter(index = [time, segments])                # Local sea level rise (m) 
 
-    adaptoptions = Parameter(index = [5])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
+    adaptoptions = Parameter(index = [6])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
     surgeexposure::Float64 = Parameter( index = [segments, 5])     # Storm surge exposure levels (corresponding to each designated adaptation option)
     
 
@@ -147,28 +148,28 @@ using Mimi
     StormLossNoAdapt = Variable(index = [time,segments])
     DryLandLossNoAdapt = Variable(index=[time,segments])
 
-    Construct = Variable(index = [time, segments, 4])
+    Construct = Variable(index = [time, segments, 5])
     WetlandProtect = Variable(index = [time, segments])    
-    StormCapitalProtect = Variable(index = [time, segments,4])
-    StormPopProtect = Variable(index = [time, segments,4])
-    StormLossProtect = Variable(index = [time,segments,4])
+    StormCapitalProtect = Variable(index = [time, segments,5])
+    StormPopProtect = Variable(index = [time, segments,5])
+    StormLossProtect = Variable(index = [time,segments,5])
     FloodProtect = Variable(index = [time,segments])
     
     WetlandRetreat = Variable(index = [time, segments])
-    StormCapitalRetreat = Variable(index = [time, segments,5])
-    StormPopRetreat = Variable(index = [time, segments,5])
-    StormLossRetreat = Variable(index = [time,segments,5])
-    FloodRetreat = Variable(index = [time, segments, 5])
-    RelocateRetreat = Variable(index = [time, segments, 5])
-    DryLandLossRetreat = Variable(index=[time,segments,5])
-    coastAreaRetreat = Variable(index = [time,segments,5])
+    StormCapitalRetreat = Variable(index = [time, segments,6])
+    StormPopRetreat = Variable(index = [time, segments,6])
+    StormLossRetreat = Variable(index = [time,segments,6])
+    FloodRetreat = Variable(index = [time, segments, 6])
+    RelocateRetreat = Variable(index = [time, segments, 6])
+    DryLandLossRetreat = Variable(index=[time,segments,6])
+    coastAreaRetreat = Variable(index = [time,segments,6])
     coastAreaNoAdapt=Variable(index=[time,segments])
     
     # --- Decision Variables --- (evaluated brute force)
-    H = Variable(index = [time, segments, 4])       # Height of current sea wall, no retreat (m)
-    R = Variable(index = [time, segments, 5])       # Retreat perimeter (m)
-    SIGMA = Variable(index = [time, segments, 10])  # Expected value of effective exposure area for over-topping surge (all cases)
-                                                    # Order of sigma values: 1 no adapt case, 5 retreat cases, 4 protect cases in ascending order
+    H = Variable(index = [time, segments, 5])       # Height of current sea wall, no retreat (m)
+    R = Variable(index = [time, segments, 6])       # Retreat perimeter (m)
+    SIGMA = Variable(index = [time, segments, 12])  # Expected value of effective exposure area for over-topping surge (all cases)
+                                                    # Order of sigma values: 1 no adapt case, 6 retreat cases, 5 protect cases in ascending order
 
     # ---Outcome Variables---   
     OptimalH = Variable(index=[time,segments])               # m; Holder to track height built across timesteps (cumulative)
@@ -180,15 +181,15 @@ using Mimi
     WetlandLost = Variable(index=[time,segments])            # km2; container to track cumulative lost wetland 
 
     NoAdaptCost = Variable(index = [time, segments])         # Cost of not adapting (e.g. reactive retreat) (2010$)
-    ProtectCost = Variable(index = [time, segments, 4])      # Total cost of protection at each level      
-    RetreatCost = Variable(index = [time, segments, 5])      # Total cost of retreat at each level   
+    ProtectCost = Variable(index = [time, segments, 5])      # Total cost of protection at each level      
+    RetreatCost = Variable(index = [time, segments, 6])      # Total cost of retreat at each level   
     OptimalRetreatLevel = Variable(index = [time, segments])
     OptimalProtectLevel = Variable(index = [time, segments])
     OptimalCost = Variable(index = [time, segments])          # Optimal cost based on NPV relative to start of adaptation period 
     OptimalLevel = Variable(index = [time, segments])         # Fixed optimal level (1,10,100,1000,10000)
     OptimalOption = Variable(index = [time, segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt) 
-    NPVRetreat = Variable(index = [time,segments, 5])        
-    NPVProtect = Variable(index = [time,segments,  4])
+    NPVRetreat = Variable(index = [time,segments, 6])        
+    NPVProtect = Variable(index = [time,segments,  5])
     NPVNoAdapt = Variable(index = [time,segments])
     NPVOptimal = Variable(index = [segments])               # NPV of cost of optimal decisions relative to t=1
     NPVOptimalTotal = Variable()                            # Total NPV of all segments from optimal decision 
@@ -323,9 +324,9 @@ using Mimi
                     for i in t_range
                         R_NoAdapt = max(0, p.lslr[i,m])
 
-                        # For initial state in SLR cases, make adaptation decision relative to baseline (refA)
+                        # For initial state in SLR cases, make adaptation decision relative to baseline (refA_H or R)
                         if p.rcp>0
-                            R_NoAdapt = max(R_NoAdapt, p.refA[m])
+                            R_NoAdapt = max(R_NoAdapt, p.refA_H[m],p.refA_R[m])
                         end
 
                         # Incorporate any previous period adaptation
@@ -406,7 +407,6 @@ using Mimi
                     lslrPlan_atprev = p.lslr[t,m]
                     
                     for i in 1:length(p.adaptoptions)
-               
                         if is_first(t)
                             Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions) 
                             v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
@@ -427,20 +427,22 @@ using Mimi
                         v.FloodRetreat[t,m,i] = (p.tstep/atstep) * (atstep * v.landvalue[t,m]*.04 * calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) +          
                             max(0,calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) - calcCoastArea(v.areaparams[m,:], Rprev))* 
                             (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[t,m]) * 1e-4
-    
+                        
                         v.RelocateRetreat[t,m,i] = (p.tstep / atstep) * 
                             max(0, calcCoastArea(v.areaparams[m,:], v.R[t,m,i]) - calcCoastArea(v.areaparams[m,:], Rprev)) * 
                             (p.movefactor * v.ypc_seg[t,m] * 1e-6 * v.popdens_seg[t,m] +
                             p.capmovefactor * p.mobcapfrac * v.capital[t,m] + p.democost * (1 - p.mobcapfrac ) * v.capital[t,m]) * 1e-4
            
                         v.DryLandLossRetreat[t,m,i] = max(0,v.coastAreaRetreat[t,m,i]) # Already takes into account prior adaptation  
-
-                        if p.adaptoptions[i] >= 10
+                       
+                        if p.adaptoptions[i] >= 10 || p.adaptoptions[i]==0
                             
                             if is_first(t)
+                               
+                               # Hprev = max(p.refA_H[m],calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions))
                                 Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions)
                                 v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
-                                v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
+                                v.SIGMA[t,m,(i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
                                 v.FloodProtect[t,m] = 0
                             else
                                 if p.fixed==false
@@ -448,17 +450,17 @@ using Mimi
                                     ### Assumption: any prior retreat is credited toward required height, since not starting from original position on coast
                                     lslrPlan_Prot = lslrPlan_at - v.OptimalR[gettime(t)-1,m]
                                     v.H[t,m,i-1] = max(v.OptimalH[gettime(t)-1,m],calcHorR(-1,p.adaptoptions[i], lslrPlan_Prot, p.surgeexposure[m,:], p.adaptoptions))
-                                    v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[t,m]))))
+                                    v.SIGMA[t,m,(i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[t,m]))))
                                     v.FloodProtect[t,m] = p.tstep * v.landvalue[t,m]*.04 * v.DryLandLossOptimal[gettime(t)-1,m]
                                 else
                                     Hprev = v.H[convert(Int,p.at[at_index_prev]),m,i-1]
                                     v.H[t,m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m,:], p.adaptoptions)
-                                    v.SIGMA[t,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
+                                    v.SIGMA[t,m,(i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[t,m])) / (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[t,m, i-1] - p.lslr[t,m]))))
                                     v.FloodProtect[t,m] = 0
                                 end
                                 
                             end
-
+                          
                             # Island protection costs are higher
                             if isisland(m,p.xsc)==1
                                 pc = 2*p.pc0*p.cci[rgn_ind]
@@ -504,16 +506,16 @@ using Mimi
                                         
                             v.RetreatCost[j,m, i] = v.FloodRetreat[j,m,i] + v.RelocateRetreat[j,m,i] + v.StormCapitalRetreat[j,m,i] + v.StormPopRetreat[j,m,i] + v.WetlandRetreat[j,m]
                                 
-                            if p.adaptoptions[i] >= 10
+                            if p.adaptoptions[i] >= 10 || p.adaptoptions[i]==0
                                 v.H[j,m, i-1] = v.H[t,m, i-1]
                                 
                                 if p.fixed==false && !(is_first(t))
-                                    v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
+                                    v.SIGMA[j,m,(i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
                                     (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1]+v.OptimalR[gettime(t)-1,m] - p.lslr[j,m]))))
                                     v.FloodProtect[j,m]=p.tstep * v.landvalue[j,m]*.04 * v.DryLandLossOptimal[gettime(t)-1,m]
                                    
                                 else
-                                    v.SIGMA[j,m,(i-1)+6] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
+                                    v.SIGMA[j,m,(i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0,p.lslr[j,m])) / 
                                     (1. + p.psigA[m] * exp(p.psigB[m] * max(0,(v.H[j,m, i-1] - p.lslr[j,m]))))
                                     v.FloodProtect[j,m]=v.FloodProtect[t,m]
                                 end
@@ -521,9 +523,9 @@ using Mimi
     
                                 v.WetlandProtect[j,m] = p.tstep * p.wetland[m] .* v.wetlandservice[j,rgn_ind]
                                         
-                                v.StormCapitalProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+6] * v.capital[j,m]                                              
-                                v.StormPopProtect[j,m,i-1] =  p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+6] * v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality
-                                v.StormLossProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+6] * v.popdens_seg[j,m] * p.floodmortality
+                                v.StormCapitalProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+7] * v.capital[j,m]                                              
+                                v.StormPopProtect[j,m,i-1] =  p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+7] * v.popdens_seg[j,m] * v.vsl[j,m] * p.floodmortality
+                                v.StormLossProtect[j,m,i-1] = p.tstep * (1 - v.ρ[j,rgn_ind]) * v.SIGMA[j,m,(i-1)+7] * v.popdens_seg[j,m] * p.floodmortality
                                     
                                 v.Construct[j,m,i-1] = v.Construct[t,m, i-1]
     
@@ -552,7 +554,7 @@ using Mimi
                             v.NPVRetreat[j,m,i] = v.NPVRetreat[t,m,i]
                         end
     
-                        if p.adaptoptions[i] >=10
+                        if p.adaptoptions[i] >=10 || p.adaptoptions[i]==0
                             if is_first(t)
                                 v.NPVProtect[t,m,i-1] = sum( [ v.discountfactor[j] * v.ProtectCost[j,m,i-1] for j in t_range] ) # Protect
                             else
@@ -811,8 +813,10 @@ function calcHorR(option, level, lslrPlan, surgeExpLevels, adaptOptions)
     if option==-1 && level ==10
         # Protect height differs from retreat radius only in case of 10 yr surge exposure
         H = max(0, lslrPlan + surgeExpLevels[ind] / 2)
-
         return H
+    elseif level==0 # Maintain existing defenses 
+        H_R=0
+        return H_R
     else
         H_R = max(0, lslrPlan + surgeExpLevels[ind])
         return H_R
