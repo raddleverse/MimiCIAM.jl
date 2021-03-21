@@ -65,8 +65,11 @@ function choose_ensemble_members(time, ens, n, low, high, yend,ensInds)
         if ensInds==false
             ens_inds = findall(x -> x >= val_low && x <= val_high, ens[end_year,:])
 
-            
-            chosen_inds = ens_inds[sample(1:end,n,replace=false)]
+            if length(ens_inds)>1
+                chosen_inds = ens_inds[sample(1:end,n,replace=false)]
+            else
+                chosen_inds= ens_inds
+            end
             return chosen_inds 
         else
             chosen_inds = ensInds
@@ -255,16 +258,20 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
     globalDrylandLoss = zeros(n)
     globalStormLoss = zeros(n)
 
-    segNpv=zeros(12148,n)
-    segOption=zeros(12148,n)
-    segLevel=zeros(12148,n)
+    segNpv=zeros(n,12148)
+    segOption2100=zeros(n,12148)
+    segLevel2100=zeros(n,12148)
+    segLevel2050=zeros(n,12148)
+    segOption2050=zeros(n,12148)
+   # lsl2050 = zeros(n,12148)
+   # lsl2100 = zeros(n,12148)
 
-    segWetland=zeros(12148,n)
-    segStormPop=zeros(12148,n)
-    segStormCap=zeros(12148,n)
-    segConstruct=zeros(12148,n)
-    segFlood=zeros(12148,n)
-    segRelocate=zeros(12148,n)
+    # segWetland=zeros(12148,n)
+    # segStormPop=zeros(12148,n)
+    # segStormCap=zeros(12148,n)
+    # segConstruct=zeros(12148,n)
+    # segFlood=zeros(12148,n)
+    # segRelocate=zeros(12148,n)
 
 
     for i in 1:n
@@ -272,24 +279,30 @@ function brickCIAM_driver(rcp,brickfile,n,low=5,high=95,ystart=2010,yend=2100,ts
         run(m)
         # store output 
         globalNPV[i] = m[:slrcost,:NPVOptimalTotal]
-        globalWetlandLoss[i]= sum(m[:slrcost,:WetlandAreaOptimal][t,:])
-        globalDrylandLoss[i] = sum(m[:slrcost,:DryLandLossOptimal][t,:])
-        globalStormLoss[i] = sum(m[:slrcost,:StormLossOptimal][t,:])
+     #   globalWetlandLoss[i]= sum(m[:slrcost,:WetlandAreaOptimal][t,:])
+     #   globalDrylandLoss[i] = sum(m[:slrcost,:DryLandLossOptimal][t,:])
+     #   globalStormLoss[i] = sum(m[:slrcost,:StormLossOptimal][t,:])
 
-        segNpv=m[:slrcost,:NPVOptimal]
-        segOption=m[:slrcost,:OptimalOption]
-        segLevel=m[:slrcost,:OptimalLevel]
+        segNpv[i,:]=m[:slrcost,:NPVOptimal]
+        segOption2050[i,:]=m[:slrcost,:OptimalOption][5,:]
+        segLevel2050[i,:]=m[:slrcost,:OptimalLevel][5,:]
+        segOption2100[i,:]=m[:slrcost,:OptimalOption][10,:]
+        segLevel2100[i,:]=m[:slrcost,:OptimalLevel][10,:]
+      #  lsl2050[i,:] = m[:slrcost, :lslr][5,:]
+      #  lsl2100[i,:] = m[:slrcost,:lslr][10,:]
     
-        segWetland[:,i]=m[:slrcost,:OptimalWetland]
-        segStormPop[:,i]=m[:slrcost,:OptimalStormPop]
-        segStormCap[:,i]=m[:slrcost,:OptimalStormCapital]
-        segConstruct[:,i]=m[:slrcost,:OptimalConstruct]
-        segFlood[:,i]=m[:slrcost,:OptimalFlood]
-        segRelocate[:,i]=m[:slrcost,:OptimalRelocate]
+        # To do - NPV for these vars (Friday-ish)
+        # segWetland[:,i]=transpose(sum(m[:slrcost,:OptimalWetland],dims=1))
+        # segStormPop[:,i]=transpose(sum(m[:slrcost,:OptimalStormPop],dims=1))
+        # segStormCap[:,i]=m[:slrcost,:OptimalStormCapital]
+        # segConstruct[:,i]=m[:slrcost,:OptimalConstruct]
+        # segFlood[:,i]=m[:slrcost,:OptimalFlood]
+        # segRelocate[:,i]=m[:slrcost,:OptimalRelocate]
 
     end 
-    results_global = (globalNPV,globalWetlandLoss,globalDrylandLoss,globalStormLoss)
-    results_seg = (segNpv,segOption,segLevel,segWetland,segStormPop,segStormCap,segConstruct,segFlood,segRelocate)
+    results_global = (globalNPV)#,globalWetlandLoss,globalDrylandLoss,globalStormLoss)
+    #results_seg = (segNpv,segOption,segLevel,segWetland,segStormPop,segStormCap,segConstruct,segFlood,segRelocate)
+    results_seg = (segNpv,segOption2050,segLevel2050,segOption2100,segLevel2100)
 
     return results_global,results_seg,gmsl,ensInds
 end

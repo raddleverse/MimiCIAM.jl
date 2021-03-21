@@ -1,7 +1,7 @@
 # # Catherine Ledna
 # 4/12/18
 #------------------------------------------------------------------------
-# ciamhelpers.jl
+# ciamhelper.jl
 #------------------------------------------------------------------------
 # Assorted functions to process CIAM data and run CIAM model
 #------------------------------------------------------------------------
@@ -14,7 +14,7 @@ function load_ciam_params()
     files = readdir(data_dir) 
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
 
-    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m)) |> DataFrame for m in files)
+    params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m),DataFrame) |> DataFrame for m in files)
 
     return params
 
@@ -27,7 +27,7 @@ end
 # params - parameter dictionary you want to add lslr to 
 function preplsl!(lslfile,subset, params,segnames)
     data_dir = joinpath(@__DIR__,"..","data","lslr")
-    lsl_params = CSV.read(joinpath(data_dir,lslfile)) |> DataFrame
+    lsl_params = CSV.read(joinpath(data_dir,lslfile), DataFrame) |> DataFrame
 
     # Filter according to subset segments
     if subset != false
@@ -45,13 +45,15 @@ function preplsl!(lslfile,subset, params,segnames)
     return params
 end
 
-function prepssp!(ssp,params,rgnnames)
+function prepssp!(ssp,ssp_simplified,params,rgnnames,segnames)
     data_dir = joinpath(@__DIR__,"..","data","ssp")
     if ssp==false # Do nothing, base ssp data already loaded 
         return params
     else
-        pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")))
-        ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")))
+        pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")), DataFrame)
+        ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")), DataFrame)
+        popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
+        popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
 
         col_names = [i  for i in names(pop) if string(i) in rgnnames]
         col_names = sort(col_names)
@@ -60,6 +62,17 @@ function prepssp!(ssp,params,rgnnames)
         
         params["pop"] = Array{Float64,2}(pop)
         params["ypcc"]= Array{Float64,2}(ypc)
+
+        seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
+        seg_col_names = sort(seg_col_names)
+        popdens_seg_jones = popdens_seg_jones[seg_col_names]
+
+        seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
+        seg_col_names = sort(seg_col_names)
+        popdens_seg_merkens = popdens_seg_merkens[seg_col_names]
+
+        params["popdens_seg_jones"]=Array{Float64,2}(popdens_seg_jones)
+        params["popdens_seg_merkens"]=Array{Float64,2}(popdens_seg_merkens)
 
     end
     return params
@@ -164,7 +177,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             params[k] = Array{Float64,2}(p)
            
         elseif size(p,2)==1 
-            params[k] = Array{Float64,1}(p[1])
+            params[k] = Array{Float64,1}(p[1]) #TWmod - unnecessary because already of type Array{Float64,1}?
 
         end  
 
@@ -194,7 +207,7 @@ function prepxsc(subset)
     xsc_name = replace(xscfile, r".csv" => s"") # Strip ".csv" from file name
 
     # Read in csv and convert to dictionary format 
-    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => CSV.read(joinpath(data_dir, xscfile)))
+    xsc_params = Dict{Any, Any}(lowercase(splitext(xscfile)[1]) => CSV.read(joinpath(data_dir, xscfile), DataFrame))
     xsc_char = Dict{Any,Any}( xsc_params[xsc_name][i,1] => (xsc_params[xsc_name][i,2],xsc_params[xsc_name][i,3], xsc_params[xsc_name][i,4]) for i in 1:size(xsc_params[xsc_name],1))
 
     # If only a subset of segments is used, filter down to relevant segments
@@ -206,7 +219,9 @@ function prepxsc(subset)
     rgns = sort(unique([i[1] for i in collect(values(xsc_char))]))
     segs = string.(sort(unique(collect(keys(xsc_char)))))
 
-    xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool)
+#    xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool)
+    #xsc_ind = Dict{Int32,Tuple{Int32, Bool, Bool}}()      # numeric seg -> (numeric rgn, greenland bool) # TWmod
+    xsc_ind = Dict{Any,Any}()      # numeric seg -> (numeric rgn, greenland bool) # TWmod
     xsc_segmap = Dict{Any,Any}()   # Numeric seg/rgn -> char seg/rgn
     xsc_rgnmap = Dict{Any,Any}()
    
@@ -257,7 +272,7 @@ function init(f=nothing)
     if f==nothing
         f=joinpath(@__DIR__,"..","data","batch","init.txt")
     end
-    varnames=CSV.read(open(f),header=true)
+    varnames=CSV.read(open(f), DataFrame, header=true)
     vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))
     return(vardict)
 end
@@ -276,7 +291,7 @@ end
 # Wrapper for importing model data.
 # lslfile - filename for lsl (string)
 # subset - filename with names of segments to use (string) or false (bool) to run all segments
-function import_model_data(lslfile,sub,ssp) 
+function import_model_data(lslfile,sub,ssp,ssp_simplified) 
 
     subset=load_subset(sub)
 
@@ -289,7 +304,7 @@ function import_model_data(lslfile,sub,ssp)
     # Process params using xsc and format lsl file
     parse_ciam_params!(params, xsc[2], xsc[3])
     preplsl!(lslfile, subset, params,xsc[3])
-    prepssp!(ssp,params,xsc[2])
+    prepssp!(ssp,ssp_simplified,params,xsc[2],xsc[3])
 
     return(params, xsc)
 
@@ -569,7 +584,7 @@ function load_segmap()
 end
 
 function load_xsc()
-    xsc = CSV.read(joinpath(@__DIR__,"..","data","input","xsc.csv")) |> DataFrame
+    xsc = CSV.read(joinpath(@__DIR__,"..","data","input","xsc.csv"), DataFrame) |> DataFrame
     return(xsc)
 end
 
@@ -588,3 +603,119 @@ function segStr_to_segID(segstr)
     ids = [parse(Int64,replace(i, r"[^0-9]"=> "")) for i in segstr] 
     return(ids)
 end
+
+## Function that returns time series of costs at global, regional and/or segment level scale
+#       Also computes cost as percent of regional or global gdp 
+function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
+    
+    # If not using segment-level aggregation, segIDs refers to 
+    #   individual segments to report in addition to global/regional 
+    if sumsegs=="seg" # Report all segments in model or those specified 
+        if segIDs==false
+            segIDs=model[:slrcost,:segID]
+        end
+    end
+
+    xsc = load_xsc()
+    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => (xsc[:rgn][i],xsc[:segID][i]) for i in 1:size(xsc,1))
+
+    # Write Main and Sub-Costs 
+    vars = [:OptimalCost,:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
+        :OptimalFlood, :OptimalRelocate, :OptimalWetland]
+    global df=DataFrame()
+    
+    for i in 1:length(vars)
+        temp = getdataframe(model, :slrcost => vars[i])
+        temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
+
+        temp[:costtype]= String(vars[i])
+
+        temp2 = getdataframe(model, :slrcost => :OptimalLevel)
+        temp3 = getdataframe(model, :slrcost => :OptimalOption)
+        temp4 = getdataframe(model, :slrcost => :ypcc)
+        temp5 = getdataframe(model, :slrcost => :pop)
+
+        # Join dataframes and reorganize
+        out = join(temp,temp2, on=[:time,:segments])
+        out = join(out,temp3, on=[:time,:segments])
+        out = join(out,temp4, on=[:time,:regions])
+        out = join(out,temp5,on=[:time,:regions])
+
+        # Replace OptimalOption numeric value with string
+        lookup = Dict{Any,Any}(-2.0=> "Retreat", -1.0=> "Protection",-3.0=>"No Adaptation")
+        out = out |> @map(merge(_,{category=lookup[_.OptimalOption]})) |> DataFrame
+        rename!(out, Dict(:OptimalLevel => :level))
+        rename!(out,vars[i]=>:cost)
+        out[:ens]=ensnum
+        col_order=[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:ypcc,:pop]
+        out = out[col_order]
+        
+        # Aggregate to geographic level 
+        subset = filter(row -> row[:segID] in segIDs,out)
+
+        if sumsegs=="rgn"
+            rgndf = out |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.costtype,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+            rgndf[:segID]=0.
+            rgndf[:segments]="regional"
+            rgndf=rgndf[col_order]
+            rgndf=[rgndf;subset]
+
+            rgndf[:gdp]=rgndf[:ypcc].*rgndf[:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
+            rgndf[:pct_gdp]=rgndf[:cost]./rgndf[:gdp] # Annual cost / annual GDP 
+            out=rgndf
+    
+        elseif sumsegs=="global"
+
+            globdf = out |> @groupby({_.ens,_.time, _.level, _.category,_.costtype}) |>     
+                @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+
+            globsoc = join(temp4,temp5,on=[:time,:regions])
+            globsoc[:gdp] = globsoc[:ypcc].*globsoc[:pop]./1e3 
+            globsoc[:ens]=ensnum
+            globsoc = globsoc |> @groupby({_.ens,_.time}) |>
+                @map(merge(key(_), {ypcc=sum(_.gdp), pop=sum(_.pop),gdp=sum(_.gdp)})) |> DataFrame
+            globsoc[:ypcc] = (globsoc[:gdp].*1e9)./(globsoc[:pop].*1e6)
+
+            globdf = join(globdf,globsoc,on=[:ens,:time])
+            globdf[:segID]=0.
+            globdf[:regions]="global"
+            globdf[:segments]="global"
+            globdf=globdf[[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:ypcc,:pop,:gdp]]
+            subset[:gdp]=subset[:ypcc].*subset[:pop]./1e3
+            globdf=[globdf;subset]
+
+            globdf[:pct_gdp] = globdf[:cost] ./ globdf[:gdp]
+
+            if rgns!=false
+                rgndf = filter(row -> row[:regions] in rgns,out)
+                rgndf = rgndf |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.costtype,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+                rgndf[:segID]=0.
+                rgndf[:segments]="regional"
+                rgndf=rgndf[col_order]
+
+                rgndf[:gdp]=rgndf[:ypcc].*rgndf[:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
+                rgndf[:pct_gdp]=rgndf[:cost]./rgndf[:gdp] # Annual cost / annual GDP 
+
+                globdf=[globdf; rgndf]
+            end
+
+            out=globdf
+        else
+            out[:gdp]= out[:ypcc] .* out[:pop] ./1e3# Regional gdp by segment
+            out[:pct_gdp] = out[:cost] ./ out[:gdp]# Segment cost or subcost as % of regional gdp 
+        end
+
+        if i==1
+            global df = out
+        else
+            df = [df;out]
+        end
+
+    end
+
+    # Remove ypcc and pop from final df 
+    df = df[[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:gdp,:pct_gdp]]
+    return df 
+
+end
+

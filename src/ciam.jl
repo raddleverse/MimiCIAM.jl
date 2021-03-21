@@ -55,7 +55,7 @@ end
 
 function get_model(;initfile=nothing,fixed::Bool=false,t::Int=20,noRetreat::Bool=false,allowMaintain::Bool=true)
     initparams= init(initfile)
-    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1],initparams["ssp"][1])
+    modelparams = import_model_data(initparams["lslr"][1],initparams["subset"][1],initparams["ssp"][1],initparams["ssp_simplified"][1])
     params = modelparams[1]
     xsc = modelparams[2]
 
