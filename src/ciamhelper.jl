@@ -87,6 +87,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
     for k in key
         p = params[k] # Data frame
+println(k)
 
         if k=="data"
             colnames = filter(f -> string(f)!="NA",names(p)) # Preserve column names 
@@ -149,9 +150,9 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             sort!(p,:segments)
             delete!(params,k)
             if k=="refa_h"
-                params["refA_H"]= convert(Array{Float64},p[:value])
+                params["refA_H"]= convert(Array{Float64},p[!,:value])
             else
-                params["refA_R"]= convert(Array{Float64},p[:value])
+                params["refA_R"]= convert(Array{Float64},p[!,:value])
             end
             
         elseif size(p,2) ==2
@@ -176,8 +177,8 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
             params[k] = Array{Float64,2}(p)
            
-        elseif size(p,2)==1 
-            params[k] = Array{Float64,1}(p[1]) #TWmod - unnecessary because already of type Array{Float64,1}?
+        elseif size(p,2)==1
+            params[k] = Array{Float64,1}(p[!,1])
 
         end  
 
@@ -273,7 +274,7 @@ function init(f=nothing)
         f=joinpath(@__DIR__,"..","data","batch","init.txt")
     end
     varnames=CSV.read(open(f), DataFrame, header=true)
-    vardict = Dict{Any,Any}( String(i) => varnames[i] for i in names(varnames))
+    vardict = Dict{Any,Any}( String(i) => varnames[!,i] for i in names(varnames))
     return(vardict)
 end
 
