@@ -32,13 +32,13 @@ function preplsl!(lslfile,subset, params,segnames)
     # Filter according to subset segments
     if subset != false
         col_names = [i for i in names(lsl_params) if string(i) in subset]
-        lsl_params = lsl_params[col_names]
+        lsl_params = lsl_params[!,col_names]
     end
 
     # Chomp off unrelated rows and sort alphabetically (do this regardless of whether there's a subset)
     col_names = [i  for i in names(lsl_params) if string(i) in segnames]
     col_names = sort(col_names)
-    lsl_params = lsl_params[col_names]
+    lsl_params = lsl_params[!,col_names]
     
     params["lslr"] = convert(Array{Float64,2},lsl_params)
 
@@ -57,19 +57,19 @@ function prepssp!(ssp,ssp_simplified,params,rgnnames,segnames)
 
         col_names = [i  for i in names(pop) if string(i) in rgnnames]
         col_names = sort(col_names)
-        pop = pop[col_names]
-        ypc = ypc[col_names]
+        pop = pop[!,col_names]
+        ypc = ypc[!,col_names]
         
         params["pop"] = Array{Float64,2}(pop)
         params["ypcc"]= Array{Float64,2}(ypc)
 
         seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
         seg_col_names = sort(seg_col_names)
-        popdens_seg_jones = popdens_seg_jones[seg_col_names]
+        popdens_seg_jones = popdens_seg_jones[!,seg_col_names]
 
         seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
         seg_col_names = sort(seg_col_names)
-        popdens_seg_merkens = popdens_seg_merkens[seg_col_names]
+        popdens_seg_merkens = popdens_seg_merkens[!,seg_col_names]
 
         params["popdens_seg_jones"]=Array{Float64,2}(popdens_seg_jones)
         params["popdens_seg_merkens"]=Array{Float64,2}(popdens_seg_merkens)
@@ -87,17 +87,16 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
     for k in key
         p = params[k] # Data frame
-println(k)
 
         if k=="data"
             colnames = filter(f -> string(f)!="NA",names(p)) # Preserve column names 
             
             # Filter segments to subset
-            segs = p[1]
+            segs = p[!,1]
             seg_inds = filter_index(segs, seg_order)
             p = p[seg_inds,:]
             # Sort alphabetically
-            seg_alpha = sortperm(p[1])
+            seg_alpha = sortperm(p[!,1])
             p = p[seg_alpha,:]
 
             if length(seg_inds)>=1
@@ -114,9 +113,9 @@ println(k)
             end
         elseif k=="globalparams"
 
-            for k in 1:length(p[1])
-                varname = p[1][k]
-                newval = p[2][k]
+            for k in 1:nrow(p)
+                varname = p[k,1]
+                newval = p[k,2]
 
                 if (varname=="ntsteps" || varname=="adaptPers")
                     newval = parse(Int64,newval)
@@ -150,22 +149,22 @@ println(k)
             sort!(p,:segments)
             delete!(params,k)
             if k=="refa_h"
-                params["refA_H"]= convert(Array{Float64},p[!,:value])
+                params["refA_H"] = convert(Array{Float64},p[!,:value])
             else
-                params["refA_R"]= convert(Array{Float64},p[!,:value])
+                params["refA_R"] = convert(Array{Float64},p[!,:value])
             end
             
         elseif size(p,2) ==2
             # Filter regions
-            r_inds = filter_index(p[1], rgn_order)
+            r_inds = filter_index(p[!,1], rgn_order)
             p = p[r_inds,:]
             # Alphabetize
-            p = p[sortperm(p[1]),:]
+            p = p[sortperm(p[!,1]),:]
 
-            if p[1]!=rgn_order
+            if p[!,1]!=rgn_order
                 error("Regions in dictionary do not match supplied regions, ", k)               
             else
-                newvals = p[2]
+                newvals = p[!,2]
                 # Coerce to Array{Float64,1}
                 params[k] = Array{Float64,1}(newvals)
             end
@@ -173,7 +172,7 @@ println(k)
             # Time-country data matrices
             # Alphabetize
             col_names = [i for i in names(p) if string(i) in rgn_order]
-            p= p[sort(col_names)]
+            p= p[!,sort(col_names)]
 
             params[k] = Array{Float64,2}(p)
            

@@ -34,7 +34,7 @@ using Mimi
     allowMaintain = Parameter{Bool}()       # Default T. If T, segments will have the option to maintain current defenses 
 
     # ---Socioeconomic Parameters---
-    popinput=Parameter()                               # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
+    popinput=Parameter(default=0)           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE or SSPs)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
     rgn_ind_usa = Parameter{Int}()                     # Lookup parameter for USA region index, used in refpopdens and ypc  
@@ -105,16 +105,16 @@ using Mimi
 
     # ---Storm damage parameters---
     floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01) 
-    vslel = Parameter()                         # Elasticity of vsl (0.5)
-    vslmult = Parameter()                       # multiplier on USA GDP (216)
+    vslel = Parameter(default=0.5)                         # Elasticity of vsl (0.5)
+    vslmult = Parameter(default=216)                       # multiplier on USA GDP (216)
     vsl = Variable(index = [time, segments])     # Value of statistical life (million 2010$)
                                            
     # ---Wetland Loss Parameters---
-    wvbm = Parameter()                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376) 
+    wvbm = Parameter(default=0.376)                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376) 
     wetland = Parameter( index = [segments])                # Initial wetland area in coastal segment (km^2)
-    wmaxrate = Parameter()                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
-    wvel = Parameter()                                      # income elasticity of wetland value (1.16) (Brander et al, 2006)
-    wvpdl = Parameter()                                     # Population density elasticity of wetland value (0.47) (Brander et al, 2006)
+    wmaxrate = Parameter(default=0.01)                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
+    wvel = Parameter(default=1.16)                                      # income elasticity of wetland value (1.16) (Brander et al, 2006)
+    wvpdl = Parameter(default=0.47)                                     # Population density elasticity of wetland value (0.47) (Brander et al, 2006)
     
     wetlandservice = Variable(index = [time, regions])      # Annual value of wetland services adjusted for income and density (Brander et al 2006) ($2010M/km^2/year)
     wetlandloss = Variable(index = [time, segments])        # Fractional loss of wetland due to slr
