@@ -23,8 +23,20 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
     end
 
     # Dynamically find indices corresponding to USA and CAN and manually set time steps 
-    rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"][1]
-    rgn_ind_usa = [k for (k,v) in xsc[4] if v=="USA"][1]
+    # If the lengths are 0, then assume those segments are not used. Note that
+    # if including Greenland, need Canada too as a reference for land appreciation
+    rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"]
+    if length(rgn_ind_canada) > 0
+        rgn_ind_canada = rgn_ind_canada[1]
+    else
+        rgn_ind_canada = 0
+    end
+    rgn_ind_usa = [k for (k,v) in xsc[4] if v=="USA"]
+    if length(rgn_ind_usa) > 0
+        rgn_ind_usa = rgn_ind_usa[1]
+    else
+        rgn_ind_usa = 0
+    end
 
     # Add component: slrcost and set some parameters manually 
     segID = segStr_to_segID(xsc[3])

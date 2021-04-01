@@ -213,7 +213,7 @@ using Mimi
     
 
     function run_timestep(p, v, d, t)   
-        println(gettime(t))
+
         ti1 = TimestepIndex(1) # used a lot
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
         if is_first(t)
