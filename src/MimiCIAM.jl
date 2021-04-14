@@ -14,7 +14,6 @@ using DataDeps
 include("slrcost.jl")
 include("ciamhelper.jl")
 include("ciam.jl")
-include("brickLSL.jl")
 
 function __init__()
     register(DataDep(
