@@ -474,7 +474,7 @@ function write_optimal_costs(m;runname="base")
 
     model = m
     xsc = load_xsc()
-    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
 
     # 1. Create aggregate adaptation decision DF
     temp1 = getdataframe(model, :slrcost => :OptimalCost)
@@ -484,14 +484,17 @@ function write_optimal_costs(m;runname="base")
     temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
     # Join dataframes and reorganize
-    out = join(temp1,temp2, on=[:time,:segments])
-    out = join(out,temp3, on=[:time,:segments])
+    # Inner join to restrict to only rows in both dataframes
+    # (which should be all of time, because all segments should have values at all time steps)
+    out = innerjoin(temp1,temp2, on=[:time,:segments])
+    out = innerjoin(out,temp3, on=[:time,:segments])
 
     # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
     out = out |> @map(merge(_,{variable=lookup[_.OptimalOption]})) |> DataFrame
     rename!(out, Dict(:OptimalLevel => :level))
-    out = out[[:time,:regions,:segments,:variable,:level,:OptimalCost]]
+    #out = out[[:time,:regions,:segments,:variable,:level,:OptimalCost]]
+    out = out[!,[:time,:regions,:segments,:variable,:level,:OptimalCost]]
 
     # Write to file
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
@@ -506,21 +509,21 @@ function write_optimal_costs(m;runname="base")
         temp = getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
 
-        temp[:variable]= fill(String(vars[i]),nrow(temp))
+        temp[!,:variable]= fill(String(vars[i]),nrow(temp))
 
         temp2 = getdataframe(model, :slrcost => :OptimalLevel)
         temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
         # Join dataframes and reorganize
-        out = join(temp,temp2, on=[:time,:segments])
-        out = join(out,temp3, on=[:time,:segments])
+        out = innerjoin(temp,temp2, on=[:time,:segments])
+        out = innerjoin(out,temp3, on=[:time,:segments])
 
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
         out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalOption]})) |> DataFrame
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out,vars[i]=>:value)
-        out = out[[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
+        out = out[!,[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
 
         if i==1
             global df = out
