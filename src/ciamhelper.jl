@@ -350,7 +350,7 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     model = m
     xsc = load_xsc()
     segmap = load_segmap()
-    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
 
     if varnames==false
         varnames = [k for k in keys(meta_output[2])] # to do change
@@ -373,18 +373,24 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     common_order = [:time,:regions,:segments,:level]
     for i in 1:length(vargroup1)
         temp = getdataframe(model,:slrcost => vargroup1[i])
-
         missing_names = [j for j in common_order if !(j in names(temp))]
         if length(missing_names)>=1
-            temp[missing_names]=Missing
+            #temp[missing_names]=Missing
+            #temp[!,missing_names]=Missing
+            for name in missing_names
+                temp[!,name] = missings(size(temp)[1])
+            end
         end
+println(i)
+println(vargroup1[i])
+println(temp[1:5,:])
         if :regions in missing_names && !(:segments in missing_names)
             temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
         end
 
-        temp[:variable]= fill(String(vargroup1[i]),nrow(temp))
+        temp[!,:variable]= fill(String(vargroup1[i]),nrow(temp))
         rename!(temp,vargroup1[i]=>:value)
-        temp = temp[[:time,:regions,:segments,:level, :variable, :value]]
+        temp = temp[!,[:time,:regions,:segments,:level, :variable, :value]]
 
         if i==1
             global df = temp
@@ -397,7 +403,6 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     ntime = model[:slrcost,:ntsteps]
     segID = model[:slrcost,:segID]
     colnames = Symbol.(segID_to_seg(Int64.(segID),segmap))
-
     for j in 1:length(vargroup2)
         ndim1 = size(model[:slrcost,vargroup2[j]])[3]
 
@@ -405,8 +410,9 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
 
             temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
 
-            names!(temp,colnames)
-            temp[:time] = 1:ntime
+            #names!(temp,colnames)
+            rename!(temp, colnames )
+            temp[!,:time] = 1:ntime
 
             if String(vargroup2[j])=="Construct" || occursin("Protect",String(vargroup2[j]))
                 dim1 = k+1
@@ -416,15 +422,15 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
                 adapt=model[:slrcost,:adaptoptions][dim1]
             end
 
-            temp[:level] = fill(adapt, ntime)
+            temp[!,:level] = fill(adapt, ntime)
             temp = stack(temp,colnames)
             rename!(temp,:variable => :segments)
-            temp[:segments] = [String(i) for i in temp[:segments]]
+            temp[!,:segments] = [String(i) for i in temp[!,:segments]]
 
-            temp[:variable]= fill(String(vargroup2[j]),nrow(temp))
+            temp[!,:variable]= fill(String(vargroup2[j]),nrow(temp))
 
             temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
-            temp = temp[[:time,:regions,:segments,:level,:variable,:value]]
+            temp = temp[!,[:time,:regions,:segments,:level,:variable,:value]]
 
 
             if j==1 && k==1
@@ -553,12 +559,12 @@ function write_optimal_protect_retreat(m; runname="base")
 
     model = m
     xsc = load_xsc()
-    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => xsc[:rgn][i] for i in 1:size(xsc,1))
+    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
 
     # 1. Create aggregate adaptation decision DF
     pl = getdataframe(model, :slrcost => :OptimalProtectLevel)
     rl = getdataframe(model, :slrcost => :OptimalRetreatLevel)
-    out = join(pl,rl, on=[:time,:segments])
+    out = innerjoin(pl,rl, on=[:time,:segments])
 
     ## To do: read in protect, retreat variables and filter to optimal levels; add to out
     protect = model[:slrcost, :ProtectCost]
@@ -582,8 +588,8 @@ end
 
 ### Basic Functions for Segment-Region Lookup
 function load_segmap()
-    segmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "segIDmap.csv")) |> DataFrame
-    segmap[:segID] = [Int64(i) for i in segmap[:segID]]
+    segmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "segIDmap.csv"), DataFrame) |> DataFrame
+    segmap[!,:segID] = [Int64(i) for i in segmap[!,:segID]]
     return(segmap)
 end
 
@@ -597,7 +603,7 @@ end
 # segmap = output of load_rgnmap or load_segmap() (DataFrame)
 # Returns only first result for each ID entry as an array
 function segID_to_seg(segID, segmap)
-    seg = [String(segmap[:seg][segmap.segID.==i][1]) for i in segID]
+    seg = [String(segmap[!,:seg][segmap.segID.==i][1]) for i in segID]
     return(seg)
 end
 
@@ -640,10 +646,10 @@ function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
         temp5 = getdataframe(model, :slrcost => :pop)
 
         # Join dataframes and reorganize
-        out = join(temp,temp2, on=[:time,:segments])
-        out = join(out,temp3, on=[:time,:segments])
-        out = join(out,temp4, on=[:time,:regions])
-        out = join(out,temp5,on=[:time,:regions])
+        out = innerjoin(temp,temp2, on=[:time,:segments])
+        out = innerjoin(out,temp3, on=[:time,:segments])
+        out = innerjoin(out,temp4, on=[:time,:regions])
+        out = innerjoin(out,temp5,on=[:time,:regions])
 
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "Retreat", -1.0=> "Protection",-3.0=>"No Adaptation")
