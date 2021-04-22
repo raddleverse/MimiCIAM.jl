@@ -46,7 +46,7 @@ using Mimi
     popdens_seg_merkens = Parameter(index=[time,segments])
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
     refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
-    refA_H = Parameter(index=[segments])                # Reference height for adaptation in 0 period
+    refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
 
     # ---Land Parameters---
     landinput = Parameter{Bool}()                   # Set to T for FUND or F for GTAP
@@ -352,7 +352,8 @@ using Mimi
                         R_NoAdapt = max(0, p.lslr[ti,m])
 
                         # For initial state in SLR cases, make adaptation decision relative to baseline (refA_H or R)
-                        if p.rcp>0
+                        #if p.rcp>0
+                        if p.rcp >= 0
                             R_NoAdapt = max(R_NoAdapt, p.refA_H[m],p.refA_R[m])
                         end
 
@@ -399,7 +400,7 @@ using Mimi
                             v.RelocateNoAdapt[ti,m] = max(0,v.DryLandLossNoAdapt[ti,m] - v.coastAreaNoAdapt[ti,m]) * (5 * p.movefactor * v.ypc_seg[ti,m]*1e-6*v.popdens_seg[ti,m] + p.capmovefactor * p.mobcapfrac * v.capital[ti,m] + p.democost * (1 - p.mobcapfrac) * v.capital[ti,m])
                         end
 
-                        # Put all costs into $Billions and divide by 10
+                        # Put all costs into $Billions and divide by 10 to account for 10-y time step
                         v.WetlandNoAdapt[ti,m] = v.WetlandNoAdapt[ti,m] * 1e-4
                         if i<p.ntsteps # already occurred in previous timestep
                             v.FloodNoAdapt[ti,m] = v.FloodNoAdapt[ti,m] * 1e-4
