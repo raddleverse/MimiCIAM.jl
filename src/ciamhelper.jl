@@ -372,18 +372,13 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
     # 2 cases: 1. adapt pers is first; 2. adapt pers is second
     common_order = [:time,:regions,:segments,:level]
     for i in 1:length(vargroup1)
-        temp = getdataframe(model,:slrcost => vargroup1[i])
-        missing_names = [j for j in common_order if !(j in names(temp))]
+        temp = getdataframe(model, :slrcost, vargroup1[i])
+        missing_names = [j for j in common_order if !(String(j) in names(temp))]
         if length(missing_names)>=1
-            #temp[missing_names]=Missing
-            #temp[!,missing_names]=Missing
             for name in missing_names
                 temp[!,name] = missings(size(temp)[1])
             end
         end
-println(i)
-println(vargroup1[i])
-println(temp[1:5,:])
         if :regions in missing_names && !(:segments in missing_names)
             temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
         end
@@ -410,7 +405,6 @@ println(temp[1:5,:])
 
             temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
 
-            #names!(temp,colnames)
             rename!(temp, colnames )
             temp[!,:time] = 1:ntime
 

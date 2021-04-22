@@ -551,7 +551,7 @@ using Mimi
 
                                 v.Construct[tj,m,i-1] = v.Construct[t,m, i-1]
 
-                                # Put all other costs intp $Billions from $M and divide by 10
+                                # Put all other costs into $Billions from $M and divide by 10
                                 # Note this is an annual protect cost ($B/year)
                                 v.WetlandProtect[tj,m] = v.WetlandProtect[tj,m] * 1e-4
                                 v.StormCapitalProtect[tj,m,i-1] = v.StormCapitalProtect[tj,m,i-1] * 1e-4
