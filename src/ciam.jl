@@ -15,14 +15,14 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
         rcp=0
         pctl=50
     end
-    
+
     if initparams["ssp"][1]==false
         ssp=0
     else
         ssp = parse(Int64,replace(replace(initparams["ssp"][1],r"^[^l]*SSP"=>s""),r"_.*"=>s""))
     end
 
-    # Dynamically find indices corresponding to USA and CAN and manually set time steps 
+    # Dynamically find indices corresponding to USA and CAN and manually set time steps
     # If the lengths are 0, then assume those segments are not used. Note that
     # if including Greenland, need Canada too as a reference for land appreciation
     rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"]
@@ -38,7 +38,7 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
         rgn_ind_usa = 0
     end
 
-    # Add component: slrcost and set some parameters manually 
+    # Add component: slrcost and set some parameters manually
     segID = segStr_to_segID(xsc[3])
     set_param!(m, :slrcost, :segID, segID)
     set_param!(m, :slrcost, :rcp, rcp)
@@ -53,14 +53,14 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
     set_param!(m, :slrcost, :noRetreat, noRetreat)
     set_param!(m, :slrcost, :allowMaintain, allowMaintain)
 
-    # Shorten some time-dependent parameters to correspond to the correct number of timesteps 
+    # Shorten some time-dependent parameters to correspond to the correct number of timesteps
     for k in keys(params)
         if size(params[k])!=() && length(size(params[k]))==2 && size(params[k])[1]>t && k!="surgeexposure"
             params[k]=params[k][1:t,:]
         end
     end
 
-    # Set the rest of the parameters 
+    # Set the rest of the parameters
     set_leftover_params!(m, params)
 
 end
@@ -74,7 +74,7 @@ function get_model(;initfile=nothing,fixed::Bool=false,t::Int=20,noRetreat::Bool
     m=Model()
 
     set_dimension!(m, :time, t)
-    set_dimension!(m, :adaptPers, length(params["at"]))  
+    set_dimension!(m, :adaptPers, length(params["at"]))
     set_dimension!(m, :regions, xsc[2])
     set_dimension!(m, :segments, xsc[3])
 
@@ -82,11 +82,11 @@ function get_model(;initfile=nothing,fixed::Bool=false,t::Int=20,noRetreat::Bool
 
     initciam(xsc, params, initparams, m, fixed, t,noRetreat,allowMaintain)
 
-    return m 
+    return m
 
 end
 
-# Code to run a batch instance of the model 
+# Code to run a batch instance of the model
 function update_model(updateparams,updatevalues)
 
 end
