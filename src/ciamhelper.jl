@@ -612,6 +612,7 @@ end
 #       Also computes cost as percent of regional or global gdp
 function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
 
+println(segIDs)
     # If not using segment-level aggregation, segIDs refers to
     #   individual segments to report in addition to global/regional
     if sumsegs=="seg" # Report all segments in model or those specified
@@ -620,8 +621,9 @@ function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
         end
     end
 
-    xsc = load_xsc()
-    segRgnDict = Dict{Any,Any}( xsc[:seg][i] => (xsc[:rgn][i],xsc[:segID][i]) for i in 1:size(xsc,1))
+    xsc = MimiCIAM.load_xsc()
+println(xsc[1:5,:])
+    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => (xsc[!,:rgn][i],xsc[!,:segID][i]) for i in 1:size(xsc,1))
 
     # Write Main and Sub-Costs
     vars = [:OptimalCost,:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
@@ -629,15 +631,15 @@ function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
     global df=DataFrame()
 
     for i in 1:length(vars)
-        temp = getdataframe(model, :slrcost => vars[i])
+        temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
+println(temp)
+        temp[!,:costtype]= String(vars[i])
 
-        temp[:costtype]= String(vars[i])
-
-        temp2 = getdataframe(model, :slrcost => :OptimalLevel)
-        temp3 = getdataframe(model, :slrcost => :OptimalOption)
-        temp4 = getdataframe(model, :slrcost => :ypcc)
-        temp5 = getdataframe(model, :slrcost => :pop)
+        temp2 = MimiCIAM.getdataframe(model, :slrcost => :OptimalLevel)
+        temp3 = MimiCIAM.getdataframe(model, :slrcost => :OptimalOption)
+        temp4 = MimiCIAM.getdataframe(model, :slrcost => :ypcc)
+        temp5 = MimiCIAM.getdataframe(model, :slrcost => :pop)
 
         # Join dataframes and reorganize
         out = innerjoin(temp,temp2, on=[:time,:segments])

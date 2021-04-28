@@ -33,7 +33,7 @@ using Mimi
     allowMaintain = Parameter{Bool}()       # Default T. If T, segments will have the option to maintain current defenses
 
     # ---Socioeconomic Parameters---
-    popinput=Parameter(default=0)           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
+    popinput = Parameter{Int}()           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
     pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE or SSPs)
     refpopdens = Parameter( index = [regions])         # Reference population density of region (people / km^2)
     rgn_ind_usa = Parameter{Int}()                     # Lookup parameter for USA region index, used in refpopdens and ypc
