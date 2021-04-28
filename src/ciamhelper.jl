@@ -612,7 +612,6 @@ end
 #       Also computes cost as percent of regional or global gdp
 function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
 
-println(segIDs)
     # If not using segment-level aggregation, segIDs refers to
     #   individual segments to report in addition to global/regional
     if sumsegs=="seg" # Report all segments in model or those specified
@@ -622,7 +621,7 @@ println(segIDs)
     end
 
     xsc = MimiCIAM.load_xsc()
-println(xsc[1:5,:])
+
     segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => (xsc[!,:rgn][i],xsc[!,:segID][i]) for i in 1:size(xsc,1))
 
     # Write Main and Sub-Costs
@@ -633,8 +632,7 @@ println(xsc[1:5,:])
     for i in 1:length(vars)
         temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
-println(temp)
-        temp[!,:costtype]= String(vars[i])
+        #temp[!,:costtype]= String(vars[i])
 
         temp2 = MimiCIAM.getdataframe(model, :slrcost => :OptimalLevel)
         temp3 = MimiCIAM.getdataframe(model, :slrcost => :OptimalOption)
@@ -645,70 +643,71 @@ println(temp)
         out = innerjoin(temp,temp2, on=[:time,:segments])
         out = innerjoin(out,temp3, on=[:time,:segments])
         out = innerjoin(out,temp4, on=[:time,:regions])
-        out = innerjoin(out,temp5,on=[:time,:regions])
+        out = innerjoin(out,temp5, on=[:time,:regions])
 
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "Retreat", -1.0=> "Protection",-3.0=>"No Adaptation")
         out = out |> @map(merge(_,{category=lookup[_.OptimalOption]})) |> DataFrame
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out,vars[i]=>:cost)
-        out[:ens]=ensnum
-        col_order=[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:ypcc,:pop]
-        out = out[col_order]
+
+        out[!,:ens] = fill(ensnum, size(out)[1])
+        col_order=[:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:ypcc,:pop]
+        out = out[!,col_order]
 
         # Aggregate to geographic level
         subset = filter(row -> row[:segID] in segIDs,out)
 
         if sumsegs=="rgn"
-            rgndf = out |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.costtype,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
-            rgndf[:segID]=0.
-            rgndf[:segments]="regional"
-            rgndf=rgndf[col_order]
-            rgndf=[rgndf;subset]
+            rgndf = out |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+            rgndf[!,:segID] = fill(0., size(rgndf)[1])
+            rgndf[:segments] = fill("regional", size(rgndf)[1])
+            rgndf = rgndf[!,col_order]
+            rgndf = [rgndf;subset]
 
-            rgndf[:gdp]=rgndf[:ypcc].*rgndf[:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
-            rgndf[:pct_gdp]=rgndf[:cost]./rgndf[:gdp] # Annual cost / annual GDP
+            rgndf[!,:gdp]=rgndf[!,:ypcc].*rgndf[!,:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
+            rgndf[!,:pct_gdp]=rgndf[!,:cost]./rgndf[!,:gdp] # Annual cost / annual GDP
             out=rgndf
 
         elseif sumsegs=="global"
 
-            globdf = out |> @groupby({_.ens,_.time, _.level, _.category,_.costtype}) |>
+            globdf = out |> @groupby({_.ens,_.time, _.level, _.category}) |>
                 @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
 
-            globsoc = join(temp4,temp5,on=[:time,:regions])
-            globsoc[:gdp] = globsoc[:ypcc].*globsoc[:pop]./1e3
-            globsoc[:ens]=ensnum
+            globsoc = innerjoin(temp4,temp5,on=[:time,:regions])
+            globsoc[!,:gdp] = globsoc[!,:ypcc].*globsoc[!,:pop]./1e3
+            globsoc[!,:ens] = fill(ensnum, size(globsoc)[1])
             globsoc = globsoc |> @groupby({_.ens,_.time}) |>
                 @map(merge(key(_), {ypcc=sum(_.gdp), pop=sum(_.pop),gdp=sum(_.gdp)})) |> DataFrame
-            globsoc[:ypcc] = (globsoc[:gdp].*1e9)./(globsoc[:pop].*1e6)
+            globsoc[!,:ypcc] = (globsoc[!,:gdp].*1e9)./(globsoc[!,:pop].*1e6)
 
-            globdf = join(globdf,globsoc,on=[:ens,:time])
-            globdf[:segID]=0.
-            globdf[:regions]="global"
-            globdf[:segments]="global"
-            globdf=globdf[[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:ypcc,:pop,:gdp]]
-            subset[:gdp]=subset[:ypcc].*subset[:pop]./1e3
+            globdf = innerjoin(globdf,globsoc,on=[:ens,:time])
+            globdf[!,:segID] = fill(0., size(globdf)[1])
+            globdf[!,:regions] = fill("global", size(globdf)[1])
+            globdf[!,:segments] = fill("global", size(globdf)[1])
+            globdf=globdf[!, [:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:ypcc,:pop,:gdp]]
+            subset[!,:gdp]=subset[!,:ypcc].*subset[!,:pop]./1e3
             globdf=[globdf;subset]
 
-            globdf[:pct_gdp] = globdf[:cost] ./ globdf[:gdp]
+            globdf[!,:pct_gdp] = globdf[!,:cost] ./ globdf[!,:gdp]
 
             if rgns!=false
                 rgndf = filter(row -> row[:regions] in rgns,out)
-                rgndf = rgndf |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.costtype,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
-                rgndf[:segID]=0.
-                rgndf[:segments]="regional"
-                rgndf=rgndf[col_order]
+                rgndf = rgndf |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+                rgndf[!,:segID] = fill(0., size(rgndf)[1])
+                rgndf[!,:segments] = fill("regional", size(rgndf)[1])
+                rgndf = rgndf[!,col_order]
 
-                rgndf[:gdp]=rgndf[:ypcc].*rgndf[:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
-                rgndf[:pct_gdp]=rgndf[:cost]./rgndf[:gdp] # Annual cost / annual GDP
+                rgndf[!,:gdp]=rgndf[!,:ypcc].*rgndf[!,:pop]./1e3 # GDP is in $Billion (this will be regional for subset too)
+                rgndf[!,:pct_gdp]=rgndf[!,:cost]./rgndf[!,:gdp] # Annual cost / annual GDP
 
                 globdf=[globdf; rgndf]
             end
 
             out=globdf
         else
-            out[:gdp]= out[:ypcc] .* out[:pop] ./1e3# Regional gdp by segment
-            out[:pct_gdp] = out[:cost] ./ out[:gdp]# Segment cost or subcost as % of regional gdp
+            out[!,:gdp]= out[!,:ypcc] .* out[!,:pop] ./1e3# Regional gdp by segment
+            out[!,:pct_gdp] = out[!,:cost] ./ out[!,:gdp]# Segment cost or subcost as % of regional gdp
         end
 
         if i==1
@@ -720,7 +719,7 @@ println(temp)
     end
 
     # Remove ypcc and pop from final df
-    df = df[[:ens,:time,:regions,:segments,:segID,:category,:costtype,:level,:cost,:gdp,:pct_gdp]]
+    df = df[!,[:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:gdp,:pct_gdp]]
     return df
 
 end
