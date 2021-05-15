@@ -17,6 +17,7 @@ function initciam(xsc, params, initparams, m::Model, fixed::Bool=false,t::Int=20
     end
 
     if initparams["ssp"][1]==false
+    #if initparams["ssp"]==false
         ssp=0
     else
         ssp = parse(Int64,replace(replace(initparams["ssp"][1],r"^[^l]*SSP"=>s""),r"_.*"=>s""))

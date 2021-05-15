@@ -334,7 +334,7 @@ end
 # sumsegs - whether to sum across all segments, to region level, or no sums
 # varnames: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
-function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
+function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
     outputdir = joinpath(@__DIR__,"..","output")
     meta_output = load_meta()
     rcp = m[:slrcost,:rcp]
@@ -439,7 +439,11 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag="")
 
     # Sum to either region-level, global-level, or leave as seg-level
     outdf = [df;df2]
-    outfile = "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv"
+    if tag
+        outfile = "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv"
+    else
+        outfile = "$(runname)_$(sumsegs)_$(rcp_str).csv"
+    end
 
     if sumsegs=="rgn"
         rgndf = outdf |> @groupby({_.time,_.regions, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
