@@ -20,7 +20,7 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
     end
 
     if initparams["ssp"][1] == false
-        ssp=0
+        ssp = 0
     else
         ssp = parse(Int64,replace(replace(initparams["ssp"][1],r"^[^l]*SSP"=>s""),r"_.*"=>s""))
     end
@@ -54,7 +54,7 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
 
     # Shorten some time-dependent parameters to correspond to the correct number of timesteps
     for k in keys(params)
-        if ndims(params[k]) == 0 && ndims(params[k]) == 2 && size(params[k])[1] > t && k != "surgeexposure"
+        if ndims(params[k]) !== 0 && ndims(params[k]) == 2 && size(params[k])[1] > t && k != "surgeexposure"
             params[k] = params[k][1:t,:]
         end
     end
@@ -72,16 +72,22 @@ end
 """
     get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false, 
                 t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true, 
-                popinput::Int = 0)
+                popinput::Int = 0, GAMSmatch::Bool = false)
 Return a initialized and built CIAM model with the given arguments.
+
+Note that the GAMSmatch optional argument uses a different slrcost component with
+the Hprev > H block commented out.  This should only be used for testing!
 """
 function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false, 
                     t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true, 
-                    popinput::Int = 0)
+                    popinput::Int = 0, GAMSmatch::Bool = false)
 
     initparams  = init(; f = initfile)
     params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1], initparams["ssp"][1], initparams["ssp_simplified"][1])
 
+    # clip the :at parameter based on t
+    params["at"] = filter!(x -> x <= t, params["at"])
+    
     m = Model()
 
     set_dimension!(m, :time, t)
@@ -89,14 +95,21 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=fals
     set_dimension!(m, :regions, xsc[2])
     set_dimension!(m, :segments, xsc[3])
 
-    add_comp!(m, slrcost)
+    if GAMSmatch
+        # Note that the GAMSmatch optional argument uses a different slrcost component with
+        # the Hprev > H block commented out.  This should only be used for testing!
+        @warn "Using Hprev > H block commented out version of slrcost component!"
+        include(joinpath(@__DIR__, "slrcost_GAMSmatch.jl"))
+        add_comp!(m, slrcost_GAMSmatch, :slrcost)
+    else
+        add_comp!(m, slrcost)
+    end
 
     initciam(xsc, params, initparams, m; fixed = fixed, t = t, noRetreat = noRetreat, allowMaintain = allowMaintain, popinput = popinput)
 
     return m
 
 end
-
 # TODO - Code to run a batch instance of the model
 # function update_model(updateparams,updatevalues)
 # end

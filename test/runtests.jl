@@ -8,9 +8,12 @@ using CSV
 using DataFrames
 using NetCDF
 
-# load utils functions to write out GAMs and CIAM outputs for baseline comparisons
-include("GAMSCIAM_comparison_utils.jl")
-include("MimiCIAM_comparison_utils.jl")
+write_out_GAMS = false # run only once to produce validation files
+write_out_CIAM = true
+
+# write out GAMs and CIAM outputs for baseline comparisons
+write_out_GAMS && include(joinpath(@__DIR__, "write_GAMSCIAM_comparison_files.jl"))
+write_out_CIAM && include(joinpath(@__DIR__, "write_MimiCIAM_comparison_files.jl"))
 
 @testset begin "Unit Testing"
 

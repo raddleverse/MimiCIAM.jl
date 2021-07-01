@@ -392,9 +392,8 @@ Write out model results to CSV file using arguments:
 - tag
 To do: possibly modify to work with DataVoyager()
 """
-function write_ciam(model; runname::String = "base", sumsegs::String = "seg", varnames::Bool = false, tag::Bool = false)
+function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),runname::String = "base", sumsegs::String = "seg", varnames::Bool = false, tag::Bool = false)
 
-    outputdir   = joinpath(@__DIR__,"..","output")
     meta_output = load_meta()
     rcp         = model[:slrcost,:rcp]
     pctl        = model[:slrcost,:percentile]
@@ -461,7 +460,7 @@ function write_ciam(model; runname::String = "base", sumsegs::String = "seg", va
 
         for k in 1:ndim1
 
-            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
+            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k], :auto)
 
             rename!(temp, colnames )
             temp[!,:time] = 1:ntime
@@ -514,14 +513,13 @@ end
 
 Streamline writing results for optimal adaptation costs.
 """
-function write_optimal_costs(model; runname="base")
+function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","output"), runname="base")
 
     # Output: Data Frame with segment,region,time,level,option, suboption
     #   E.g. 'OptimalProtect', 'Construct'
     # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with
     #   detailed subcategories
 
-    outputdir = joinpath(@__DIR__,"..","output")
     rcp     = model[:slrcost,:rcp]
     pctl    = model[:slrcost,:percentile]
     ssp     = model[:slrcost,:ssp]
