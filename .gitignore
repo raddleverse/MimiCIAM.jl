@@ -2,3 +2,4 @@ src/slrcost_delayedAdaptation.jl
 output
 .DS_Store
 .vscode
+Manifest.toml
