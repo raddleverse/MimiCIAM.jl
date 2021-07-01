@@ -110,6 +110,7 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=fals
     return m
 
 end
+
 # TODO - Code to run a batch instance of the model
 # function update_model(updateparams,updatevalues)
 # end

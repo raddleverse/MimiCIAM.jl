@@ -1,35 +1,9 @@
 using Mimi
 using MimiCIAM
 using Test
-using Query
-using RData
-using StatsBase
-using CSV
-using DataFrames
-using NetCDF
 
-# write out this working current version of CIAM's output files
-include(joinpath(@__DIR__, "write_MimiCIAM_comparison_files.jl"))
+run_baseline_comparisons = false # slow so only include it when have the time etc.
 
+include("test_unit_tests.jl")
+run_baseline_comparisons && include("test_baseline_comparisons.jl")
 
-@testset begin "Unit Testing"
-
-    # TODO: Unit tests
-
-end
-
-@testset begin "Baseline Comparison: MimiCIAM dev to MimICIAM stable"
-    
-    # TODO: numerical tests against saved MimiCIAM validation data
-
-end
-
-@testset begin "Baseline Comparison: MimiCIAM dev to GAMS CIAM"
-
-    # we use the baselineComparison.ipynb notebook to (1) make graphs and tables 
-    # for direct comparison and (2) print out intermediary test files, so first
-    # go there for tests, and then more numerical tests will be done below
-
-    # TODO: numerical tests against saved gamsCIAM validation data
-
-end
