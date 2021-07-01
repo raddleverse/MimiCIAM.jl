@@ -8,21 +8,28 @@ using CSV
 using DataFrames
 using NetCDF
 
-write_out_GAMS = false # run only once to produce validation files
-write_out_CIAM = true
+# write out this working current version of CIAM's output files
+include(joinpath(@__DIR__, "write_MimiCIAM_comparison_files.jl"))
 
-# write out GAMs and CIAM outputs for baseline comparisons
-write_out_GAMS && include(joinpath(@__DIR__, "write_GAMSCIAM_comparison_files.jl"))
-write_out_CIAM && include(joinpath(@__DIR__, "write_MimiCIAM_comparison_files.jl"))
 
 @testset begin "Unit Testing"
+
+    # TODO: Unit tests
 
 end
 
 @testset begin "Baseline Comparison: MimiCIAM dev to MimICIAM stable"
+    
+    # TODO: numerical tests against saved MimiCIAM validation data
 
 end
 
 @testset begin "Baseline Comparison: MimiCIAM dev to GAMS CIAM"
+
+    # we use the baselineComparison.ipynb notebook to (1) make graphs and tables 
+    # for direct comparison and (2) print out intermediary test files, so first
+    # go there for tests, and then more numerical tests will be done below
+
+    # TODO: numerical tests against saved gamsCIAM validation data
 
 end
