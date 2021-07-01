@@ -20,6 +20,11 @@ end
 
 @testset begin "Baseline Comparison: MimiCIAM dev to MimICIAM stable"
     
+    # a first check here can be against the results found in the folder 
+    # test/validation data/MimiCIAM/baselineComparison_07012021
+    # which was main branch at that point, then we can do more numerical tests 
+    # below
+
     # TODO: numerical tests against saved MimiCIAM validation data
 
 end
