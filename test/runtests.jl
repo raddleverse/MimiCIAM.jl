@@ -6,4 +6,3 @@ run_baseline_comparisons = false # slow so only include it when have the time et
 
 include("test_unit_tests.jl")
 run_baseline_comparisons && include("test_baseline_comparisons.jl")
-
