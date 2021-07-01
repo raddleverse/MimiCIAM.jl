@@ -22,7 +22,7 @@ function write_init_file(run_name::String, outputdir::String, init_settings::Dic
     end
 end
 
-function write_MimiCIAM_comparison_file(m, outputdir::String, run_name::String)
+function write_MimiCIAM_comparison_files(m, outputdir::String, run_name::String)
 
     # write out the results
     println("Writing out ciam `subsegs = seg` file for run $(run_name) to directory $(outputdir)")
@@ -112,7 +112,7 @@ m = MimiCIAM.get_model(
 )
 run(m)
 
-write_MimiCIAM_comparison_files(run_name, outputdir, init_settings, model_settings)
+write_MimiCIAM_comparison_files(m, outputdir, run_name)
 
 ##==============================================================================
 ##  baseline+updated GDP/POP via SSP5. but can be any of 1-5
@@ -149,7 +149,7 @@ m = MimiCIAM.get_model(
 )
 run(m)
 
-write_MimiCIAM_comparison_files(run_name, outputdir, init_settings, model_settings)
+write_MimiCIAM_comparison_files(m, outputdir, run_name)
 
 ##==============================================================================
 ##  baseline+updated population density from Jones and O'Neill (2016)
@@ -187,4 +187,4 @@ m = MimiCIAM.get_model(
 update_param!(m, :ssp, parse(Int32, SSP_simp))
 run(m)
 
-write_MimiCIAM_comparison_files(run_name, outputdir, init_settings, model_settings)
+write_MimiCIAM_comparison_files(m, outputdir, run_name)
