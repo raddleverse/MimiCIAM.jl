@@ -1,31 +1,41 @@
-# # Catherine Ledna
-# 4/12/18
-#------------------------------------------------------------------------
-# ciamhelper.jl
-#------------------------------------------------------------------------
-# Assorted functions to process CIAM data and run CIAM model
-#------------------------------------------------------------------------
+using DataFrames
+using CSV
+using Query
 
+## ---------------------------------
+## 1. Read In Helper Functions
+## ---------------------------------
 
+"""
+    load_ciam_params()
 
-# Function to load CIAM parameters from CSV to dictionary
+Load CIAM parameters from CSV to dictionary.
+"""
 function load_ciam_params()
+
     data_dir = joinpath(@__DIR__, "..","data","input")
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
-
+    
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m),DataFrame) |> DataFrame for m in files)
 
     return params
 
 end
 
-# Function to read in LSLR from file and filter to desired set of segments
-#   Modifies input parameter dictionary
-# lslfile - string; name of lslr file to use; location relative to data/input-data directory
-# subset - list of segments you want
-# params - parameter dictionary you want to add lslr to
-function preplsl!(lslfile,subset, params,segnames)
+"""
+    preplsl!(lslfile,subset, params,segnames)
+
+Read in LSLR from file and filter to desired set of segments, note that this modifies 
+the input parameter dictionary `params`.  The arguments are as fullows:
+
+- lslfile - name of lslr file to use; location relative to data/input-data directory
+- subset - list of segments you want
+- params - parameter dictionary you want to add lslr to
+- segnames - names of segments
+"""
+function preplsl!(lslfile, subset, params, segnames)
+
     data_dir = joinpath(@__DIR__,"..","data","lslr")
     lsl_params = CSV.read(joinpath(data_dir,lslfile), DataFrame) |> DataFrame
 
@@ -40,12 +50,25 @@ function preplsl!(lslfile,subset, params,segnames)
     col_names = sort(col_names)
     lsl_params = lsl_params[!,col_names]
 
-    params["lslr"] = convert(Array{Float64,2},lsl_params)
+    params["lslr"] = convert(Array{Float64,2}, Matrix(lsl_params))
 
     return params
 end
 
-function prepssp!(ssp,ssp_simplified,params,rgnnames,segnames)
+"""
+    prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
+
+Read in SSP from file and filter to desired set of segments, note that this modifies 
+the input parameter dictionary `params`.  The arguments are as fullows:
+
+- ssp - name of lslr file to use; location relative to data/input-data directory
+- ssp_simplified - list of segments you want
+- params - parameter dictionary you want to add lslr to
+- rgnnames - names of regions
+- segnames - names of segments
+"""
+function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
+    
     data_dir = joinpath(@__DIR__,"..","data","ssp")
 
     # read and set population densities for Jones and Merkens data sets whether or not
@@ -54,57 +77,69 @@ function prepssp!(ssp,ssp_simplified,params,rgnnames,segnames)
     popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
 
     seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
-    seg_col_names = sort(seg_col_names)
-    popdens_seg_jones = popdens_seg_jones[!,seg_col_names]
+    sort!(seg_col_names)
+    popdens_seg_jones = popdens_seg_jones[!, seg_col_names]
 
     seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
-    seg_col_names = sort(seg_col_names)
-    popdens_seg_merkens = popdens_seg_merkens[!,seg_col_names]
+    sort!(seg_col_names)
+    popdens_seg_merkens = popdens_seg_merkens[!, seg_col_names]
 
-    params["popdens_seg_jones"]=Array{Float64,2}(popdens_seg_jones)
-    params["popdens_seg_merkens"]=Array{Float64,2}(popdens_seg_merkens)
+    params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
+    params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
 
-    if ssp==false # Do nothing, base ssp data already loaded
+    if ssp == false # Do nothing, base ssp data already loaded
         return params
     else
         pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")), DataFrame)
         ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")), DataFrame)
 
         col_names = [i  for i in names(pop) if string(i) in rgnnames]
-        col_names = sort(col_names)
-        pop = pop[!,col_names]
-        ypc = ypc[!,col_names]
+        sort!(col_names)
+        pop = pop[!, col_names]
+        ypc = ypc[!, col_names]
 
-        params["pop"] = Array{Float64,2}(pop)
-        params["ypcc"]= Array{Float64,2}(ypc)
+        params["pop"]   = Array{Float64,2}(pop)
+        params["ypcc"]  = Array{Float64,2}(ypc)
     end
     return params
 end
 
-# Function to process CIAM data from csv to usable format
-#   Stores outputs in params
-# rgn_order, seg_order - alphabetized lists of regions/segments used
-# Specific to CIAM data; some hard-coded names and assumptions
-function parse_ciam_params!(params, rgn_order, seg_order)
-    key = [k for k in keys(params)]
+"""
+    parse_ciam_params!(params, rgn_order, seg_order)
 
-    for k in key
+Process CIAM data from csv to usable format and store outputs in params, note that 
+this modifies the input parameter dictionary `params`, and the funciton is 
+specific to CIAM data so there are some hard-coded names and assumptions. The 
+arguments are as fullows:
+
+- rgn_order - alphabetized lists of regions used
+- seg_order - alphabetized lists of segments used
+"""
+function parse_ciam_params!(params, rgn_order, seg_order)
+    
+    # we need to grab the original keys so it doesn't try to recurse when we
+    # make new entries into the dictionary
+    original_keys = [k for k in keys(params)]
+
+    for k in original_keys
         p = params[k] # Data frame
 
-        if k=="data"
-            colnames = filter(f -> string(f)!="NA",names(p)) # Preserve column names
+        # data key case
+        if k == "data"
+            colnames = filter(f -> string(f) != "NA", names(p)) # Preserve column names
 
             # Filter segments to subset
             segs = p[!,1]
             seg_inds = filter_index(segs, seg_order)
             p = p[seg_inds,:]
+
             # Sort alphabetically
             seg_alpha = sortperm(p[!,1])
             p = p[seg_alpha,:]
 
-            if length(seg_inds)>=1
-                # Process all variables
-                for k in 2:(length(colnames)+1)
+            # Process all variables
+            if length(seg_inds) >= 1
+                for k in 2:(length(colnames) + 1)
                     varname = string(colnames[k-1])
                     newvars = p[1:end,k]
                     newvars = [convert(Float64,v) for v in newvars]
@@ -114,82 +149,95 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             else
                 error("Segments in dictionary do not match supplied segments")
             end
-        elseif k=="globalparams"
+
+        # globalparams key case
+        elseif k == "globalparams"
 
             for k in 1:nrow(p)
-                varname = p[k,1]
-                newval = p[k,2]
 
-                if (varname=="ntsteps" || varname=="adaptPers")
+                varname = p[k, 1]
+                newval = p[k, 2]
+
+                if (varname == "ntsteps" || varname == "adaptPers")
                     newval = parse(Int64,newval)
-
-                elseif lowercase(newval)=="true"
+                elseif lowercase(newval) == "true"
                     newval = true
-                elseif lowercase(newval)=="false"
+                elseif lowercase(newval) == "false"
                     newval = false
                 else
-                    newval=parse(Float64,newval)
+                    newval = parse(Float64,newval)
                 end
                 params[varname] = newval
-
             end
             delete!(params, "globalparams")
-        elseif k=="surgeexposure"
-            p=@from i in p begin
-                @where i.segments in seg_order
-                @select i
-                @collect DataFrame
-            end
-            # Sort alphabetically
-            sort!(p, :segments)
-            params["surgeexposure"] = convert(Array{Float64,2},p[:,2:6])
-        elseif k=="refa_h" || k=="refa_r"
+
+        # surge exposure key case
+        elseif k == "surgeexposure"
+
             p = @from i in p begin
                 @where i.segments in seg_order
                 @select i
                 @collect DataFrame
             end
-            sort!(p,:segments)
-            delete!(params,k)
-            if k=="refa_h"
-                params["refA_H"] = convert(Array{Float64},p[!,:value])
-            else
-                params["refA_R"] = convert(Array{Float64},p[!,:value])
+
+            # Sort alphabetically
+            sort!(p, :segments)
+            params["surgeexposure"] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
+
+        # refa key case
+        elseif k == "refa_h" || k == "refa_r"
+
+            p = @from i in p begin
+                @where i.segments in seg_order
+                @select i
+                @collect DataFrame
             end
 
-        elseif size(p,2) ==2
+            sort!(p, :segments)
+            delete!(params, k)
+
+            if k=="refa_h"
+                params["refA_H"] = convert(Array{Float64}, p[!,:value])
+            else
+                params["refA_R"] = convert(Array{Float64}, p[!,:value])
+            end
+
+        # Country data matrices parameter case
+        elseif size(p, 2) == 2
+
             # Filter regions
             r_inds = filter_index(p[!,1], rgn_order)
             p = p[r_inds,:]
+
             # Alphabetize
             p = p[sortperm(p[!,1]),:]
-
-            if p[!,1]!=rgn_order
+            if p[!,1] != rgn_order
                 error("Regions in dictionary do not match supplied regions, ", k)
             else
                 newvals = p[!,2]
-                # Coerce to Array{Float64,1}
-                params[k] = Array{Float64,1}(newvals)
+                params[k] = Array{Float64,1}(newvals) # Coerce to Array{Float64,1}
             end
-        elseif size(p,2)>3
-            # Time-country data matrices
+
+        # Time-country data matrices parameter case
+        elseif size(p, 2) > 3
+            
             # Alphabetize
             col_names = [i for i in names(p) if string(i) in rgn_order]
-            p= p[!,sort(col_names)]
-
+            p = p[!, sort(col_names)]
             params[k] = Array{Float64,2}(p)
 
-        elseif size(p,2)==1
+        # Single dimension parameter case
+        elseif size(p, 2)==1
             params[k] = Array{Float64,1}(p[!,1])
-
         end
-
     end
-
 end
 
-# Filters a vector (v1) by a second vector (v2), returns
-#   indices of contained elements
+"""
+    filter_index(v1, v2)
+
+Filter a vector (v1) by a second vector (v2) and return indices of contained elements
+"""
 function filter_index(v1, v2)
     out = []
     for i in 1:length(v1)
@@ -200,9 +248,11 @@ function filter_index(v1, v2)
     return(out)
 end
 
-# Function to process the segment-country mapping file (xsc) in CIAM
-#   Reads from CSV, outputs list of dictionaries and arrays
-#   Filters xsc file to desired segments/regions
+"""
+Process the segment-country mapping file (xsc) in CIAM by (1) Reads from CSV
+and outputs list of dictionaries and arrays (2) Filters xsc file to desired 
+segments/regions
+"""
 function prepxsc(subset)
 
     data_dir = joinpath(@__DIR__,"..","data","input")
@@ -249,52 +299,48 @@ function prepxsc(subset)
 
 end
 
-# Function to look up index corresponding to name
-# vec - a vector of region or segment names (strings)
-# val - a string corresponding to value in 'vec'
+"""
+    findind(val, vec)
+Look up index corresponding to name with arguments `vec`, a vector of region or 
+segment names (strings) and `val`, a string corresponding to value in 'vec'
+"""
 function findind(val, vec)
     h(u) = u == val
     name_ind = findall(h, vec)[1]
     return name_ind
-
 end
 
 function load_subset(subset=false)
-    dir=joinpath(@__DIR__,"..","data","subsets")
-    if subset!=false
-        subs=readlines(joinpath(dir,subset))
+    dir = joinpath(@__DIR__,"..","data","subsets")
+    if subset != false
+        subs = readlines(joinpath(dir,subset))
         return subs
     else
         return false
     end
 end
 
-function init(f=nothing)
-    if f==nothing
-        f=joinpath(@__DIR__,"..","data","batch","init.txt")
+function init(; f::Union{String, Nothing} = nothing)
+    if isnothing(f)
+        f = joinpath(@__DIR__,"..","data","batch","init.csv")
     end
-    varnames=CSV.read(open(f), DataFrame, header=true)
+    varnames=CSV.read(f, DataFrame) 
     vardict = Dict{Any,Any}( String(i) => varnames[!,i] for i in names(varnames))
     return(vardict)
 end
 
-# In progress create a writelog function to go with a wrapper for the run function
-# automatically produce a logfile
-function writelog()
-    dir=joinpath(@__DIR__,"..","data","batch","logs")
-    d = init()
-    run = d["run_name"]
-    date = Dates.now()
-    cp("../data/batch/init.txt",joinpath(dir,"$(run)_$(date).txt"))
+"""
+    import_model_data(lslfile,sub,ssp,ssp_simplified)
 
-end
-
-# Wrapper for importing model data.
-# lslfile - filename for lsl (string)
-# subset - filename with names of segments to use (string) or false (bool) to run all segments
+Wrapper for importing model data with the arguments:
+- lslfile - filename for lsl (string)
+- sub - filename with names of segments to use (string) or false (bool) to run all segments
+- ssp
+- ssp_simplified
+"""
 function import_model_data(lslfile,sub,ssp,ssp_simplified)
 
-    subset=load_subset(sub)
+    subset = (sub == "false") ? false : load_subset(sub)
 
     # Process main and lsl params
     params = load_ciam_params()
@@ -329,30 +375,37 @@ function load_meta()
     return(header,vardict, protectdict, retreatdict)
 end
 
-# Function to write out model results to CSV file
-# m - output from get_model()
-# sumsegs - whether to sum across all segments, to region level, or no sums
-# varnames: if not false, write the passed variable names; if false get defaults from file
-# To do: possibly modify to work with DataVoyager()
-function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
-    outputdir = joinpath(@__DIR__,"..","output")
+
+## ---------------------------------
+## 2. Write Out Helper Functions
+## ---------------------------------
+
+"""
+    write_ciam(m; runname::String = "base", sumsegs::String = "seg", varnames::Bool = false, tag::Bool = false)
+
+Write out model results to CSV file using arguments:
+
+- model - output from get_model()
+- runname 
+- sumsegs - whether to sum across all segments, to region level, or no sums
+- varnames - if not false, write the passed variable names; if false get defaults from file
+- tag
+To do: possibly modify to work with DataVoyager()
+"""
+function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),runname::String = "base", sumsegs::String = "seg", varnames::Bool = false, tag::Bool = false)
+
     meta_output = load_meta()
-    rcp = m[:slrcost,:rcp]
-    pctl = m[:slrcost,:percentile]
-    ssp = m[:slrcost,:ssp]
-    if m[:slrcost,:fixed]
-        fixed="fixed"
-    else
-        fixed="flex"
-    end
-    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
+    rcp         = model[:slrcost,:rcp]
+    pctl        = model[:slrcost,:percentile]
+    ssp         = model[:slrcost,:ssp]
+    fixed       = (model[:slrcost, :fixed]) ? "fixed" : "flex"
+    rcp_str     = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
 
-    model = m
-    xsc = load_xsc()
-    segmap = load_segmap()
-    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
+    xsc         = load_xsc()
+    segmap      = load_segmap()
+    segRgnDict  = Dict{Any,Any}(xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
 
-    if varnames==false
+    if varnames == false
         varnames = [k for k in keys(meta_output[2])] # to do change
     end
 
@@ -360,50 +413,54 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
     vargroup2 = [] # vars greater than 2D
 
     for v in varnames
-        if length(size(model[:slrcost,Symbol(v)]))>2
+        if length(size(model[:slrcost,Symbol(v)])) > 2
             push!(vargroup2, Symbol(v))
         else
             push!(vargroup1, Symbol(v))
         end
-
     end
 
     # Assign 2D variables to dataframe
     # 2 cases: 1. adapt pers is first; 2. adapt pers is second
-    common_order = [:time,:regions,:segments,:level]
+    common_order = [:time, :regions, :segments, :level]
+
     for i in 1:length(vargroup1)
         temp = getdataframe(model, :slrcost, vargroup1[i])
         missing_names = [j for j in common_order if !(String(j) in names(temp))]
-        if length(missing_names)>=1
+
+        if length(missing_names) >= 1
             for name in missing_names
                 temp[!,name] = missings(size(temp)[1])
             end
         end
+
         if :regions in missing_names && !(:segments in missing_names)
             temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
         end
 
-        temp[!,:variable]= fill(String(vargroup1[i]),nrow(temp))
-        rename!(temp,vargroup1[i]=>:value)
-        temp = temp[!,[:time,:regions,:segments,:level, :variable, :value]]
+        temp[!,:variable] = fill(String(vargroup1[i]), nrow(temp))
+        rename!(temp,vargroup1[i] => :value)
+        temp = temp[!, [:time, :regions, :segments, :level, :variable, :value]]
 
-        if i==1
+        if i == 1
             global df = temp
         else
-            df = [df;temp]
+            df = [df; temp]
         end
     end
 
     # Assign 3D variables to second data frame and join
-    ntime = model[:slrcost,:ntsteps]
-    segID = model[:slrcost,:segID]
+    ntime = model[:slrcost, :ntsteps]
+    segID = model[:slrcost, :segID]
     colnames = Symbol.(segID_to_seg(Int64.(segID),segmap))
+
     for j in 1:length(vargroup2)
+
         ndim1 = size(model[:slrcost,vargroup2[j]])[3]
 
         for k in 1:ndim1
 
-            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
+            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k], :auto)
 
             rename!(temp, colnames )
             temp[!,:time] = 1:ntime
@@ -418,32 +475,26 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
 
             temp[!,:level] = fill(adapt, ntime)
             temp = stack(temp,colnames)
-            rename!(temp,:variable => :segments)
-            temp[!,:segments] = [String(i) for i in temp[!,:segments]]
 
+            rename!(temp,:variable => :segments)
+
+            temp[!,:segments] = [String(i) for i in temp[!,:segments]]
             temp[!,:variable]= fill(String(vargroup2[j]),nrow(temp))
 
             temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
             temp = temp[!,[:time,:regions,:segments,:level,:variable,:value]]
 
-
-            if j==1 && k==1
+            if j == 1 && k == 1
                 global df2 = temp
             else
-                df2 = [df2;temp]
+                df2 = [df2; temp]
             end
-
         end
-
     end
 
     # Sum to either region-level, global-level, or leave as seg-level
-    outdf = [df;df2]
-    if tag
-        outfile = "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv"
-    else
-        outfile = "$(runname)_$(sumsegs)_$(rcp_str).csv"
-    end
+    outdf = [df; df2]
+    outfile = tag ? "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv" : "$(runname)_$(sumsegs)_$(rcp_str).csv"
 
     if sumsegs=="rgn"
         rgndf = outdf |> @groupby({_.time,_.regions, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
@@ -455,29 +506,26 @@ function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
             @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
         CSV.write(joinpath(outputdir,outfile),globdf)
     end
-
-
 end
 
-# Function to streamline writing results for optimal adaptation costs
-function write_optimal_costs(m;runname="base")
+"""
+    write_optimal_costs(model; runname="base")
+
+Streamline writing results for optimal adaptation costs.
+"""
+function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","output"), runname="base")
+
     # Output: Data Frame with segment,region,time,level,option, suboption
     #   E.g. 'OptimalProtect', 'Construct'
     # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with
     #   detailed subcategories
-    outputdir = joinpath(@__DIR__,"..","output")
-    rcp = m[:slrcost,:rcp]
-    pctl = m[:slrcost,:percentile]
-    ssp = m[:slrcost,:ssp]
-    if m[:slrcost,:fixed]
-        fixed="fixed"
-    else
-        fixed="flex"
-    end
-    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
 
-    model = m
-    xsc = load_xsc()
+    rcp     = model[:slrcost,:rcp]
+    pctl    = model[:slrcost,:percentile]
+    ssp     = model[:slrcost,:ssp]
+    fixed   = (model[:slrcost, :fixed]) ? "fixed" : "flex"
+    rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
+    xsc     = load_xsc()
     segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
 
     # 1. Create aggregate adaptation decision DF
@@ -490,15 +538,14 @@ function write_optimal_costs(m;runname="base")
     # Join dataframes and reorganize
     # Inner join to restrict to only rows in both dataframes
     # (which should be all of time, because all segments should have values at all time steps)
-    out = innerjoin(temp1,temp2, on=[:time,:segments])
-    out = innerjoin(out,temp3, on=[:time,:segments])
+    out = innerjoin(temp1,temp2, on = [:time,:segments])
+    out = innerjoin(out,temp3, on = [:time,:segments])
 
     # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
     out = out |> @map(merge(_,{variable=lookup[_.OptimalOption]})) |> DataFrame
     rename!(out, Dict(:OptimalLevel => :level))
-    #out = out[[:time,:regions,:segments,:variable,:level,:OptimalCost]]
-    out = out[!,[:time,:regions,:segments,:variable,:level,:OptimalCost]]
+    out = out[!,[:time, :regions, :segments, :variable, :level, :OptimalCost]]
 
     # Write to file
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
@@ -508,8 +555,8 @@ function write_optimal_costs(m;runname="base")
     vars = [:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
             :OptimalFlood, :OptimalRelocate, :OptimalWetland]
 
-
     for i in 1:length(vars)
+
         temp = getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
 
@@ -534,7 +581,6 @@ function write_optimal_costs(m;runname="base")
         else
             df = [df;out]
         end
-
     end
 
     # Write to CSV
@@ -543,21 +589,15 @@ function write_optimal_costs(m;runname="base")
 
 end
 
-function write_optimal_protect_retreat(m; runname="base")
+function write_optimal_protect_retreat(model; runname="base")
     outputdir = joinpath(@__DIR__,"..","output")
-    rcp = m[:slrcost,:rcp]
-    pctl = m[:slrcost,:percentile]
-    ssp = m[:slrcost,:ssp]
-    if m[:slrcost,:fixed]
-        fixed="fixed"
-    else
-        fixed="flex"
-    end
+    rcp     = model[:slrcost,:rcp]
+    pctl    = model[:slrcost,:percentile]
+    ssp     = model[:slrcost,:ssp]
+    fixed   = (model[:slrcost,:fixed]) ? "fixed" : "flex"
     rcp_str = "$(rcp)p$(pctl)ssp$(ssp)$(fixed)"
-
-    model = m
-    xsc = load_xsc()
-    segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1))
+    xsc     = load_xsc()
+    # segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => xsc[!,:rgn][i] for i in 1:size(xsc,1)) # note this isn't used
 
     # 1. Create aggregate adaptation decision DF
     pl = getdataframe(model, :slrcost => :OptimalProtectLevel)
@@ -574,17 +614,17 @@ function write_optimal_protect_retreat(m; runname="base")
         else
             ret = DataFrame(model[:slrcost,:RetreatCost][:,:,i])
         end
-
-
     end
 
     outfile = "$(runname)_seg_$(rcp_str)_ProtectRetreat.csv"
     CSV.write(joinpath(outputdir,outfile),out)
 
-
 end
 
-### Basic Functions for Segment-Region Lookup
+## ---------------------------------
+## 3. Basic Functions for Segment-Region Lookup
+## ---------------------------------
+
 function load_segmap()
     segmap = CSV.read(joinpath(@__DIR__, "..", "data","meta", "segIDmap.csv"), DataFrame) |> DataFrame
     segmap[!,:segID] = [Int64(i) for i in segmap[!,:segID]]
@@ -596,44 +636,57 @@ function load_xsc()
     return(xsc)
 end
 
-# Look up string name of segment from segID
-# segID = int or array of ints
-# segmap = output of load_rgnmap or load_segmap() (DataFrame)
-# Returns only first result for each ID entry as an array
+"""
+    segID_to_seg(segID, segmap)
+
+Look up string name of segment from segID and return only first result for each 
+ID entry as an array. The arguments are as follows:
+
+- segID - int or array of ints
+- segmap - output of load_rgnmap or load_segmap() (DataFrame)
+"""
 function segID_to_seg(segID, segmap)
     seg = [String(segmap[!,:seg][segmap.segID.==i][1]) for i in segID]
     return(seg)
 end
 
-# Get segID from string name of segment
-# Segstr must be an array of strings
+"""
+    segStr_to_segID(segstr)
+
+Get segID from string name of segment. Segstr must be an array of strings
+"""
 function segStr_to_segID(segstr)
     ids = [parse(Int64,replace(i, r"[^0-9]"=> "")) for i in segstr]
     return(ids)
 end
 
-## Function that returns time series of costs at global, regional and/or segment level scale
-#       Also computes cost as percent of regional or global gdp
-function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
+"""
+    getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "global")
+
+Return time series of costs at global, regional and/or segment level scale and also
+compute cost as percent of regional or global gdp.
+"""
+function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "global")
 
     # If not using segment-level aggregation, segIDs refers to
-    #   individual segments to report in addition to global/regional
-    if sumsegs=="seg" # Report all segments in model or those specified
-        if segIDs==false
-            segIDs=model[:slrcost,:segID]
+    # individual segments to report in addition to global/regional
+
+    if sumsegs == "seg" # Report all segments in model or those specified
+        if segIDs == false
+            segIDs = model[:slrcost,:segID]
         end
     end
 
     xsc = MimiCIAM.load_xsc()
-
     segRgnDict = Dict{Any,Any}( xsc[!,:seg][i] => (xsc[!,:rgn][i],xsc[!,:segID][i]) for i in 1:size(xsc,1))
 
     # Write Main and Sub-Costs
     vars = [:OptimalCost,:OptimalStormCapital, :OptimalStormPop, :OptimalConstruct,
         :OptimalFlood, :OptimalRelocate, :OptimalWetland]
-    global df=DataFrame()
+    global df = DataFrame()
 
     for i in 1:length(vars)
+
         temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
         #temp[!,:costtype]= String(vars[i])
@@ -710,8 +763,8 @@ function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
 
             out=globdf
         else
-            out[!,:gdp]= out[!,:ypcc] .* out[!,:pop] ./1e3# Regional gdp by segment
-            out[!,:pct_gdp] = out[!,:cost] ./ out[!,:gdp]# Segment cost or subcost as % of regional gdp
+            out[!,:gdp]= out[!,:ypcc] .* out[!,:pop] ./1e3 # Regional gdp by segment
+            out[!,:pct_gdp] = out[!,:cost] ./ out[!,:gdp] # Segment cost or subcost as % of regional gdp
         end
 
         if i==1
@@ -726,4 +779,22 @@ function getTimeSeries(model,ensnum;segIDs=false,rgns=false,sumsegs="global")
     df = df[!,[:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:gdp,:pct_gdp]]
     return df
 
+end
+
+## ---------------------------------
+## 4. In Progress Helper Functions
+## ---------------------------------
+
+"""
+    writelog()
+
+IN PROGRESS - Create a writelog function to go with a wrapper for the run function
+automatically produce a logfile
+"""
+function writelog()
+    dir=joinpath(@__DIR__,"..","data","batch","logs")
+    d = init()
+    run = d["run_name"]
+    date = Dates.now()
+    cp("../data/batch/init.csv", joinpath(dir,"$(run)_$(date).csv"))
 end
