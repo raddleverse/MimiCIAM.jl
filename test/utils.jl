@@ -1,11 +1,5 @@
-using CSV
 using MimiCIAM
-using Query
-using RData
-using StatsBase
 using CSV
-using DataFrames
-using NetCDF
 
 ##==============================================================================
 ## Setup and Helper Functions
@@ -19,7 +13,7 @@ function write_init_file(run_name::String, outputdir::String, init_settings::Dic
     end
 end
 
-function write_MimiCIAM_comparison_files(m, outputdir::String, run_name::String)
+function write_output_files(m, outputdir::String, run_name::String)
 
     # write out the results
     println("Writing out ciam `subsegs = seg` file for run $(run_name) to directory $(outputdir)")
@@ -34,7 +28,7 @@ end
 ##==============================================================================
 ## Write Comparison Files
 
-function write_MimiCIAM_comparison_files(output_dir::String = joinpath(@__DIR__, "..", "output", "results-jl"))
+function write_MimiCIAM_comparison_files(outputdir)
 
     isdir(outputdir) || mkdir(outputdir)
 
@@ -76,7 +70,7 @@ function write_MimiCIAM_comparison_files(output_dir::String = joinpath(@__DIR__,
     )
     run(m)
 
-    write_MimiCIAM_comparison_files(m, outputdir, run_name)
+    write_output_files(m, outputdir, run_name)
 
     ##==============================================================================
     ##  Ctrl Case
@@ -113,7 +107,7 @@ function write_MimiCIAM_comparison_files(output_dir::String = joinpath(@__DIR__,
     )
     run(m)
 
-    write_MimiCIAM_comparison_files(m, outputdir, run_name)
+    write_output_files(m, outputdir, run_name)
 
     ##==============================================================================
     ##  baseline+updated GDP/POP via SSP5. but can be any of 1-5
@@ -150,7 +144,7 @@ function write_MimiCIAM_comparison_files(output_dir::String = joinpath(@__DIR__,
     )
     run(m)
 
-    write_MimiCIAM_comparison_files(m, outputdir, run_name)
+    write_output_files(m, outputdir, run_name)
 
     ##==============================================================================
     ##  baseline+updated population density from Jones and O'Neill (2016)
@@ -187,5 +181,5 @@ function write_MimiCIAM_comparison_files(output_dir::String = joinpath(@__DIR__,
     )
     run(m)
 
-    write_MimiCIAM_comparison_files(m, outputdir, run_name)
+    write_output_files(m, outputdir, run_name)
 end
