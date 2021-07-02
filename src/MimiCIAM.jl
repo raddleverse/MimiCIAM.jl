@@ -12,7 +12,9 @@ using StatsBase
 using DataDeps
 using Missings
 
+include("slrcost_utils.jl")
 include("slrcost.jl")
+include("slrcost_GAMSmatch.jl") # useful version for testing
 include("ciamhelper.jl")
 include("ciam.jl")
 

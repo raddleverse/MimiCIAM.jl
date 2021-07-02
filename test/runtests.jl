@@ -20,7 +20,7 @@ end
 # provide a directory to save julia results
 # jl_outputdir = joinpath(@__DIR__, "..", "output", "results-jl")
 jl_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-curr/raw"
-# write_MimiCIAM_comparison_files(jl_outputdir)
+write_MimiCIAM_comparison_files(jl_outputdir)
 
 ##==============================================================================
 ## Baseline Comparison Tests: MimiCIAM dev to MimICIAM stable

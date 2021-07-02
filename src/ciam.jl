@@ -99,8 +99,7 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=fals
         # Note that the GAMSmatch optional argument uses a different slrcost component with
         # the Hprev > H block commented out.  This should only be used for testing!
         @warn "Using Hprev > H block commented out version of slrcost component!"
-        include(joinpath(@__DIR__, "slrcost_GAMSmatch.jl"))
-        add_comp!(m, slrcost_GAMSmatch, :slrcost)
+        add_comp!(m, slrcost_GAMSmatch, :slrcost) # keep the name slrcost for simplicity
     else
         add_comp!(m, slrcost)
     end
