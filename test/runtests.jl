@@ -1,4 +1,3 @@
-using Mimi
 using MimiCIAM
 using Test
 using CSV
@@ -21,7 +20,7 @@ end
 # provide a directory to save julia results
 # jl_outputdir = joinpath(@__DIR__, "..", "output", "results-jl")
 jl_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-curr/raw"
-write_MimiCIAM_comparison_files(outputdir = jl_outputdir)
+# write_MimiCIAM_comparison_files(jl_outputdir)
 
 ##==============================================================================
 ## Baseline Comparison Tests: MimiCIAM dev to MimICIAM stable
@@ -40,6 +39,7 @@ write_MimiCIAM_comparison_files(outputdir = jl_outputdir)
 
     for (i, file) in enumerate(files)
 
+        println("Comparing current CIAM file $(i): $(file) ... to validation version")
         label_fields = (i > 1) ? [:time, :regions, :segments, :variable, :level] : [:time, :variable, :level]
         value_field = (i == 2) ? :OptimalCost : :value
 
