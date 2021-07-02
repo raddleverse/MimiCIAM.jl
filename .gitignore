@@ -4,3 +4,5 @@ output
 .vscode
 Manifest.toml
 output/*
+*/.ipynb_checkpoints
+.ipynb_checkpoints
