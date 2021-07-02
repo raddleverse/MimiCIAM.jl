@@ -1,4 +1,5 @@
 using Test
+using Mimi
 using MimiCIAM
 
 using Query
@@ -8,7 +9,7 @@ using CSV
 using DataFrames
 using NetCDF
 
-# TODO - avoid all the local path nonsense :)
+# TODO - avoid all the local path nonsense and get things uploaded somewhere :)
 
 ##==============================================================================
 ## Gather Data (~30 minutes)
@@ -45,7 +46,7 @@ end
     # provide a directory holding gams validation results, defaults to validation 
     # folder (currently empty)
     # jl_validation_outputdir = joinpath(@__DIR__, "validation_data", "julia")
-    jl_validation_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-05042021"
+    jl_validation_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-07012021"
 
     files = [
                 "ctrl+noConstrFix_global_85p50ssp0fixed.csv", 
@@ -55,24 +56,25 @@ end
 
     for (i, file) in enumerate(files)
 
-        label_fields = (file == 1) ? [:time, :regions, :segments, :variable, :level] : [:time, :variable, :level]
-        value_field = (file < 3) ? :value : :OptimalCost
+        label_fields = (i > 1) ? [:time, :regions, :segments, :variable, :level] : [:time, :variable, :level]
+        value_field = (i < 3) ? :value : :OptimalCost
 
         # load validation data
         expected = CSV.read(joinpath(jl_validation_outputdir, file), DataFrame)
-        sort!(expected, label_fields)
 
         # load current data
         current = CSV.read(joinpath(jl_outputdir, file), DataFrame)
-        sort!(expected, label_fields)
 
-        # check the organization
+        # align the dataframe ordering
+        sort!(expected, label_fields)
+        sort!(current, label_fields)
+
         for col in label_fields
             @test filter(x -> !ismissing(x), expected[!, col]) == filter(x -> !ismissing(x), current[!, col])
         end
 
         # compare values
-        diffs = abs.(expected[!, value_field] .- current[!, :value_field])
+        diffs = abs.(expected[!, value_field] .- current[!, value_field])
         @test maximum(diffs) <= 1e-9
 
     end
