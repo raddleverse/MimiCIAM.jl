@@ -8,29 +8,48 @@ using CSV
 using DataFrames
 using NetCDF
 
-# write out this working current version of CIAM's output files - note that this can 
-# be very slow ... especially the global aggregation ... TODO create a more 
-# compact version for quick testing 
-include(joinpath(@__DIR__, "write_MimiCIAM_comparison_files.jl"))
+##==============================================================================
+## Setup
 
+# TODO - add subsets of the data to the validation_data folder so we can avoid
+# storing data locally
 
-@testset begin "Baseline Comparison: MimiCIAM dev to MimICIAM stable"
-    
-    # a first check here can be against the results found in the folder 
-    # test/validation data/MimiCIAM/baselineComparison_07012021
-    # which was main branch at that point, then we can do more numerical tests 
-    # below
+# provide a directory to save julia results, defaults to output folder but we
+# recommend providing a local path
+
+# recommend providing a local `outputdir` to use, but it will default to the output 
+# directory below
+jl_outputdir = joinpath(@__DIR__, "..", "output", "results-jl")
+
+# provide a directory holding julia validation results, defaults to validation 
+# folder (currently empty)
+jl_validation_outputdir = joinpath(@__DIR__, "validation_data", "julia")
+
+# provide a directory holding gams validation results, defaults to validation 
+# folder (currently empty)
+gams_validation_outputdir = joinpath(@__DIR__, "validation_data", "gams")
+
+##==============================================================================
+## Gather Data (~30 minutes)
+
+write_MimiCIAM_comparison_files(outputdir = jl_outputdir)
+
+##==============================================================================
+## Test (~30 minutes)
+
+@testset "Baseline Comparison: MimiCIAM dev to GAMS CIAM" begin
+
+    # The first main test is to use the baselineComparison.ipynb notebook, which 
+    # will take in directory names and do comparisons
+
+    # TODO: numerical tests against saved gamsCIAM validation data
+
+end
+
+# For now we do not have exact numerical tests
+@testset "Baseline Comparison: MimiCIAM dev to MimICIAM stable" begin
 
     # TODO: numerical tests against saved MimiCIAM validation data
 
 end
 
-@testset begin "Baseline Comparison: MimiCIAM dev to GAMS CIAM"
-
-    # we use the baselineComparison.ipynb notebook to (1) make graphs and tables 
-    # for direct comparison and (2) print out intermediary test files, so first
-    # go there for tests, and then more numerical tests will be done below
-
-    # TODO: numerical tests against saved gamsCIAM validation data
-
-end
