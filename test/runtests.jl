@@ -1,6 +1,7 @@
 using MimiCIAM
 using Test
 using CSV
+using DataFrames
 
 include("test_utils.jl")
 
