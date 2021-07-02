@@ -13,6 +13,7 @@ using DataDeps
 using Missings
 
 include("slrcost.jl")
+include("utils.jl")
 include("ciamhelper.jl")
 include("ciam.jl")
 
