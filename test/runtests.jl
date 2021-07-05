@@ -1,9 +1,7 @@
 using Test
 using CSV
 using DataFrames
-
-include("../src/MimiCIAM.jl")
-using Main.MimiCIAM
+using MimiCIAM
 
 include("test_utils.jl")
 
