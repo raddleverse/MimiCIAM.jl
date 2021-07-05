@@ -1,12 +1,11 @@
-using MimiCIAM
 using CSV
 
 ##==============================================================================
 ## Write Comparison Files
 
-function write_MimiCIAM_comparison_files(outputdir)
+function write_MimiCIAM_comparison_files(outputdir; subset = false)
 
-    isdir(outputdir) || mkdir(outputdir)
+    isdir(outputdir) || mkpath(outputdir)
 
     ##==============================================================================
     ## ctrl+noConstrFix: This case is run with a modified slrcost component held in 
@@ -18,7 +17,7 @@ function write_MimiCIAM_comparison_files(outputdir)
     init_settings = Dict(
         :init_filename   => string("$run_name", "_init.csv"),
         :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => false,
+        :subset          => subset,
         :ssp             => 0,
         :ssp_simplified  => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
     )
@@ -56,7 +55,7 @@ function write_MimiCIAM_comparison_files(outputdir)
     init_settings = Dict(
         :init_filename   => string("$run_name", "_init.csv"),
         :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => false,
+        :subset          => subset,
         :ssp             => 0,
         :ssp_simplified  => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
     )
@@ -93,7 +92,7 @@ function write_MimiCIAM_comparison_files(outputdir)
     init_settings = Dict(
         :init_filename   => string("$run_name", "_init.csv"),
         :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => false,
+        :subset          => subset,
         :ssp             => "IIASAGDP_SSP5_v9_130219",
         :ssp_simplified  => 5
     )
@@ -130,7 +129,7 @@ function write_MimiCIAM_comparison_files(outputdir)
     init_settings = Dict(
         :init_filename   => string("$run_name", "_init.csv"),
         :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => false,
+        :subset          => subset,
         :ssp             => "IIASAGDP_SSP5_v9_130219",
         :ssp_simplified  => "5" # based on SSPs, so need to use an SSP
     )

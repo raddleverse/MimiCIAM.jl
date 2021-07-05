@@ -3,7 +3,7 @@ using MimiCIAM
 ## Setup
 
 outputdir = joinpath(@__DIR__, "..", "output", "main")
-isdir(outputdir) || mkdir(outputdir)
+isdir(outputdir) || mkpath(outputdir)
 
 ## A Basic Run
 
@@ -30,7 +30,7 @@ for file in lsl_files
 
     run_name = string(split(file, ".")[1])
     run_outputdir = joinpath(outputdir, run_name)
-    isdir(run_outputdir) || mkdir(run_outputdir)
+    isdir(run_outputdir) || mkpath(run_outputdir)
 
     init_settings = Dict(
         :init_filename   => string("$run_name", "_init.csv"),
