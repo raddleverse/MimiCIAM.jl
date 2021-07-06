@@ -3,4 +3,4 @@ output/*
 .DS_Store
 .vscode
 Manifest.toml
-.ipynb_checkpoints
+test/.ipynb_checkpoints
