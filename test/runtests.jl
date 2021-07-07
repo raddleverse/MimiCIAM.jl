@@ -60,4 +60,7 @@ end
 
 @testset "Baseline Comparison: MimiCIAM dev to GAMS CIAM" begin
 
+    # testing against GAMS ocurrs for now in the GAMS_BaselineComparisons.ipynb 
+    # notebook, TODO is to bring the numerical comparisons into this repository's
+    # scripts
 end
