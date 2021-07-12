@@ -16,7 +16,7 @@ function load_ciam_params()
     data_dir = joinpath(@__DIR__, "..","data","input")
     files = readdir(data_dir)
     filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
-    
+
     params = Dict{Any, Any}(lowercase(splitext(m)[1]) => CSV.read(joinpath(data_dir,m),DataFrame) |> DataFrame for m in files)
 
     return params
@@ -26,7 +26,7 @@ end
 """
     preplsl!(lslfile,subset, params,segnames)
 
-Read in LSLR from file and filter to desired set of segments, note that this modifies 
+Read in LSLR from file and filter to desired set of segments, note that this modifies
 the input parameter dictionary `params`.  The arguments are as fullows:
 
 - lslfile - name of lslr file to use; location relative to data/input-data directory
@@ -58,7 +58,7 @@ end
 """
     prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
 
-Read in SSP from file and filter to desired set of segments, note that this modifies 
+Read in SSP from file and filter to desired set of segments, note that this modifies
 the input parameter dictionary `params`.  The arguments are as fullows:
 
 - ssp - name of lslr file to use; location relative to data/input-data directory
@@ -66,26 +66,32 @@ the input parameter dictionary `params`.  The arguments are as fullows:
 - params - parameter dictionary you want to add lslr to
 - rgnnames - names of regions
 - segnames - names of segments
+- popinput - population density data set (0=original CIAM, 1=Jones and O'Neill 2016 (not supported), 2=Merkens et al 2016 (not supported))
 """
 function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
-    
+
     data_dir = joinpath(@__DIR__,"..","data","ssp")
 
     # read and set population densities for Jones and Merkens data sets whether or not
     # we are using  them, so they have some defaults.
-    popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
-    popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
+    if popinput != 0
+        popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
+        popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
 
-    seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
-    sort!(seg_col_names)
-    popdens_seg_jones = popdens_seg_jones[!, seg_col_names]
+        seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
+        sort!(seg_col_names)
+        popdens_seg_jones = popdens_seg_jones[!, seg_col_names]
 
-    seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
-    sort!(seg_col_names)
-    popdens_seg_merkens = popdens_seg_merkens[!, seg_col_names]
+        seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
+        sort!(seg_col_names)
+        popdens_seg_merkens = popdens_seg_merkens[!, seg_col_names]
 
-    params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
-    params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
+        params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
+        params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
+    else
+        params["popdens_seg_jones"]     = nothing
+        params["popdens_seg_merkens"]   = nothing
+    end
 
     if ssp == false # Do nothing, base ssp data already loaded
         return params
@@ -107,16 +113,16 @@ end
 """
     parse_ciam_params!(params, rgn_order, seg_order)
 
-Process CIAM data from csv to usable format and store outputs in params, note that 
-this modifies the input parameter dictionary `params`, and the funciton is 
-specific to CIAM data so there are some hard-coded names and assumptions. The 
+Process CIAM data from csv to usable format and store outputs in params, note that
+this modifies the input parameter dictionary `params`, and the funciton is
+specific to CIAM data so there are some hard-coded names and assumptions. The
 arguments are as fullows:
 
 - rgn_order - alphabetized lists of regions used
 - seg_order - alphabetized lists of segments used
 """
 function parse_ciam_params!(params, rgn_order, seg_order)
-    
+
     # we need to grab the original keys so it doesn't try to recurse when we
     # make new entries into the dictionary
     original_keys = [k for k in keys(params)]
@@ -220,7 +226,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
         # Time-country data matrices parameter case
         elseif size(p, 2) > 3
-            
+
             # Alphabetize
             col_names = [i for i in names(p) if string(i) in rgn_order]
             p = p[!, sort(col_names)]
@@ -250,7 +256,7 @@ end
 
 """
 Process the segment-country mapping file (xsc) in CIAM by (1) Reads from CSV
-and outputs list of dictionaries and arrays (2) Filters xsc file to desired 
+and outputs list of dictionaries and arrays (2) Filters xsc file to desired
 segments/regions
 """
 function prepxsc(subset)
@@ -301,7 +307,7 @@ end
 
 """
     findind(val, vec)
-Look up index corresponding to name with arguments `vec`, a vector of region or 
+Look up index corresponding to name with arguments `vec`, a vector of region or
 segment names (strings) and `val`, a string corresponding to value in 'vec'
 """
 function findind(val, vec)
@@ -324,7 +330,7 @@ function init(; f::Union{String, Nothing} = nothing)
     if isnothing(f)
         f = joinpath(@__DIR__,"..","data","batch","init.csv")
     end
-    varnames=CSV.read(f, DataFrame) 
+    varnames=CSV.read(f, DataFrame)
     vardict = Dict{Any,Any}( String(i) => varnames[!,i] for i in names(varnames))
     return(vardict)
 end
@@ -335,10 +341,11 @@ end
 Wrapper for importing model data with the arguments:
 - lslfile - filename for lsl (string)
 - sub - filename with names of segments to use (string) or false (bool) to run all segments
-- ssp
-- ssp_simplified
+- ssp - SSP scenario + modeling group (specific long name)
+- ssp_simplified  - SSP scenario (1-5)
+- popinput - population density data set to be used (0=original CIAM, 1=Jones and O'Neill 2016 (not supported), 2=Merkens et al 2016 (not supported))
 """
-function import_model_data(lslfile,sub,ssp,ssp_simplified)
+function import_model_data(lslfile,sub,ssp,ssp_simplified,popinput)
 
     subset = (sub == "false") ? false : load_subset(sub)
 
@@ -351,7 +358,7 @@ function import_model_data(lslfile,sub,ssp,ssp_simplified)
     # Process params using xsc and format lsl file
     parse_ciam_params!(params, xsc[2], xsc[3])
     preplsl!(lslfile, subset, params,xsc[3])
-    prepssp!(ssp,ssp_simplified,params,xsc[2],xsc[3])
+    prepssp!(ssp,ssp_simplified,params,xsc[2],xsc[3],popinput)
 
     return(params, xsc)
 
@@ -386,7 +393,7 @@ end
 Write out model results to CSV file using arguments:
 
 - model - output from get_model()
-- runname 
+- runname
 - sumsegs - whether to sum across all segments, to region level, or no sums
 - varnames - if not false, write the passed variable names; if false get defaults from file
 - tag
@@ -639,7 +646,7 @@ end
 """
     segID_to_seg(segID, segmap)
 
-Look up string name of segment from segID and return only first result for each 
+Look up string name of segment from segID and return only first result for each
 ID entry as an array. The arguments are as follows:
 
 - segID - int or array of ints

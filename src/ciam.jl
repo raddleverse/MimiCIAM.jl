@@ -1,12 +1,12 @@
 using Mimi
 
 """
-    initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20, 
+    initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20,
             noRetreat::Bool = false, allowMaintain::Bool = true, popinput::Int = 0)
 
 Initialize a CIAM model `m` with the given arguments.
 """
-function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20, 
+function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20,
                 noRetreat::Bool = false, allowMaintain::Bool = true, popinput::Int = 0)
 
     discountrate = 0.04
@@ -28,7 +28,7 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
     # Dynamically find indices corresponding to USA and CAN and manually set time steps
     # If the lengths are 0, then assume those segments are not used. Note that
     # if including Greenland, need Canada too as a reference for land appreciation
-    
+
     rgn_ind_canada = [k for (k,v) in xsc[4] if v=="CAN"]
     rgn_ind_canada = (length(rgn_ind_canada) > 0) ? rgn_ind_canada[1] : 0
 
@@ -37,7 +37,7 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
 
     # Add component: slrcost and set some parameters manually
     segID = segStr_to_segID(xsc[3])
-    
+
     update_param!(m, :slrcost, :segID, segID)
     update_param!(m, :slrcost, :rcp, rcp)
     update_param!(m, :slrcost, :percentile, pctl)
@@ -70,24 +70,24 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
 end
 
 """
-    get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false, 
-                t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true, 
+    get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false,
+                t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true,
                 popinput::Int = 0, GAMSmatch::Bool = false)
 Return a initialized and built CIAM model with the given arguments.
 
 Note that the GAMSmatch optional argument uses a different slrcost component with
 the Hprev > H block commented out.  This should only be used for testing!
 """
-function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false, 
-                    t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true, 
+function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false,
+                    t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true,
                     popinput::Int = 0, GAMSmatch::Bool = false)
 
     initparams  = init(; f = initfile)
-    params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1], initparams["ssp"][1], initparams["ssp_simplified"][1])
+    params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1], initparams["ssp"][1], initparams["ssp_simplified"][1], popinput)
 
     # clip the :at parameter based on t
     params["at"] = filter!(x -> x <= t, params["at"])
-    
+
     m = Model()
 
     set_dimension!(m, :time, t)
