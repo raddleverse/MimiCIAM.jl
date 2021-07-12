@@ -256,11 +256,12 @@ using Mimi
                 # Initialize first-period population density, coast area and surge parameters
                 if p.popinput==0
                     v.popdens_seg[t,m] = p.popdens[m]
-                # popinput=0 is the only supported option at this time
-                #elseif p.popinput==1
-                #    v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
-                #elseif p.popinput==2
-                #    v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
+                elseif p.popinput==1
+                    error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                    # v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
+                elseif p.popinput==2
+                    error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                    # v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
                 else
 
                 end
@@ -285,13 +286,15 @@ using Mimi
                 for i in 2:Int(p.ntsteps)
                     ti = TimestepIndex(i)
                     tim1 = TimestepIndex(i-1)
+
                     if p.popinput==0
                         v.popdens_seg[ti,m] = v.popdens_seg[tim1,m] * (1 + growthrate(p.pop[tim1,rgn_ind], p.pop[ti,rgn_ind]))
-                    # popinput=0 is the only supported option at this time
-                    #elseif p.popinput==1
+                    elseif p.popinput==1
+                        error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
                     #    v.popdens_seg[ti,m]=p.popdens_seg_jones[ti,m]
-                    #elseif p.popinput==2
-                    #    v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
+                    elseif p.popinput==2
+                        error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                        # v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
                     end
 
                     # Special treatment for Greenland segments
@@ -502,8 +505,10 @@ using Mimi
                                 (p.length[m] * pc * (p.pcfixed + (1- p.pcfixed)*(v.H[t,m, i-1]^2 - Hprev^2) +
                                 p.mc*atstep*v.H[t,m, i-1]) + p.length[m] * 1.7 * v.H[t,m, i-1] * v.landvalue[t,m]*.04/2*atstep) * 1e-4
 
-## comment out this if block to match the Diaz (2016) GAMS results
-## This should not be commented out moving forward
+                            ###
+                            ## comment out this if block to match the Diaz (2016) GAMS results
+                            ##
+                            
                             # if Hprev >= v.H[t,m,i-1]
                             #     v.H[t,m,i-1] = Hprev
                             #     # Just maintenance cost + land value

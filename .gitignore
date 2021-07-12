@@ -4,3 +4,4 @@ output/*
 .vscode
 Manifest.toml
 test/.ipynb_checkpoints
+desktop.ini
