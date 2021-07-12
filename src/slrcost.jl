@@ -34,8 +34,8 @@ using Mimi
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
 
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)
-    popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density
-    popdens_seg_merkens = Parameter(index=[time,segments])
+    popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
+    popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
     refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
     refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
@@ -805,4 +805,3 @@ using Mimi
         end # end if t in adaptation period statement
     end # end function
 end # end module
-
