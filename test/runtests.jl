@@ -8,7 +8,7 @@ include("test_utils.jl")
 ##==============================================================================
 ## Unit Testing
 
-@testset "Unit Testing" begin 
+@testset "Unit Testing" begin
     m = MimiCIAM.get_model()
     run(m)
 end
@@ -18,7 +18,8 @@ end
 
 # provide a directory to save julia results
 # jl_outputdir = joinpath(@__DIR__, "..", "output", "results-jl")
-jl_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-curr/raw"
+#jl_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-curr/raw"
+jl_outputdir = "/Users/aewsma/codes/MimiCIAM.jl/output"
 write_MimiCIAM_comparison_files(jl_outputdir)
 
 ##==============================================================================
@@ -31,8 +32,8 @@ write_MimiCIAM_comparison_files(jl_outputdir)
     jl_validation_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-07012021"
 
     files = [
-                "ctrl+noConstrFix_global_85p50ssp0fixed.csv", 
-                "ctrl+noConstrFix_seg_85p50ssp0fixed_optimal.csv", 
+                "ctrl+noConstrFix_global_85p50ssp0fixed.csv",
+                "ctrl+noConstrFix_seg_85p50ssp0fixed_optimal.csv",
                 "ctrl+noConstrFix_seg_85p50ssp0fixed.csv"
             ]
 
@@ -67,7 +68,7 @@ end
 @testset "Baseline Comparison: MimiCIAM dev to GAMS CIAM" begin
 
     # STEP 1
-    # The first main test is to use the baselineComparison.ipynb notebook, which 
+    # The first main test is to use the baselineComparison.ipynb notebook, which
     # will take in directory names and do comparisons
 
     # STEP 2
