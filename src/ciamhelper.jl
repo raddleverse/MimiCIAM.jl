@@ -89,8 +89,8 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
         params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
         params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
     else
-        params["popdens_seg_jones"]     = nothing
-        params["popdens_seg_merkens"]   = nothing
+        params["popdens_seg_jones"]     = 0
+        params["popdens_seg_merkens"]   = 0
     end
 
     if ssp == false # Do nothing, base ssp data already loaded
