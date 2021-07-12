@@ -56,7 +56,7 @@ function preplsl!(lslfile, subset, params, segnames)
 end
 
 """
-    prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
+    prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
 Read in SSP from file and filter to desired set of segments, note that this modifies
 the input parameter dictionary `params`.  The arguments are as fullows:
@@ -68,7 +68,7 @@ the input parameter dictionary `params`.  The arguments are as fullows:
 - segnames - names of segments
 - popinput - population density data set (0=original CIAM, 1=Jones and O'Neill 2016 (not supported), 2=Merkens et al 2016 (not supported))
 """
-function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames)
+function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
     data_dir = joinpath(@__DIR__,"..","data","ssp")
 
@@ -336,7 +336,7 @@ function init(; f::Union{String, Nothing} = nothing)
 end
 
 """
-    import_model_data(lslfile,sub,ssp,ssp_simplified)
+    import_model_data(lslfile, sub, ssp, ssp_simplified, popinput)
 
 Wrapper for importing model data with the arguments:
 - lslfile - filename for lsl (string)
