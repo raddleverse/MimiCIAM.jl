@@ -74,6 +74,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
     # read and set population densities for Jones and Merkens data sets whether or not
     # we are using  them, so they have some defaults.
+    # popinput=0 is the only supported option at this time
     if popinput != 0
         popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
         popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
@@ -88,9 +89,6 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
         params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
         params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
-    #else
-        #params["popdens_seg_jones"]     = Array{Float64, 2}(undef, 1, 1) #fill-values
-        #params["popdens_seg_merkens"]   = Array{Float64, 2}(undef, 1, 1) #fill-values
     end
 
     if ssp == false # Do nothing, base ssp data already loaded

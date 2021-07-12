@@ -34,8 +34,8 @@ using Mimi
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
 
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)
-    popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
-    popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
+    #popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
+    #popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
     refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
     refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
@@ -246,10 +246,11 @@ using Mimi
                 # Initialize first-period population density, coast area and surge parameters
                 if p.popinput==0
                     v.popdens_seg[t,m] = p.popdens[m]
-                elseif p.popinput==1
-                    v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
-                elseif p.popinput==2
-                    v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
+                # popinput=0 is the only supported option at this time
+                #elseif p.popinput==1
+                #    v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
+                #elseif p.popinput==2
+                #    v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
                 end
                 v.areaparams[m,:] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
 
@@ -274,10 +275,11 @@ using Mimi
                     tim1 = TimestepIndex(i-1)
                     if p.popinput==0
                         v.popdens_seg[ti,m] = v.popdens_seg[tim1,m] * (1 + growthrate(p.pop[tim1,rgn_ind], p.pop[ti,rgn_ind]))
-                    elseif p.popinput==1
-                        v.popdens_seg[ti,m]=p.popdens_seg_jones[ti,m]
-                    elseif p.popinput==2
-                        v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
+                    # popinput=0 is the only supported option at this time
+                    #elseif p.popinput==1
+                    #    v.popdens_seg[ti,m]=p.popdens_seg_jones[ti,m]
+                    #elseif p.popinput==2
+                    #    v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
                     end
 
                     # Special treatment for Greenland segments
