@@ -12,7 +12,6 @@ using StatsBase
 using DataDeps
 using Missings
 
-include("utils.jl")
 include("slrcost.jl")
 include("slrcost_GAMSmatch.jl") # useful for testing against GAMS
 include("ciamhelper.jl")

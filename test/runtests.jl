@@ -1,7 +1,7 @@
-using MimiCIAM
 using Test
 using CSV
 using DataFrames
+using MimiCIAM
 
 include("test_utils.jl")
 
@@ -17,10 +17,11 @@ end
 ## Baseline Comparison Tests - Gather Data (takes ~20 minutes)
 
 # provide a directory to save julia results
-# jl_outputdir = joinpath(@__DIR__, "..", "output", "results-jl")
-#jl_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-curr/raw"
-jl_outputdir = "/Users/aewsma/codes/MimiCIAM.jl/output"
-write_MimiCIAM_comparison_files(jl_outputdir)
+jl_outputdir = joinpath(@__DIR__, "..", "output", "BaselineComparisonTests")
+
+# write out the current results using the same random subset of segments used
+# for the validation data
+write_MimiCIAM_comparison_files(jl_outputdir, subset = "random10.csv")
 
 ##==============================================================================
 ## Baseline Comparison Tests: MimiCIAM dev to MimICIAM stable
@@ -28,33 +29,25 @@ write_MimiCIAM_comparison_files(jl_outputdir)
 @testset "Baseline Comparison: MimiCIAM dev to MimICIAM stable" begin
 
     # provide a directory holding stable julia validation results
-    # jl_validation_outputdir = joinpath(@__DIR__, "validation_data", "julia")
-    jl_validation_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/jl-outputs-07012021"
+    jl_validation_outputdir = joinpath(@__DIR__, "..", "data", "validation_data", "julia")
 
-    files = [
-                "ctrl+noConstrFix_global_85p50ssp0fixed.csv",
-                "ctrl+noConstrFix_seg_85p50ssp0fixed_optimal.csv",
-                "ctrl+noConstrFix_seg_85p50ssp0fixed.csv"
-            ]
+    files = readdir(jl_validation_outputdir)
 
     for (i, file) in enumerate(files)
 
         println("Comparing current CIAM file $(i): $(file) ... to validation version")
-        label_fields = (i > 1) ? [:time, :regions, :segments, :variable, :level] : [:time, :variable, :level]
-        value_field = (i == 2) ? :OptimalCost : :value
 
-        # load validation data
+        # load data
         expected = CSV.read(joinpath(jl_validation_outputdir, file), DataFrame)
-
-        # load current data
         current = CSV.read(joinpath(jl_outputdir, file), DataFrame)
 
-        # align the dataframe ordering
-        sort!(expected, label_fields)
-        sort!(current, label_fields)
-        for col in label_fields
-            @test filter(x -> !ismissing(x), expected[!, col]) == filter(x -> !ismissing(x), current[!, col])
-        end
+        # sort data
+        fields = DataFrames.names(expected)
+        value_field = Symbol.(fields[end])
+        sort_fields = Symbol.(fields[1:end-1])
+
+        sort!(expected, sort_fields)
+        sort!(current, sort_fields)
 
         # compare values
         diffs = abs.(expected[!, value_field] .- current[!, value_field])
@@ -67,15 +60,7 @@ end
 
 @testset "Baseline Comparison: MimiCIAM dev to GAMS CIAM" begin
 
-    # STEP 1
-    # The first main test is to use the baselineComparison.ipynb notebook, which
-    # will take in directory names and do comparisons
-
-    # STEP 2
-    # TODO: numerical tests against saved gamsCIAM validation data
-
-    # provide a directory holding julia validation results
-    # gams_validation_outputdir = joinpath(@__DIR__, "validation_data", "gams")
-    gams_validation_outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/gams-outputs"
-
+    # testing against GAMS ocurrs for now in the GAMS_BaselineComparisons.ipynb 
+    # notebook, TODO is to bring the numerical comparisons into this repository's
+    # scripts
 end
