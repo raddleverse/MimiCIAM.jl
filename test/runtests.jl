@@ -32,6 +32,7 @@ write_MimiCIAM_comparison_files(jl_outputdir, subset = "random10.csv")
     jl_validation_outputdir = joinpath(@__DIR__, "..", "data", "validation_data", "julia")
 
     files = readdir(jl_validation_outputdir)
+    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
 
     for (i, file) in enumerate(files)
 
@@ -60,7 +61,7 @@ end
 
 @testset "Baseline Comparison: MimiCIAM dev to GAMS CIAM" begin
 
-    # testing against GAMS ocurrs for now in the GAMS_BaselineComparisons.ipynb 
+    # testing against GAMS ocurrs for now in the GAMS_BaselineComparisons.ipynb
     # notebook, TODO is to bring the numerical comparisons into this repository's
     # scripts
 end
