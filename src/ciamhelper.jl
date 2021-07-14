@@ -75,7 +75,24 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
     # read and set population densities for Jones and Merkens data sets whether or not
     # we are using  them, so they have some defaults.
     # popinput=0 is the only supported option at this time
-    if popinput != 0
+    if popinput == 0
+
+				# placeholder
+        popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp5.csv")), DataFrame)
+        popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp5.csv")), DataFrame)
+
+        seg_col_names = [i for i in names(popdens_seg_jones) if string(i) in segnames]
+        sort!(seg_col_names)
+        popdens_seg_jones = popdens_seg_jones[!, seg_col_names]
+
+        seg_col_names = [i for i in names(popdens_seg_merkens) if string(i) in segnames]
+        sort!(seg_col_names)
+        popdens_seg_merkens = popdens_seg_merkens[!, seg_col_names]
+
+        params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
+        params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
+
+    else
 
         #error("The `popinput` argument values of 2 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
        
@@ -92,6 +109,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
         params["popdens_seg_jones"]     = Array{Float64,2}(popdens_seg_jones)
         params["popdens_seg_merkens"]   = Array{Float64,2}(popdens_seg_merkens)
+
     end
 
     if ssp == false # Do nothing, base ssp data already loaded
