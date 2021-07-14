@@ -44,8 +44,8 @@ using Mimi
     ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
 
     popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)
-    #popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
-    #popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
+    popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
+    popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
     ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
     refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
     refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
@@ -257,11 +257,11 @@ using Mimi
                 if p.popinput==0
                     v.popdens_seg[t,m] = p.popdens[m]
                 elseif p.popinput==1
-                    error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
-                    # v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
+                    #error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                    v.popdens_seg[t,m]=p.popdens_seg_jones[ti1,m]
                 elseif p.popinput==2
-                    error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
-                    # v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
+                    #error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                    v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
                 else
 
                 end
@@ -290,11 +290,11 @@ using Mimi
                     if p.popinput==0
                         v.popdens_seg[ti,m] = v.popdens_seg[tim1,m] * (1 + growthrate(p.pop[tim1,rgn_ind], p.pop[ti,rgn_ind]))
                     elseif p.popinput==1
-                        error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
-                    #    v.popdens_seg[ti,m]=p.popdens_seg_jones[ti,m]
+                        #error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                        v.popdens_seg[ti,m]=p.popdens_seg_jones[ti,m]
                     elseif p.popinput==2
-                        error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
-                        # v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
+                        #error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+                        v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
                     end
 
                     # Special treatment for Greenland segments

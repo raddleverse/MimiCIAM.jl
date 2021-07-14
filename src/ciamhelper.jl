@@ -77,7 +77,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
     # popinput=0 is the only supported option at this time
     if popinput != 0
 
-        error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
+        #error("The `popinput` argument values of 2 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
        
         popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
         popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
