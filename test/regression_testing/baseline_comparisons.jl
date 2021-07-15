@@ -68,7 +68,7 @@ m = MimiCIAM.get_model(
 )
 run(m)
 
-write_output_files(m, outputdir, run_name)
+# write_output_files(m, outputdir, run_name)
 
 ##==============================================================================
 ##  Ctrl Case
