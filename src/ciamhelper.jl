@@ -40,7 +40,7 @@ function preplsl!(lslfile,subset, params,segnames)
     col_names = sort(col_names)
     lsl_params = lsl_params[!,col_names]
 
-    params["lslr"] = convert(Array{Float64,2},lsl_params)
+    params["lslr"] = convert(Array{Float64,2},Matrix(lsl_params))
 
     return params
 end
@@ -142,7 +142,7 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             end
             # Sort alphabetically
             sort!(p, :segments)
-            params["surgeexposure"] = convert(Array{Float64,2},p[:,2:6])
+            params["surgeexposure"] = convert(Array{Float64,2},Matrix(p[:,2:6]))
         elseif k=="refa_h" || k=="refa_r"
             p = @from i in p begin
                 @where i.segments in seg_order
@@ -334,8 +334,7 @@ end
 # sumsegs - whether to sum across all segments, to region level, or no sums
 # varnames: if not false, write the passed variable names; if false get defaults from file
 # To do: possibly modify to work with DataVoyager()
-function write_ciam(m; runname="base", sumsegs="seg", varnames=false,tag=false)
-    outputdir = joinpath(@__DIR__,"..","output")
+function write_ciam(m; outputdir = joinpath(@__DIR__,"..","output"), runname="base", sumsegs="seg", varnames=false,tag=false)
     meta_output = load_meta()
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
