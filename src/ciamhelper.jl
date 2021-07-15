@@ -402,7 +402,7 @@ function write_ciam(m; outputdir = joinpath(@__DIR__,"..","output"), runname="ba
 
         for k in 1:ndim1
 
-            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k])
+            temp = DataFrame(model[:slrcost,vargroup2[j]][:,:,k], :auto)
 
             rename!(temp, colnames )
             temp[!,:time] = 1:ntime
@@ -459,12 +459,11 @@ function write_ciam(m; outputdir = joinpath(@__DIR__,"..","output"), runname="ba
 end
 
 # Function to streamline writing results for optimal adaptation costs
-function write_optimal_costs(m;runname="base")
+function write_optimal_costs(m;outputdir = joinpath(@__DIR__,"..","output"), runname="base")
     # Output: Data Frame with segment,region,time,level,option, suboption
     #   E.g. 'OptimalProtect', 'Construct'
     # Should output 2 CSVs: 1 with just the 3 main categories, 2nd with
     #   detailed subcategories
-    outputdir = joinpath(@__DIR__,"..","output")
     rcp = m[:slrcost,:rcp]
     pctl = m[:slrcost,:percentile]
     ssp = m[:slrcost,:ssp]

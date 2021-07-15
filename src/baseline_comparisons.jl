@@ -24,7 +24,8 @@ end
 ##==============================================================================
 ## Setup
 
-outputdir = joinpath(@__DIR__, "..", "output", "baseline_comparisons")
+# outputdir = joinpath(@__DIR__, "..", "output", "baseline_comparisons")
+outputdir = "/Users/lisarennels/JuliaProjects/CIAMPaper/local-data/model-outputs-preLisa"
 isdir(outputdir) || mkpath(outputdir)
 ##==============================================================================
 ## Run Comparisons
@@ -72,6 +73,9 @@ write_output_files(m, outputdir, run_name)
 ##==============================================================================
 ##  Ctrl Case
 
+## To run this one the `at` file should go to 15 and the height section should NOT
+## be commented out of the slrcost component
+
 run_name = "ctrl"
 
 init_settings = Dict(
@@ -108,6 +112,9 @@ write_output_files(m, outputdir, run_name)
 
 ##==============================================================================
 ##  baseline+updated GDP/POP via SSP5. but can be any of 1-5
+
+## To run this one the `at` file should go to 15 and the height section should NOT
+## be commented out of the slrcost component
 
 run_name = "ctrl+SSP5"
 
