@@ -149,3 +149,43 @@ m = MimiCIAM.get_model(
 run(m)
 
 write_output_files(m, outputdir, run_name)
+
+##==============================================================================
+##  baseline+updated population density from Jones and O'Neill (2016)
+
+## To run this one the `at` file should go to 15 and the height section should NOT
+## be commented out of the slrcost component
+
+run_name = "ctrl+SSP5+popJones"
+
+init_settings = Dict(
+    :init_filename   => string("$run_name", "_init.csv"),
+    :lslrfile        => "lsl_rcp85_p50.csv",
+    :subset          => false,
+    :ssp             => "IIASAGDP_SSP5_v9_130219",
+    :ssp_simplified  => "5" # based on SSPs, so need to use an SSP
+)
+
+model_settings = Dict(
+    :fixed          => true,
+    :t              => 15,
+    :noRetreat      => false,
+    :allowMaintain  => false,
+    :popinput       => 1 # 0 = default old stuff, 1 = Jones and O'Neill (2016), 2 = Merkens et al (2016)
+    # :GAMSmatch      => false
+)
+
+write_init_file(run_name, outputdir, init_settings)
+
+m = MimiCIAM.get_model(
+    initfile        = joinpath(outputdir, init_settings[:init_filename]),
+    fixed           = model_settings[:fixed],
+    t               = model_settings[:t], 
+    noRetreat       = model_settings[:noRetreat],
+    allowMaintain   = model_settings[:allowMaintain],
+    popinput        = model_settings[:popinput]
+    # GAMSmatch       = model_settings[:GAMSmatch]
+)
+run(m)
+
+write_output_files(m, outputdir, run_name)
