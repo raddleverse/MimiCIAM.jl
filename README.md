@@ -86,3 +86,23 @@ init_settings = Dict(
     
 MimiCIAM.write_init_file(run_name, outputdir, init_settings)
 ```
+## Exploring Model Results
+
+There are several options for exploring the results of a run model, many of which are described in the `Mimi.jl` documentation [here](https://www.mimiframework.org/Mimi.jl/stable/howto/howto_2/).  In addition, we offer some custom (unexported) functions including the following for a model `m`.
+
+```
+MimiCIAM.write_ciam(m; runname::String = "base", sumsegs::String = "seg", varnames::Bool = false, tag::Bool = false)
+```
+
+Write out model results to CSV file using arguments:
+- `m`: output from `get_model` function
+- `runname` (defaults to "base")
+- `sumsegs` (defaults to "seg"): whether to sum across all segments ("global"), to region level ("rgn"), or no sums ("seg")
+- `varnames` (defaults to false): if not false, write the passed variable names; if false get defaults from file
+- `tag` (defaults to false): if not false, a string to add to the end of the filename, which is written out as "runname_sumsegs_rcp_tag.csv"
+
+```
+MimiCIAM.write_optimal_costs(m; outputdir::String = joinpath(@__DIR__,"..","output"), runname="base")
+```
+
+Write out optimal adaptation costs for model `m` with runname `runname` into outputdirectory `outputdir`.
