@@ -818,7 +818,7 @@ using CSV
     write_init_file(run_name::String, outputdir::String, init_settings::Dict)
 
 Write the init.csv file for a specificied `run_name` into `outputdir` using init_settings
-found in `init_settings`.  Note the file will be named `<run_name>_init.csv`
+found in `init_settings`.
 """
 function write_init_file(run_name::String, outputdir::String, init_settings::Dict)
     textheader="run_name,lslr,subset,ssp,ssp_simplified\n"
