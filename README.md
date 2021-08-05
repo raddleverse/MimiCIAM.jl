@@ -102,7 +102,7 @@ Write out model results to CSV file using arguments:
 - `tag` (defaults to false): if not false, a string to add to the end of the filename, which is written out as "runname_sumsegs_rcp_tag.csv"
 
 ```
-MimiCIAM.write_optimal_costs(m; runname = "base")
+MimiCIAM.write_optimal_costs(m; outputdir::String = joinpath(@__DIR__,"..","output"), runname="base")
 ```
 
-Write out optimal adaptation costs for model `m` with runname `runname`.
+Write out optimal adaptation costs for model `m` with runname `runname` into outputdirectory `outputdir`.
