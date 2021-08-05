@@ -27,9 +27,56 @@ m = MimiCIAM.get_model()
 run(m)
 ```
 
-The get_model() function currently has the following keyword arguments:
-- `initfile`: (default = nothing)
-- `fixed`: (default = false)
-- `noRetreat`: (default = false)
-- `allowMaintain`: (default = true)
-- `popinput`: (default = 0)
+### Keyword Arguments
+
+The get_model() function has the following signature:
+```julia
+get_model(;
+    initfile = nothing,
+    fixed::Bool = false,
+    t::Int = 20,
+    noRetreat::Bool = false,
+    allowMaintain::Bool = true, 
+    popinput::Int = 0)
+```
+which includes several optional keyword arguments to customize the CIAM model you wish to run:
+- `initfile` (default = "data/batch/init.csv") : takes a path to a initilization file used to set several parameters (described below) and defaulting to 
+- `fixed` (default = false): a model parameter that specifies if you want to run the model as fixed (`true`) or flexible (false) with respect to adaptation
+- `t` (default = 20): the number of timesteps to run
+- `noRetreat` (default = false): a model parameter that specifies if retreat is allowed, such that if the parameter is true, segments will either protect or not adapt, but never retreat.
+- `allowMaintain` (default = true): a model parameter that specifies if maintaining defenses is an option, such that if the parameter is true segments will have the option to maintain current defenses
+- `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016) 
+
+### Initialization File
+
+The `initfile` parameter above takes a path to a file that must be specially formatted as the `init.txt` file at "data/batch/init.csv":
+```
+run_name,lslr,subset,ssp,ssp_simplified
+base,lsl_rcp85_p50.csv,false,IIASAGDP_SSP5_v9_130219,5
+```
+This file will indicate the data to import for a given run, the bulk of this work being done in `import_model_data(lslfile, sub, ssp, ssp_simplified, popinput)`.  The file contains several parameters:
+
+- `run_name` (default = base): the name of the run, can be used in labeling and results file production
+- `lslr` (default = "lsl_rcp85_p50.csv"): the filename of the file used for lslr settings, which must be available in "data/lslr"
+- `subset` (default = false): the list of of segment IDs to run the model for, where false indicates running all segments
+- `ssp` (default = "IIASAGDP_SSP5_v9_130219"): the full SSP name that will provide several socioconomic parameters, see the names after "pop" and "ypcc" in "data/ssp" for options
+- `ssp_simplified` (default = 5): the integer representing the SSP (1-5)
+
+In order to make creation of such a file easier, we provide an (unexported) file creation function `MimiCIAM.write_init_file(run_name::String, outputdir::String, init_settings::Dict)` which writes the initialization file for a specificied `run_name` into `outputdir` using init_settings
+found in `init_settings`.
+
+Note that `init_settings` is a Dictionary with one entry per parameter, best shown through the following example:
+
+```
+run_name = "ctrl+SSP5"
+
+init_settings = Dict(
+        :init_filename   => string("$run_name", "_init.csv"),
+        :lslrfile        => "lsl_rcp85_p50.csv",
+        :subset          => false,
+        :ssp             => "IIASAGDP_SSP5_v9_130219",
+        :ssp_simplified  => 5
+    )
+    
+MimiCIAM.write_init_file(run_name, outputdir, init_settings)
+```
