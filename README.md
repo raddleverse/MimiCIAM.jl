@@ -40,12 +40,13 @@ get_model(;
     popinput::Int = 0)
 ```
 which includes several optional keyword arguments to customize the CIAM model you wish to run:
+
 - `initfile` (default = "data/batch/init.csv") : takes a path to a initilization file used to set several parameters (described below) and defaulting to 
-
 - `t` (default = 20): the number of timesteps to run
-- `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016) 
 
-_we do not recommend altering these without consultation with the authors as changes from the default are experimental_
+_we do not recommend altering the following without consultation with the authors as changes from the default are experimental_
+
+- `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016) 
 - `noRetreat` (default = false): a model parameter that specifies if retreat is allowed, such that if the parameter is true, segments will either protect or not adapt, but never retreat.
 - `fixed` (default = false): a model parameter that specifies if you want to run the model as fixed (`true`) or flexible (false) with respect to adaptation
 - `allowMaintain` (default = true): a model parameter that specifies if maintaining defenses is an option, such that if the parameter is true segments will have the option to maintain current defenses
