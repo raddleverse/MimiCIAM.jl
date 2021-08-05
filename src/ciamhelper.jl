@@ -518,7 +518,7 @@ function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),
 end
 
 """
-    write_optimal_costs(model; runname="base")
+    write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","output"), runname="base")
 
 Streamline writing results for optimal adaptation costs.
 """
