@@ -1,12 +1,12 @@
 using Mimi
 
 """
-    initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20,
+    initciam(xsc, params, initparams, m::Model; fixed::Bool = true, t::Int = 20,
             noRetreat::Bool = false, allowMaintain::Bool = true, popinput::Int = 0)
 
 Initialize a CIAM model `m` with the given arguments.
 """
-function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int = 20,
+function initciam(xsc, params, initparams, m::Model; fixed::Bool = true, t::Int = 20,
                 noRetreat::Bool = false, allowMaintain::Bool = true, popinput::Int = 0)
 
     discountrate = 0.04
@@ -70,7 +70,7 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = false, t::Int
 end
 
 """
-    get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false,
+    get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true,
                 t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true,
                 popinput::Int = 0, GAMSmatch::Bool = false)
 Return a initialized and built CIAM model with the given arguments.
@@ -78,7 +78,7 @@ Return a initialized and built CIAM model with the given arguments.
 Note that the GAMSmatch optional argument uses a different slrcost component with
 the Hprev > H block commented out.  This should only be used for testing!
 """
-function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=false,
+function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true,
                     t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = true,
                     popinput::Int = 0, GAMSmatch::Bool = false)
 

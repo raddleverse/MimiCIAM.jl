@@ -33,7 +33,7 @@ The get_model() function has the following signature:
 ```julia
 get_model(;
     initfile = nothing,
-    fixed::Bool = false,
+    fixed::Bool = true,
     t::Int = 20,
     noRetreat::Bool = false,
     allowMaintain::Bool = true, 
@@ -48,17 +48,19 @@ _we do not recommend altering the following without consultation with the author
 
 - `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016) 
 - `noRetreat` (default = false): a model parameter that specifies if retreat is allowed, such that if the parameter is true, segments will either protect or not adapt, but never retreat.
-- `fixed` (default = false): a model parameter that specifies if you want to run the model as fixed (`true`) or flexible (false) with respect to adaptation
+- `fixed` (default = true): a model parameter that specifies if you want to run the model as fixed (true) or flexible (false) with respect to adaptation
 - `allowMaintain` (default = true): a model parameter that specifies if maintaining defenses is an option, such that if the parameter is true segments will have the option to maintain current defenses
 - 
 ### Initialization File
 
 The `initfile` parameter above takes a path to a file that must be specially formatted as the `init.txt` file at "data/batch/init.csv":
+
 ```
 run_name,lslr,subset,ssp,ssp_simplified
 base,lsl_rcp85_p50.csv,false,IIASAGDP_SSP5_v9_130219,5
 ```
-This file will indicate the data to import for a given run, the bulk of this work being done in `import_model_data(lslfile, sub, ssp, ssp_simplified, popinput)`.  The file contains several parameters:
+
+This file will indicate the data to import for a given run, the bulk of this work being done in `MimiCIAM.import_model_data`. The file contains several parameters:
 
 - `run_name` (default = base): the name of the run, can be used in labeling and results file production
 - `lslr` (default = "lsl_rcp85_p50.csv"): the filename of the file used for lslr settings, which must be available in "data/lslr"
