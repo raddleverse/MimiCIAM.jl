@@ -7,7 +7,7 @@ This is a work-in-progress respository for a Julia-Mimi implementation the CIAM 
 Your first step is to install MimiCIAM.jl itself, and to do so you need to run the following command at the julia package REPL:
 
 ```julia
-pkg> add https://github.com/BRICK-SLR/MimiCIAM.jl.git
+pkg> add https://github.com/raddleverse/MimiCIAM.jl.git
 ```
 
 You probably also want to install the Mimi package into your julia environment, so that you can use some of the tools in there:
@@ -36,17 +36,17 @@ get_model(;
     fixed::Bool = true,
     t::Int = 20,
     noRetreat::Bool = false,
-    allowMaintain::Bool = true, 
+    allowMaintain::Bool = true,
     popinput::Int = 0)
 ```
 which includes several optional keyword arguments to customize the CIAM model you wish to run:
 
-- `initfile` (default = "data/batch/init.csv") : takes a path to a initilization file used to set several parameters (described below) and defaulting to 
+- `initfile` (default = "data/batch/init.csv") : takes a path to a initilization file used to set several parameters (described below) and defaulting to
 - `t` (default = 20): the number of timesteps to run
 
 _we do not recommend altering the following without consultation with the authors as changes from the default are experimental_
 
-- `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016) 
+- `popinput` (default = 0): a socioeconomic parameter that specifies the population data source such with the following options, noting that as of now 1 and 2 are temporarily disabled so 0 is the only option: 0 (default), 1 (Jones & O'Neill, 2016), or 2 (Merkens et al, 2016)
 - `noRetreat` (default = false): a model parameter that specifies if retreat is allowed, such that if the parameter is true, segments will either protect or not adapt, but never retreat.
 - `fixed` (default = true): a model parameter that specifies if you want to run the model as fixed (true) or flexible (false) with respect to adaptation
 - `allowMaintain` (default = true): a model parameter that specifies if maintaining defenses is an option, such that if the parameter is true segments will have the option to maintain current defenses
@@ -83,7 +83,7 @@ init_settings = Dict(
         :ssp             => "IIASAGDP_SSP5_v9_130219",
         :ssp_simplified  => 5
     )
-    
+
 MimiCIAM.write_init_file(run_name, outputdir, init_settings)
 ```
 ## Exploring Model Results
