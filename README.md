@@ -50,7 +50,7 @@ _we do not recommend altering the following without consultation with the author
 - `noRetreat` (default = false): a model parameter that specifies if retreat is allowed, such that if the parameter is true, segments will either protect or not adapt, but never retreat.
 - `fixed` (default = true): a model parameter that specifies if you want to run the model as fixed (true) or flexible (false) with respect to adaptation
 - `allowMaintain` (default = true): a model parameter that specifies if maintaining defenses is an option, such that if the parameter is true segments will have the option to maintain current defenses
-- 
+
 ### Initialization File
 
 The `initfile` parameter above takes a path to a file that must be specially formatted as the `init.txt` file at "data/batch/init.csv":
