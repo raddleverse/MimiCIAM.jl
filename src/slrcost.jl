@@ -22,7 +22,7 @@ using Mimi
     # ---Model Parameters ---
     fixed = Parameter{Bool}()               # Run model as fixed (T) or flexible (F) with respect to adaptation
     noRetreat = Parameter{Bool}()           # Default (F). If T, segments will either protect or not adapt.
-    allowMaintain = Parameter{Bool}()       # Default T. If T, segments will have the option to maintain current defenses
+    allowMaintain = Parameter{Bool}()       # Default F. If T, segments will have the option to maintain current defenses
 
     # ---Socioeconomic Parameters---
     popinput = Parameter{Int}()           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
