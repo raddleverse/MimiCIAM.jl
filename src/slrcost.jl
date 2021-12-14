@@ -2,14 +2,15 @@ using Mimi
 
 @defcomp slrcost begin
     # Define all variables, parameters and indices used by this module
+
     # --- Indices ---
-    regions = Index()
+    ciam_country = Index()
     segments = Index()
     adaptPers = Index()
 
     # --- Region / segment mapping ---
     segID = Parameter(index = [segments])   # Unique segment numeric identifier
-    xsc = Parameter{Dict{Any,Any}}()  # Region to segment mapping (dictionary) to keep track of which segments belong to each region
+    xsc = Parameter{Dict{Int,Tuple{Int,Int,Int}}}()  # Region to segment mapping (dictionary) to keep track of which segments belong to each region
     rcp = Parameter{Int}()                   # RCP being run (metadata; not used in run)
     percentile = Parameter{Int}()            # Percentile of RCP being run (metadata; not used in run)
     ssp = Parameter{Int}()                   # SSP being used (0 for base case)
@@ -26,54 +27,51 @@ using Mimi
 
     # ---Socioeconomic Parameters---
     popinput = Parameter{Int}()           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
-    pop = Parameter(index = [time, regions])           # Population of region (million people) (from MERGE or SSPs)
-    refpopdens = Parameter(index = [regions])         # Reference population density of region (people / km^2)
+    pop = Parameter(index = [time, ciam_country], unit = "million")           # Population of region (million people) (from MERGE or SSPs)
+    refpopdens = Parameter(index = [ciam_country], unit = "persons/km2")         # Reference population density of region (people / km^2)
     rgn_ind_usa = Parameter{Int}()                     # Lookup parameter for USA region index, used in refpopdens and ypc
     #    for USA benchmark in vsl, rho and fundland calculations
-    popdens = Parameter(index = [segments])           # Pop density of segment in time t = 1 (people/km^2)
-    ypcc = Parameter(index = [time, regions])          # GDP per capita per region ($2010 per capita)
+    popdens = Parameter(index = [segments], unit = "persons/km2")           # Pop density of segment in time t = 1 (people/km^2)
+    ypcc = Parameter(index = [time, ciam_country], unit = "US\$2010/yr/person")          # GDP per capita per region ($2010 per capita)
 
-    popdens_seg = Variable(index = [time, segments])          # Population density of segment extrapolated forward in time (people / km^2)
-    #popdens_seg_jones = Parameter(index=[time,segments])      # Holder for Jones and O'Neill population density (not currently supported)
-    #popdens_seg_merkens = Parameter(index=[time,segments])    # Holder for Merkens et al population density (not currently supported)
-    ypc_seg = Variable(index = [time, segments])              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
+    popdens_seg = Variable(index = [time, segments], unit = "persons/km2")          # Population density of segment extrapolated forward in time (people / km^2)
+    #popdens_seg_jones = Parameter(index=[time,segments], unit = "persons/km2")      # Holder for Jones and O'Neill population density (not currently supported)
+    #popdens_seg_merkens = Parameter(index=[time,segments], unit = "persons/km2")    # Holder for Merkens et al population density (not currently supported)
+    ypc_seg = Variable(index = [time, segments], unit = "US\$2010/yr/person")              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
     refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
     refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
 
     # ---Land Parameters---
     landinput = Parameter{Bool}()                   # Set to T for FUND or F for GTAP
 
-    gtapland = Parameter(index = [regions])        # GTAP land value in 2007 (million 2010$ / km^2)
-    dvbm = Parameter()                              # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
+    gtapland = Parameter(index = [ciam_country], unit = "million US\$2010/km2")        # GTAP land value in 2007 (million 2010$ / km^2)
+    dvbm = Parameter(unit = "million US\$2010/km2")                            # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     kgdp = Parameter()                              # Capital output ratio (per MERGE) (3 by default)
     discountrate = Parameter()                      # Discount rate (0.04 by default)
     depr = Parameter()                              # Fraction of capital that has not been depreciated over adaptation period (retreat cases)
 
 
-    landdata = Variable(index = [regions])         # Takes on value of either fundland or gtapland
-    fundland = Variable(index = [regions])         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2),
-    #   Q maybe import directly?
+    landdata = Variable(index = [ciam_country], unit = "million US\$2010/km2")         # Takes on value of either fundland or gtapland
+    fundland = Variable(index = [ciam_country], unit = "million US\$2010/km2")         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2),
 
     rgn_ind_canada = Parameter{Int}()               # Region index for Canada (Used as reference for Greenland land appreciation)
-    land_appr = Variable(index = [time, regions])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott)
-    coastland = Variable(index = [time, segments])  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
-    landvalue = Variable(index = [time, segments])  # Total endowment value of land ($2010M per sqkm)
-    landrent = Variable(index = [time, segments])      # Annual rental value of land ($2010M/sqkm/year)
+    land_appr = Variable(index = [time, ciam_country])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott)
+    coastland = Variable(index = [time, segments], unit = "million US\$2010/km2")  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
+    landvalue = Variable(index = [time, segments], unit = "million US\$2010/km2")  # Total endowment value of land ($2010M per sqkm)
+    landrent = Variable(index = [time, segments], unit = "million US\$2010/km2/yr")      # Annual rental value of land ($2010M/sqkm/year)
 
-
-    ρ = Variable(index = [time, regions])           # Country-wide resilience parameter (logistic function related to GDP)
-    capital = Variable(index = [time, segments])    # Total endowment value of capital stock (million $2010 / km^2)
+    ρ = Variable(index = [time, ciam_country])           # Country-wide resilience parameter (logistic function related to GDP)
+    capital = Variable(index = [time, segments], unit = "million US\$2010/km2")    # Total endowment value of capital stock (million $2010 / km^2)
     discountfactor = Variable(index = [time])         # Discount factor (derived from discount rate)
 
     # ---Coastal Parameters---
-    length = Parameter(index = [segments])          # Segment length (km)
+    length = Parameter(index = [segments], unit = "km")          # Segment length (km)
 
     # ---Protection Parameters---
-    cci = Parameter(index = [regions])
+    cci = Parameter(index = [ciam_country])
     pcfixed = Parameter()                   # Fraction of protection cost that is fixed (not variable in height) (0.3)
     mc = Parameter()                        # Maintenance cost (Hillen et al, 2010) (2%/yr)
-    pc0 = Parameter()                       # Reference cost of protection (million 2010$ / km / vert m^2) (6.02 by default)
-
+    pc0 = Parameter(unit = "million US\$2010/km/m2")                       # Reference cost of protection (million 2010$ / km / vert m^2) (6.02 by default)
 
     # ---Retreat / No Adapt Parameters---
     mobcapfrac = Parameter()                # Fraction of capital that is mobile (0.25)
@@ -96,24 +94,25 @@ using Mimi
 
     # ---Storm damage parameters---
     floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01)
-    vslel = Parameter(default = 0.5)                         # Elasticity of vsl (0.5)
-    vslmult = Parameter(default = 216)                       # multiplier on USA GDP (216)
-    vsl = Variable(index = [time, segments])     # Value of statistical life (million 2010$)
+
+    # We make VSL an exogenously calculated variable for each region,
+    # and `vsl` is then simply pulled from `vsl_ciam_country` 
+    vsl_ciam_country = Parameter(index = [time, ciam_country], unit = "million US\$2010/yr") # Value of statistical life (million 2010$)
+    vsl = Variable(index = [time, segments], unit = "million US\$2010/yr")     # Value of statistical life (million 2010$)
 
     # ---Wetland Loss Parameters---
-    wvbm = Parameter(default = 0.376)                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376)
-    wetland = Parameter(index = [segments])                # Initial wetland area in coastal segment (km^2)
-    wmaxrate = Parameter(default = 0.01)                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
+    wvbm = Parameter(default = 0.376, unit = "million US\$2010/km2/yr")                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376)
+    wetland = Parameter(index = [segments], unit = "km2")                # Initial wetland area in coastal segment (km^2)
+    wmaxrate = Parameter(default = 0.01, unit = "m/yr")                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
     wvel = Parameter(default = 1.16)                                      # income elasticity of wetland value (1.16) (Brander et al, 2006)
     wvpdl = Parameter(default = 0.47)                                     # Population density elasticity of wetland value (0.47) (Brander et al, 2006)
 
-    wetlandservice = Variable(index = [time, regions])      # Annual value of wetland services adjusted for income and density (Brander et al 2006) ($2010M/km^2/year)
+    wetlandservice = Variable(index = [time, ciam_country])      # Annual value of wetland services adjusted for income and density (Brander et al 2006) ($2010M/km^2/year)
     wetlandloss = Variable(index = [time, segments])        # Fractional loss of wetland due to slr
 
 
     # ---Sea Level Rise Parameters---
-    lslr = Parameter(index = [time, segments])                # Local sea level rise (m)
-
+    lslr = Parameter(index = [time, segments], unit = "m")                # Local sea level rise (m)
     adaptoptions = Parameter(index = [6])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
     surgeexposure = Parameter{Float64}(index = [segments, 5])# Storm surge exposure levels (corresponding to each designated adaptation option)
 
@@ -136,8 +135,7 @@ using Mimi
     area15 = Parameter(index = [segments])
     areaparams = Variable(index = [segments, 15])           # Nothing is computed; this is just a convenient container for area params
 
-    coastArea = Variable(index = [time, segments])            # Coast area inundated (km^2)
-
+    coastArea = Variable(index = [time, segments], unit = "km2")            # Coast area inundated (km^2)
 
     # ---Intermediate Variables---
     WetlandNoAdapt = Variable(index = [time, segments])
@@ -166,26 +164,26 @@ using Mimi
     coastAreaNoAdapt = Variable(index = [time, segments])
 
     # --- Decision Variables --- (evaluated brute force)
-    H = Variable(index = [time, segments, 5])       # Height of current sea wall, no retreat (m)
-    R = Variable(index = [time, segments, 6])       # Retreat perimeter (m)
+    H = Variable(index = [time, segments, 5], unit = "m")       # Height of current sea wall, no retreat (m)
+    R = Variable(index = [time, segments, 6], unit = "m")       # Retreat perimeter (m)
     SIGMA = Variable(index = [time, segments, 12])  # Expected value of effective exposure area for over-topping surge (all cases)
     # Order of sigma values: 1 no adapt case, 6 retreat cases, 5 protect cases in ascending order
 
     # ---Outcome Variables---
-    OptimalH = Variable(index = [time, segments])               # m; Holder to track height built across timesteps (cumulative)
-    OptimalR = Variable(index = [time, segments])               # m; Holder to track retreat radius across timesteps (cumulative)
-    WetlandLossOptimal = Variable(index = [time, segments])  # km2; Cumulative wetland loss from optimal decision
-    DryLandLossOptimal = Variable(index = [time, segments]) # km2; Cumulative loss of dry land from optimal decision
+    OptimalH = Variable(index = [time, segments], unit = "m")               # m; Holder to track height built across timesteps (cumulative)
+    OptimalR = Variable(index = [time, segments], unit = "m")               # m; Holder to track retreat radius across timesteps (cumulative)
+    WetlandLossOptimal = Variable(index = [time, segments], unit = "km2")  # km2; Cumulative wetland loss from optimal decision
+    DryLandLossOptimal = Variable(index = [time, segments], unit = "km2") # km2; Cumulative loss of dry land from optimal decision
 
     # DrylandLost = Variable(index=[time,segments])            # km2; container to track cumulative lost dryland
-    WetlandLost = Variable(index = [time, segments])            # km2; container to track cumulative lost wetland
+    WetlandLost = Variable(index = [time, segments], unit = "km2")            # km2; container to track cumulative lost wetland
 
-    NoAdaptCost = Variable(index = [time, segments])         # Cost of not adapting (e.g. reactive retreat) (2010$)
-    ProtectCost = Variable(index = [time, segments, 5])      # Total cost of protection at each level
-    RetreatCost = Variable(index = [time, segments, 6])      # Total cost of retreat at each level
+    NoAdaptCost = Variable(index = [time, segments], unit = "billion US\$2010/yr")         # Cost of not adapting (e.g. reactive retreat) (2010$)
+    ProtectCost = Variable(index = [time, segments, 5], unit = "billion US\$2010/yr")      # Total cost of protection at each level
+    RetreatCost = Variable(index = [time, segments, 6], unit = "billion US\$2010/yr")      # Total cost of retreat at each level
     OptimalRetreatLevel = Variable(index = [time, segments])
     OptimalProtectLevel = Variable(index = [time, segments])
-    OptimalCost = Variable(index = [time, segments])          # Optimal cost based on NPV relative to start of adaptation period
+    OptimalCost = Variable(index = [time, segments], unit = "billion US\$2010/yr")          # Optimal cost based on NPV relative to start of adaptation period
     OptimalLevel = Variable(index = [time, segments])         # Fixed optimal level (1,10,100,1000,10000)
     OptimalOption = Variable(index = [time, segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt)
     NPVRetreat = Variable(index = [time, segments, 6])
@@ -193,7 +191,7 @@ using Mimi
     NPVNoAdapt = Variable(index = [time, segments])
     NPVOptimal = Variable(index = [segments])               # NPV of cost of optimal decisions relative to t=1
     NPVOptimalTotal = Variable()                            # Total NPV of all segments from optimal decision
-    StormLossOptimal = Variable(index = [time, segments])  # Cumulative expected loss of life (num people) from storm surges from optimal decision
+    StormLossOptimal = Variable(index = [time, segments], unit = "persons")  # Cumulative expected loss of life (num people) from storm surges from optimal decision
 
     # ---Subcategories of Optimal Choice----
     OptimalStormCapital = Variable(index = [time, segments])
@@ -205,6 +203,9 @@ using Mimi
 
 
     function run_timestep(p, v, d, t)
+        # This is a workaround for a type instability that should be fixed in Mimi.jl
+        d_ciam_country = d.ciam_country::Vector{Int}
+        d_segments = d.segments::Vector{Int}
 
         ti1 = TimestepIndex(1) # used a lot
         # In first period, initialize all non-adaptation dependent intermediate variables for all timesteps
@@ -215,7 +216,7 @@ using Mimi
             end
 
             # 2. Initialize region-dependent intermediate variables
-            for r in d.regions
+            for r in d_ciam_country
                 # Determine land input value (true = FUND, false = GTAP)
                 if p.landinput
                     v.fundland[r] = min(p.dvbm, max(0.005, p.dvbm * p.ypcc[t, r] * p.refpopdens[r] / (p.ypcc[ti1, p.rgn_ind_usa] * p.refpopdens[p.rgn_ind_usa])))
@@ -240,8 +241,8 @@ using Mimi
             end
 
             # 3. Initialize segment-dependent variables
-            for m in d.segments
-                rgn_ind = getregion(m, p.xsc) # Identify the region the segment belongs to
+            for m in d_segments
+                rgn_ind = getregion(m, p.xsc)::Int # Identify the region the segment belongs to
 
                 # Initialize first-period population density, coast area and surge parameters
                 if p.popinput == 0
@@ -255,15 +256,16 @@ using Mimi
                 end
                 v.areaparams[m, :] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
 
-                # Greenland segments are treated differently
-                if isgreenland(m, p.xsc) == 1
+                # Calculate vsl - pull VSL from vsl_ciam_country parameter for the proper region
+                v.vsl[t, m] = p.vsl_ciam_country[ti1, rgn_ind]
+
+                # Greenland segments are treated differently (RFF Model does not include Greenland)
+                if isgreenland(m, p.xsc)::Int == 1
                     v.ypc_seg[t, m] = 22642 * 1.01^1   # FLAG: assumes t is an index (1-20)
-                    v.vsl[t, m] = 1e-6 * p.vslmult * p.ypcc[ti1, p.rgn_ind_usa] * (v.ypc_seg[t, m] / p.ypcc[ti1, p.rgn_ind_usa])^p.vslel
                     v.coastland[t, m] = (v.land_appr[ti1, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1 + v.popdens_seg[t, m]) / log(25))
                     v.landvalue[t, m] = min(v.coastland[t, m], (v.land_appr[ti1, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
                 else
                     v.ypc_seg[t, m] = p.ypcc[t, rgn_ind] * max(0.9, (v.popdens_seg[ti1, m] / 250.0)^0.05)
-                    v.vsl[t, m] = 1e-6 * p.vslmult * p.ypcc[ti1, p.rgn_ind_usa] * (p.ypcc[t, rgn_ind] / p.ypcc[ti1, p.rgn_ind_usa])^p.vslel
                     v.coastland[t, m] = max(0.5, log(1 + v.popdens_seg[t, m]) / log(25)) * (v.land_appr[t, rgn_ind] * v.landdata[rgn_ind])  # Interior * scaling factor
                     v.landvalue[t, m] = min(v.coastland[t, m], (v.land_appr[t, rgn_ind] * v.landdata[rgn_ind]))
                 end
@@ -284,17 +286,18 @@ using Mimi
                         # v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
                     end
 
+                    # Calculate vsl - pull VSL from vsl_ciam_country parameter for the proper region
+                    v.vsl[ti, m] = p.vsl_ciam_country[ti, rgn_ind]
+
                     # Special treatment for Greenland segments
-                    if isgreenland(m, p.xsc) == 1
+                    if isgreenland(m, p.xsc)::Int == 1
                         v.ypc_seg[ti, m] = 22642 * 1.01^i   # FLAG: assumes i is an index (1-20)
-                        v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (v.ypc_seg[ti, m] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel
                         v.coastland[ti, m] = (v.land_appr[ti, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1 + v.popdens_seg[ti, m]) / log(25))
                         v.landvalue[ti, m] = min(v.coastland[ti, m], (v.land_appr[ti, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]))
 
                     else
                         v.ypc_seg[ti, m] = p.ypcc[ti, rgn_ind] * max(0.9, (v.popdens_seg[ti1, m] / 250.0)^0.05) # ypcc * popdens scaling factor
                         v.coastland[ti, m] = max(0.5, log(1 + v.popdens_seg[ti, m]) / log(25)) * (v.land_appr[ti, rgn_ind] * v.landdata[rgn_ind])
-                        v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (p.ypcc[ti, rgn_ind] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel
                         v.landvalue[ti, m] = min(v.coastland[ti, m], (v.land_appr[ti, rgn_ind] * v.landdata[rgn_ind]))
 
                     end
@@ -336,10 +339,10 @@ using Mimi
             end
             t_range = collect(gettime(t):last_t)
 
-            for m in d.segments
+            for m in d_segments
                 if atstep == 0
                 else
-                    rgn_ind = getregion(m, p.xsc)
+                    rgn_ind = getregion(m, p.xsc)::Int
 
                     # ** Calculate No Adaptation Costs **
                     for i in t_range
@@ -482,7 +485,7 @@ using Mimi
                             end
 
                             # Island protection costs are higher
-                            if isisland(m, p.xsc) == 1
+                            if isisland(m, p.xsc)::Int == 1
                                 pc = 2 * p.pc0 * p.cci[rgn_ind]
                             else
                                 pc = p.pc0 * p.cci[rgn_ind]
@@ -544,7 +547,7 @@ using Mimi
                                 end
 
 
-                                v.WetlandProtect[tj, m] = p.tstep * p.wetland[m] .* v.wetlandservice[tj, rgn_ind]
+                                v.WetlandProtect[tj, m] = p.tstep * p.wetland[m] * v.wetlandservice[tj, rgn_ind]
 
                                 v.StormCapitalProtect[tj, m, i-1] = p.tstep * (1 - v.ρ[tj, rgn_ind]) * v.SIGMA[tj, m, (i-1)+7] * v.capital[tj, m]
                                 v.StormPopProtect[tj, m, i-1] = p.tstep * (1 - v.ρ[tj, rgn_ind]) * v.SIGMA[tj, m, (i-1)+7] * v.popdens_seg[tj, m] * v.vsl[tj, m] * p.floodmortality
@@ -621,8 +624,8 @@ using Mimi
                         end
 
                         if p.noRetreat == true
-                            minLevels = [p.adaptoptions[protectInd+1], 0]
-                            choices = [v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
+                            minLevels = Float64[p.adaptoptions[protectInd+1], 0.0]
+                            choices = Union{Missing,Float64}[v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
 
                             leastcost = -1 * findmin(choices)[2]
                             if leastcost == -2
@@ -633,9 +636,9 @@ using Mimi
                             for j in t_range
                                 v.OptimalRetreatLevel[TimestepIndex(j), m] = p.adaptoptions[retreatInd]
                             end
-                            minLevels = [p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0]
+                            minLevels = Float64[p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0.0]
 
-                            choices = [v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, retreatInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
+                            choices = Union{Missing,Float64}[v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, retreatInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
                             leastcost = -1 * findmin(choices)[2]
                             leastlevel = minLevels[findmin(choices)[2]]
                         end
