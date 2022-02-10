@@ -313,8 +313,7 @@ Look up index corresponding to name with arguments `vec`, a vector of region or
 segment names (strings) and `val`, a string corresponding to value in 'vec'
 """
 function findind(val, vec)
-    h(u) = u == val
-    name_ind = findall(h, vec)[1]
+    name_ind = findfirst(isequal(val), vec)
     return name_ind
 end
 
