@@ -59,6 +59,12 @@ function initciam(xsc, params, initparams, m::Model; fixed::Bool = true, t::Int 
         end
     end
 
+    # set the VSL parameter to missings as a dummy and set vsl to be calculated
+    # endogenously
+    dummy_vsl = Array{Union{Missing, Float64}}(missing, length(dim_keys(m, :time)), length(dim_keys(m, :ciam_country)))
+    update_param!(m, :slrcost, :vsl_ciam_country, dummy_vsl)
+    update_param!(m, :slrcost, :vsl_exogenous, false)
+
     # Set the rest of the parameters - to use update_leftover_params! we need To
     # specific the component as well as the parameter name
     params_dict = Dict()
@@ -92,7 +98,7 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true
 
     set_dimension!(m, :time, t)
     set_dimension!(m, :adaptPers, length(params["at"]))
-    set_dimension!(m, :regions, xsc[2])
+    set_dimension!(m, :ciam_country, xsc[2])
     set_dimension!(m, :segments, xsc[3])
 
     if GAMSmatch

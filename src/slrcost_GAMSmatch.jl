@@ -101,13 +101,17 @@ using Mimi
     rsigA = Parameter(index = [segments])                       # rsigA in GAMS code
     rsigB = Parameter(index = [segments])                       # rsigB in GAMS code
 
-
     # ---Storm damage parameters---
     floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01)
 
-    # We make VSL an exogenously calculated variable for each region,
-    # and `vsl` is then simply pulled from `vsl_ciam_country` 
-    vsl_ciam_country = Parameter(index = [time, ciam_country], unit = "million US\$2010/yr") # Value of statistical life (million 2010$)
+    # if TRUE, then VSL is exogenously calculated for each country and set in vsl_ciam_country, then each segment is set by looking up its country
+    # if FALSE, then VSL is endogenously calculated using vslel and vslmult as well as other endogenous socioeconomics for each segment
+    vsl_exogenous = Parameter{Bool}(default=true) 
+
+    vsl_ciam_country = Parameter(index = [time, ciam_country], unit = "million US\$2010/yr") # Value of statistical life (million 2010$) (only used for exogenous calculation of vsl)
+    vslel = Parameter(default = 0.5)    # Elasticity of vsl (0.5) (only used for endogenous calculation of vsl)
+    vslmult = Parameter(default = 216)  # multiplier on USA GDP (216)(only used for endogenous calculation of vsl)
+
     vsl = Variable(index = [time, segments], unit = "million US\$2010/yr")     # Value of statistical life (million 2010$)
 
     # ---Wetland Loss Parameters---
@@ -266,10 +270,7 @@ using Mimi
                 end
                 v.areaparams[m, :] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
 
-                # Calculate vsl - pull VSL from vsl_ciam_country parameter for the proper region
-                v.vsl[t, m] = p.vsl_ciam_country[ti1, rgn_ind]
-
-                # Greenland segments are treated differently (RFF Model does not include Greenland)
+                # Greenland segments are treated differently
                 if isgreenland(m, p.xsc)::Int == 1
                     v.ypc_seg[t, m] = 22642 * 1.01^1   # FLAG: assumes t is an index (1-20)
                     v.coastland[t, m] = (v.land_appr[ti1, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1 + v.popdens_seg[t, m]) / log(25))
@@ -278,6 +279,17 @@ using Mimi
                     v.ypc_seg[t, m] = p.ypcc[t, rgn_ind] * max(0.9, (v.popdens_seg[ti1, m] / 250.0)^0.05)
                     v.coastland[t, m] = max(0.5, log(1 + v.popdens_seg[t, m]) / log(25)) * (v.land_appr[t, rgn_ind] * v.landdata[rgn_ind])  # Interior * scaling factor
                     v.landvalue[t, m] = min(v.coastland[t, m], (v.land_appr[t, rgn_ind] * v.landdata[rgn_ind]))
+                end
+
+                # Calculate VSL
+                if p.vsl_exogenous
+                    v.vsl[t, m] = p.vsl_ciam_country[ti1, rgn_ind] # pull VSL from vsl_ciam_country parameter for the proper region
+                else # endogenous calculation of VSL
+                    if isgreenland(m, p.xsc)::Int == 1 # Greenland segments are treated differently
+                        v.vsl[t, m] = 1e-6 * p.vslmult * p.ypcc[ti1, p.rgn_ind_usa] * (v.ypc_seg[t, m] / p.ypcc[ti1, p.rgn_ind_usa])^p.vslel
+                    else
+                        v.vsl[t, m] = 1e-6 * p.vslmult * p.ypcc[ti1, p.rgn_ind_usa] * (p.ypcc[t, rgn_ind] / p.ypcc[ti1, p.rgn_ind_usa])^p.vslel
+                    end
                 end
 
                 v.capital[t, m] = p.kgdp * v.ypc_seg[t, m] * v.popdens_seg[t, m] * 1e-6
@@ -296,9 +308,6 @@ using Mimi
                         # v.popdens_seg[ti,m]=p.popdens_seg_merkens[ti,m]
                     end
 
-                    # Calculate vsl - pull VSL from vsl_ciam_country parameter for the proper region
-                    v.vsl[ti, m] = p.vsl_ciam_country[ti, rgn_ind]
-
                     # Special treatment for Greenland segments
                     if isgreenland(m, p.xsc)::Int == 1
                         v.ypc_seg[ti, m] = 22642 * 1.01^i   # FLAG: assumes i is an index (1-20)
@@ -312,10 +321,20 @@ using Mimi
 
                     end
 
+                    # Calculate VSL
+                    if p.vsl_exogenous
+                        v.vsl[ti, m] = p.vsl_ciam_country[ti, rgn_ind]
+                    else # endogenously calculate VSL
+                        if isgreenland(m, p.xsc)::Int == 1  # Special treatment for Greenland segments
+                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (v.ypc_seg[ti, m] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel   
+                        else
+                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (p.ypcc[ti, rgn_ind] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel   
+                        end
+                    end
+
                     v.capital[ti, m] = p.kgdp * v.ypc_seg[ti, m] * v.popdens_seg[ti, m] * 1e-6
                     v.coastArea[ti, m] = calcCoastArea(v.areaparams[m, :], p.lslr[ti, m])
                     v.wetlandloss[tim1, m] = min(1, (localrate(p.lslr[tim1, m], p.lslr[ti, m], p.tstep) / p.wmaxrate)^2)
-
 
                 end
                 v.wetlandloss[TimestepIndex(p.ntsteps), m] = min(1, (localrate(p.lslr[TimestepIndex(p.ntsteps - 1), m], p.lslr[TimestepIndex(p.ntsteps), m], p.tstep) / p.wmaxrate)^2)
@@ -464,7 +483,7 @@ using Mimi
                                                                         (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
 
                         v.RelocateRetreat[t, m, i] = (p.tstep / atstep) *
-                                                     max(0, calcCoastArea(v.areaparams[m, :], v.R[t, m, i]) - calcCoastArea(v.areaparams[m, :], Rprev)) * (p.movefactor * v.ypc_seg[t, m] * 1e-6 * v.popdens_seg[t, m] + p.capmovefactor * p.mobcapfrac * v.capital[t, m] + p.democost * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
+                                                        max(0, calcCoastArea(v.areaparams[m, :], v.R[t, m, i]) - calcCoastArea(v.areaparams[m, :], Rprev)) * (p.movefactor * v.ypc_seg[t, m] * 1e-6 * v.popdens_seg[t, m] + p.capmovefactor * p.mobcapfrac * v.capital[t, m] + p.democost * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
 
                         v.DryLandLossRetreat[t, m, i] = max(0, v.coastAreaRetreat[t, m, i]) # Already takes into account prior adaptation
 
@@ -502,19 +521,18 @@ using Mimi
                             end
 
                             v.Construct[t, m, i-1] = (p.tstep / atstep) *
-                                                     (p.length[m] * pc * (p.pcfixed + (1 - p.pcfixed) * (v.H[t, m, i-1]^2 - Hprev^2) +
-                                                                          p.mc * atstep * v.H[t, m, i-1]) + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
+                                                        (p.length[m] * pc * (p.pcfixed + (1 - p.pcfixed) * (v.H[t, m, i-1]^2 - Hprev^2) +
+                                                                            p.mc * atstep * v.H[t, m, i-1]) + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
 
                             ##
                             ## comment out this if block to match the Diaz (2016) GAMS results
                             ## This should NOT be commented out moving forward
                             ##
-                            
-                            # if Hprev >= v.H[t, m, i-1]
-                            #     v.H[t, m, i-1] = Hprev
-                            #     # Just maintenance cost + land value
-                            #     v.Construct[t, m, i-1] = (p.tstep / atstep) * (p.length[m] * pc * p.mc * atstep * v.H[t, m, i-1] + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
-                            # end
+                            if Hprev >= v.H[t, m, i-1]
+                                v.H[t, m, i-1] = Hprev
+                                # Just maintenance cost + land value
+                                v.Construct[t, m, i-1] = (p.tstep / atstep) * (p.length[m] * pc * p.mc * atstep * v.H[t, m, i-1] + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
+                            end
 
                         end
 
