@@ -11,7 +11,7 @@ using Mimi
 # end
 
 @defcomp slrcost_GAMSmatch begin
-    # Define all variables, parameters and indices used by this module
+   # Define all variables, parameters and indices used by this module
 
     # --- Indices ---
     ciam_country = Index()
@@ -270,7 +270,7 @@ using Mimi
                 end
                 v.areaparams[m, :] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
 
-                # Greenland segments are treated differently
+                # Greenland segments are treated differently (RFF Model does not include Greenland)
                 if isgreenland(m, p.xsc)::Int == 1
                     v.ypc_seg[t, m] = 22642 * 1.01^1   # FLAG: assumes t is an index (1-20)
                     v.coastland[t, m] = (v.land_appr[ti1, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1 + v.popdens_seg[t, m]) / log(25))
@@ -293,7 +293,7 @@ using Mimi
                 end
 
                 v.capital[t, m] = p.kgdp * v.ypc_seg[t, m] * v.popdens_seg[t, m] * 1e-6
-                v.coastArea[t, m] = calcCoastArea(v.areaparams[m, :], p.lslr[t, m])
+                v.coastArea[t, m] = calcCoastArea(view(v.areaparams, m, :), p.lslr[t, m])
 
                 for i = 2:Int(p.ntsteps)
                     ti = TimestepIndex(i)
@@ -333,8 +333,9 @@ using Mimi
                     end
 
                     v.capital[ti, m] = p.kgdp * v.ypc_seg[ti, m] * v.popdens_seg[ti, m] * 1e-6
-                    v.coastArea[ti, m] = calcCoastArea(v.areaparams[m, :], p.lslr[ti, m])
+                    v.coastArea[ti, m] = calcCoastArea(view(v.areaparams, m, :), p.lslr[ti, m])
                     v.wetlandloss[tim1, m] = min(1, (localrate(p.lslr[tim1, m], p.lslr[ti, m], p.tstep) / p.wmaxrate)^2)
+
 
                 end
                 v.wetlandloss[TimestepIndex(p.ntsteps), m] = min(1, (localrate(p.lslr[TimestepIndex(p.ntsteps - 1), m], p.lslr[TimestepIndex(p.ntsteps), m], p.tstep) / p.wmaxrate)^2)
@@ -393,9 +394,9 @@ using Mimi
                             if i == gettime(t)
                                 # For start of new adaptation period, take into account (lack of) retreat done in previous periods (i.e. if they protected instead)
                                 # This results in double-costs for this period b/c no adaptation is set up to compute relative to t+1 lslr
-                                v.coastAreaNoAdapt[ti, m] = calcCoastArea(v.areaparams[m, :], v.OptimalR[TimestepIndex(gettime(t) - 1), m])
+                                v.coastAreaNoAdapt[ti, m] = calcCoastArea(view(v.areaparams, m, :), v.OptimalR[TimestepIndex(gettime(t) - 1), m])
                             else
-                                v.coastAreaNoAdapt[ti, m] = calcCoastArea(v.areaparams[m, :], R_NoAdapt)
+                                v.coastAreaNoAdapt[ti, m] = calcCoastArea(view(v.areaparams, m, :), R_NoAdapt)
                             end
 
                         else
@@ -446,7 +447,7 @@ using Mimi
                         v.NPVNoAdapt[t, m] = sum([v.discountfactor[TimestepIndex(j)] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range])
                     else
                         # Compute NPV Relative to planner's perspective (discounting relative to time t)
-                        v.NPVNoAdapt[t, m] = sum([v.discountfactor[TimestepIndex(findind(j, t_range))] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range])
+                        v.NPVNoAdapt[t, m] = sum(v.discountfactor[TimestepIndex(findind(j, t_range))] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range)
                         #v.NPVNoAdapt[gettime(t)-1,m] + sum( [ v.discountfactor[j] * v.NoAdaptCost[j,m] for j in t_range] )
                     end
 
@@ -462,28 +463,28 @@ using Mimi
 
                     for i = 1:length(p.adaptoptions)
                         if is_first(t)
-                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[ti1, m], p.surgeexposure[m, :], p.adaptoptions)
-                            v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m, :], p.adaptoptions)
+                            Rprev = calcHorR(-2, p.adaptoptions[i], p.lslr[ti1, m], view(p.surgeexposure, m, :), p.adaptoptions)
+                            v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, view(p.surgeexposure, m, :), p.adaptoptions)
                         else
                             if p.fixed == false
                                 Rprev = v.OptimalR[TimestepIndex(gettime(t) - 1), m]
                                 # Assumption: prior protection does not count because it is no longer maintained
-                                v.R[t, m, i] = max(v.OptimalR[TimestepIndex(gettime(t) - 1), m], calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m, :], p.adaptoptions))
+                                v.R[t, m, i] = max(v.OptimalR[TimestepIndex(gettime(t) - 1), m], calcHorR(-2, p.adaptoptions[i], lslrPlan_at, view(p.surgeexposure, m, :), p.adaptoptions))
                             else
                                 Rprev = v.R[TimestepIndex(convert(Int, p.at[at_index_prev])), m, i]
-                                v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m, :], p.adaptoptions)
+                                v.R[t, m, i] = calcHorR(-2, p.adaptoptions[i], lslrPlan_at, view(p.surgeexposure, m, :), p.adaptoptions)
                             end
 
                         end
                         v.SIGMA[t, m, i+1] = (p.rsig0[m] / (1 + p.rsigA[m] * exp(p.rsigB[m] * max(0, v.R[t, m, i] - p.lslr[t, m]))))
-                        v.coastAreaRetreat[t, m, i] = calcCoastArea(v.areaparams[m, :], v.R[t, m, i])
+                        v.coastAreaRetreat[t, m, i] = calcCoastArea(view(v.areaparams, m, :), v.R[t, m, i])
 
-                        v.FloodRetreat[t, m, i] = (p.tstep / atstep) * (atstep * v.landvalue[t, m] * 0.04 * calcCoastArea(v.areaparams[m, :], v.R[t, m, i]) +
-                                                                        max(0, calcCoastArea(v.areaparams[m, :], v.R[t, m, i]) - calcCoastArea(v.areaparams[m, :], Rprev)) *
+                        v.FloodRetreat[t, m, i] = (p.tstep / atstep) * (atstep * v.landvalue[t, m] * 0.04 * calcCoastArea(view(v.areaparams, m, :), v.R[t, m, i]) +
+                                                                        max(0, calcCoastArea(view(v.areaparams, m, :), v.R[t, m, i]) - calcCoastArea(view(v.areaparams, m, :), Rprev)) *
                                                                         (1 - p.depr) * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
 
                         v.RelocateRetreat[t, m, i] = (p.tstep / atstep) *
-                                                        max(0, calcCoastArea(v.areaparams[m, :], v.R[t, m, i]) - calcCoastArea(v.areaparams[m, :], Rprev)) * (p.movefactor * v.ypc_seg[t, m] * 1e-6 * v.popdens_seg[t, m] + p.capmovefactor * p.mobcapfrac * v.capital[t, m] + p.democost * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
+                                                     max(0, calcCoastArea(view(v.areaparams, m, :), v.R[t, m, i]) - calcCoastArea(view(v.areaparams, m, :), Rprev)) * (p.movefactor * v.ypc_seg[t, m] * 1e-6 * v.popdens_seg[t, m] + p.capmovefactor * p.mobcapfrac * v.capital[t, m] + p.democost * (1 - p.mobcapfrac) * v.capital[t, m]) * 1e-4
 
                         v.DryLandLossRetreat[t, m, i] = max(0, v.coastAreaRetreat[t, m, i]) # Already takes into account prior adaptation
 
@@ -492,8 +493,8 @@ using Mimi
                             if is_first(t)
 
                                 # Hprev = max(p.refA_H[m],calcHorR(-1, p.adaptoptions[i], p.lslr[1,m], p.surgeexposure[m,:], p.adaptoptions))
-                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[ti1, m], p.surgeexposure[m, :], p.adaptoptions)
-                                v.H[t, m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m, :], p.adaptoptions)
+                                Hprev = calcHorR(-1, p.adaptoptions[i], p.lslr[ti1, m], view(p.surgeexposure, m, :), p.adaptoptions)
+                                v.H[t, m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, view(p.surgeexposure, m, :), p.adaptoptions)
                                 v.SIGMA[t, m, (i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0, p.lslr[t, m])) / (1.0 + p.psigA[m] * exp(p.psigB[m] * max(0, (v.H[t, m, i-1] - p.lslr[t, m]))))
                                 v.FloodProtect[t, m] = 0
                             else
@@ -501,12 +502,12 @@ using Mimi
                                     Hprev = v.OptimalH[TimestepIndex(gettime(t) - 1), m]
                                     ### Assumption: any prior retreat is credited toward required height, since not starting from original position on coast
                                     lslrPlan_Prot = lslrPlan_at - v.OptimalR[TimestepIndex(gettime(t) - 1), m]
-                                    v.H[t, m, i-1] = max(v.OptimalH[TimestepIndex(gettime(t) - 1), m], calcHorR(-1, p.adaptoptions[i], lslrPlan_Prot, p.surgeexposure[m, :], p.adaptoptions))
+                                    v.H[t, m, i-1] = max(v.OptimalH[TimestepIndex(gettime(t) - 1), m], calcHorR(-1, p.adaptoptions[i], lslrPlan_Prot, view(p.surgeexposure, m, :), p.adaptoptions))
                                     v.SIGMA[t, m, (i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0, p.lslr[t, m])) / (1.0 + p.psigA[m] * exp(p.psigB[m] * max(0, (v.H[t, m, i-1] + v.OptimalR[TimestepIndex(gettime(t) - 1), m] - p.lslr[t, m]))))
                                     v.FloodProtect[t, m] = p.tstep * v.landvalue[t, m] * 0.04 * v.DryLandLossOptimal[TimestepIndex(gettime(t) - 1), m]
                                 else
                                     Hprev = v.H[TimestepIndex(convert(Int, p.at[at_index_prev])), m, i-1]
-                                    v.H[t, m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, p.surgeexposure[m, :], p.adaptoptions)
+                                    v.H[t, m, i-1] = calcHorR(-1, p.adaptoptions[i], lslrPlan_at, view(p.surgeexposure, m, :), p.adaptoptions)
                                     v.SIGMA[t, m, (i-1)+7] = (p.psig0[m] + p.psig0coef[m] * max(0, p.lslr[t, m])) / (1.0 + p.psigA[m] * exp(p.psigB[m] * max(0, (v.H[t, m, i-1] - p.lslr[t, m]))))
                                     v.FloodProtect[t, m] = 0
                                 end
@@ -521,8 +522,8 @@ using Mimi
                             end
 
                             v.Construct[t, m, i-1] = (p.tstep / atstep) *
-                                                        (p.length[m] * pc * (p.pcfixed + (1 - p.pcfixed) * (v.H[t, m, i-1]^2 - Hprev^2) +
-                                                                            p.mc * atstep * v.H[t, m, i-1]) + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
+                                                     (p.length[m] * pc * (p.pcfixed + (1 - p.pcfixed) * (v.H[t, m, i-1]^2 - Hprev^2) +
+                                                                          p.mc * atstep * v.H[t, m, i-1]) + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
 
                             ##
                             ## comment out this if block to match the Diaz (2016) GAMS results
@@ -599,10 +600,10 @@ using Mimi
                         end
 
                         if is_first(t)
-                            v.NPVRetreat[t, m, i] = sum([v.discountfactor[TimestepIndex(j)] * v.RetreatCost[TimestepIndex(j), m, i] * 10 for j in t_range])
+                            v.NPVRetreat[t, m, i] = sum(v.discountfactor[TimestepIndex(j)] * v.RetreatCost[TimestepIndex(j), m, i] * 10 for j in t_range)
                         else
                             # Compute NPV Relative to planner's perspective (discounting relative to time t)
-                            v.NPVRetreat[t, m, i] = sum([v.discountfactor[TimestepIndex(findind(j, t_range))] * v.RetreatCost[TimestepIndex(j), m, i] * 10 for j in t_range])
+                            v.NPVRetreat[t, m, i] = sum(v.discountfactor[TimestepIndex(findind(j, t_range))] * v.RetreatCost[TimestepIndex(j), m, i] * 10 for j in t_range)
                             #v.NPVRetreat[gettime(t)-1,m,i] + sum([v.discountfactor[j] * v.RetreatCost[j,m,i] for j in t_range])
                         end
 
@@ -616,7 +617,7 @@ using Mimi
                                 v.NPVProtect[t, m, i-1] = sum([v.discountfactor[TimestepIndex(j)] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range]) # Protect
                             else
                                 # Compute NPV Relative to planner's perspective (discounting relative to time t)
-                                v.NPVProtect[t, m, i-1] = sum([v.discountfactor[TimestepIndex(findind(j, t_range))] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range])
+                                v.NPVProtect[t, m, i-1] = sum(v.discountfactor[TimestepIndex(findind(j, t_range))] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range)
                                 #v.NPVProtect[gettime(t)-1,m,i-1] + sum( [ v.discountfactor[j] * v.ProtectCost[j,m,i-1] for j in t_range] ) # Protect
                             end
 
@@ -641,8 +642,8 @@ using Mimi
                         # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level.
                         if p.allowMaintain == true
 
-                            protectInd = findmin(v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, :])[2]
-                            retreatInd = findmin(v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, :])[2]
+                            protectInd = findmin(view(v.NPVProtect, TimestepIndex(Int(p.at[at_index])), m, :))[2]
+                            retreatInd = findmin(view(v.NPVRetreat, TimestepIndex(Int(p.at[at_index])), m, :))[2]
                         else
                             protDims = size(v.NPVProtect)[3]
                             retDims = size(v.NPVRetreat)[3]
