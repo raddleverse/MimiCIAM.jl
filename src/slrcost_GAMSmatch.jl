@@ -528,11 +528,12 @@ using Mimi
                             ## comment out this if block to match the Diaz (2016) GAMS results
                             ## This should NOT be commented out moving forward
                             ##
-                            if Hprev >= v.H[t, m, i-1]
-                                v.H[t, m, i-1] = Hprev
-                                # Just maintenance cost + land value
-                                v.Construct[t, m, i-1] = (p.tstep / atstep) * (p.length[m] * pc * p.mc * atstep * v.H[t, m, i-1] + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
-                            end
+
+                            # if Hprev >= v.H[t, m, i-1]
+                            #     v.H[t, m, i-1] = Hprev
+                            #     # Just maintenance cost + land value
+                            #     v.Construct[t, m, i-1] = (p.tstep / atstep) * (p.length[m] * pc * p.mc * atstep * v.H[t, m, i-1] + p.length[m] * 1.7 * v.H[t, m, i-1] * v.landvalue[t, m] * 0.04 / 2 * atstep) * 1e-4
+                            # end
 
                         end
 
