@@ -78,7 +78,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
     if popinput != 0
 
         error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
-       
+
         popdens_seg_jones = CSV.read(joinpath(data_dir,string("popdens_seg_jones_ssp",ssp_simplified,".csv")), DataFrame)
         popdens_seg_merkens=CSV.read(joinpath(data_dir,string("popdens_seg_merkens_ssp",ssp_simplified,".csv")), DataFrame)
 
@@ -96,7 +96,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 
     if ssp == false # Do nothing, base ssp data already loaded
         return params
-        
+
     else
         pop = CSV.read(joinpath(data_dir,string("pop_",ssp,".csv")), DataFrame)
         ypc = CSV.read(joinpath(data_dir, string("ypcc_",ssp,".csv")), DataFrame)
@@ -430,7 +430,7 @@ function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),
 
     # Assign 2D variables to dataframe
     # 2 cases: 1. adapt pers is first; 2. adapt pers is second
-    common_order = [:time, :regions, :segments, :level]
+    common_order = [:time, :ciam_country, :segments, :level]
 
     for i in 1:length(vargroup1)
         temp = getdataframe(model, :slrcost, vargroup1[i])
@@ -442,13 +442,13 @@ function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),
             end
         end
 
-        if :regions in missing_names && !(:segments in missing_names)
-            temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
+        if :ciam_country in missing_names && !(:segments in missing_names)
+            temp = temp |> @map(merge(_,{ciam_country=segRgnDict[_.segments]})) |> DataFrame
         end
 
         temp[!,:variable] = fill(String(vargroup1[i]), nrow(temp))
         rename!(temp,vargroup1[i] => :value)
-        temp = temp[!, [:time, :regions, :segments, :level, :variable, :value]]
+        temp = temp[!, [:time, :ciam_country, :segments, :level, :variable, :value]]
 
         if i == 1
             global df = temp
@@ -489,8 +489,8 @@ function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),
             temp[!,:segments] = [String(i) for i in temp[!,:segments]]
             temp[!,:variable]= fill(String(vargroup2[j]),nrow(temp))
 
-            temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
-            temp = temp[!,[:time,:regions,:segments,:level,:variable,:value]]
+            temp = temp |> @map(merge(_,{ciam_country=segRgnDict[_.segments]})) |> DataFrame
+            temp = temp[!,[:time,:ciam_country,:segments,:level,:variable,:value]]
 
             if j == 1 && k == 1
                 global df2 = temp
@@ -505,7 +505,7 @@ function write_ciam(model; outputdir::String = joinpath(@__DIR__,"..","output"),
     outfile = tag ? "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv" : "$(runname)_$(sumsegs)_$(rcp_str).csv"
 
     if sumsegs=="rgn"
-        rgndf = outdf |> @groupby({_.time,_.regions, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
+        rgndf = outdf |> @groupby({_.time,_.ciam_country, _.level, _.variable}) |> @map(merge(key(_),{value = sum(_.value)})) |> DataFrame
         CSV.write(joinpath(outputdir,outfile),rgndf)
     elseif sumsegs=="seg"
         CSV.write(joinpath(outputdir,outfile),outdf)
@@ -538,7 +538,7 @@ function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","
 
     # 1. Create aggregate adaptation decision DF
     temp1 = getdataframe(model, :slrcost => :OptimalCost)
-    temp1 = temp1 |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
+    temp1 = temp1 |> @map(merge(_,{ciam_country=segRgnDict[_.segments]})) |> DataFrame
 
     temp2 = getdataframe(model, :slrcost => :OptimalLevel)
     temp3 = getdataframe(model, :slrcost => :OptimalOption)
@@ -553,7 +553,7 @@ function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","
     lookup = Dict{Any,Any}(-2.0=> "RetreatCost", -1.0=> "ProtectCost",-3.0=>"NoAdaptCost")
     out = out |> @map(merge(_,{variable=lookup[_.OptimalOption]})) |> DataFrame
     rename!(out, Dict(:OptimalLevel => :level))
-    out = out[!,[:time, :regions, :segments, :variable, :level, :OptimalCost]]
+    out = out[!,[:time, :ciam_country, :segments, :variable, :level, :OptimalCost]]
 
     # Write to file
     outfile = "$(runname)_seg_$(rcp_str)_optimal.csv"
@@ -566,7 +566,7 @@ function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","
     for i in 1:length(vars)
 
         temp = getdataframe(model, :slrcost => vars[i])
-        temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments]})) |> DataFrame
+        temp = temp |> @map(merge(_,{ciam_country=segRgnDict[_.segments]})) |> DataFrame
 
         temp[!,:variable]= fill(String(vars[i]),nrow(temp))
 
@@ -582,7 +582,7 @@ function write_optimal_costs(model; outputdir::String = joinpath(@__DIR__,"..","
         out = out |> @map(merge(_,{AdaptCategory=lookup[_.OptimalOption]})) |> DataFrame
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out,vars[i]=>:value)
-        out = out[!,[:time,:regions,:segments,:AdaptCategory,:variable,:level,:value]]
+        out = out[!,[:time,:ciam_country,:segments,:AdaptCategory,:variable,:level,:value]]
 
         if i==1
             global df = out
@@ -696,7 +696,7 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
     for i in 1:length(vars)
 
         temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
-        temp = temp |> @map(merge(_,{regions=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
+        temp = temp |> @map(merge(_,{ciam_country=segRgnDict[_.segments][1],segID=segRgnDict[_.segments][2]})) |> DataFrame
         #temp[!,:costtype]= String(vars[i])
 
         temp2 = MimiCIAM.getdataframe(model, :slrcost => :OptimalLevel)
@@ -707,8 +707,8 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
         # Join dataframes and reorganize
         out = innerjoin(temp,temp2, on=[:time,:segments])
         out = innerjoin(out,temp3, on=[:time,:segments])
-        out = innerjoin(out,temp4, on=[:time,:regions])
-        out = innerjoin(out,temp5, on=[:time,:regions])
+        out = innerjoin(out,temp4, on=[:time,:ciam_country])
+        out = innerjoin(out,temp5, on=[:time,:ciam_country])
 
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0=> "Retreat", -1.0=> "Protection",-3.0=>"No Adaptation")
@@ -717,14 +717,14 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
         rename!(out,vars[i]=>:cost)
 
         out[!,:ens] = fill(ensnum, size(out)[1])
-        col_order=[:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:ypcc,:pop]
+        col_order=[:ens,:time,:ciam_country,:segments,:segID,:category,:level,:cost,:ypcc,:pop]
         out = out[!,col_order]
 
         # Aggregate to geographic level
         subset = filter(row -> row[:segID] in segIDs,out)
 
         if sumsegs=="rgn"
-            rgndf = out |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+            rgndf = out |> @groupby({_.ens,_.time,_.ciam_country, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
             rgndf[!,:segID] = fill(0., size(rgndf)[1])
             rgndf[:segments] = fill("regional", size(rgndf)[1])
             rgndf = rgndf[!,col_order]
@@ -739,7 +739,7 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
             globdf = out |> @groupby({_.ens,_.time, _.level, _.category}) |>
                 @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
 
-            globsoc = innerjoin(temp4,temp5,on=[:time,:regions])
+            globsoc = innerjoin(temp4,temp5,on=[:time,:ciam_country])
             globsoc[!,:gdp] = globsoc[!,:ypcc].*globsoc[!,:pop]./1e3
             globsoc[!,:ens] = fill(ensnum, size(globsoc)[1])
             globsoc = globsoc |> @groupby({_.ens,_.time}) |>
@@ -748,17 +748,17 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
 
             globdf = innerjoin(globdf,globsoc,on=[:ens,:time])
             globdf[!,:segID] = fill(0., size(globdf)[1])
-            globdf[!,:regions] = fill("global", size(globdf)[1])
+            globdf[!,:ciam_country] = fill("global", size(globdf)[1])
             globdf[!,:segments] = fill("global", size(globdf)[1])
-            globdf=globdf[!, [:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:ypcc,:pop,:gdp]]
+            globdf=globdf[!, [:ens,:time,:ciam_country,:segments,:segID,:category,:level,:cost,:ypcc,:pop,:gdp]]
             subset[!,:gdp]=subset[!,:ypcc].*subset[!,:pop]./1e3
             globdf=[globdf;subset]
 
             globdf[!,:pct_gdp] = globdf[!,:cost] ./ globdf[!,:gdp]
 
             if rgns!=false
-                rgndf = filter(row -> row[:regions] in rgns,out)
-                rgndf = rgndf |> @groupby({_.ens,_.time,_.regions, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
+                rgndf = filter(row -> row[:ciam_country] in rgns,out)
+                rgndf = rgndf |> @groupby({_.ens,_.time,_.ciam_country, _.level, _.category,_.ypcc,_.pop}) |> @map(merge(key(_),{cost = sum(_.cost)})) |> DataFrame
                 rgndf[!,:segID] = fill(0., size(rgndf)[1])
                 rgndf[!,:segments] = fill("regional", size(rgndf)[1])
                 rgndf = rgndf[!,col_order]
@@ -784,7 +784,7 @@ function getTimeSeries(model, ensnum; segIDs = false, rgns = false, sumsegs = "g
     end
 
     # Remove ypcc and pop from final df
-    df = df[!,[:ens,:time,:regions,:segments,:segID,:category,:level,:cost,:gdp,:pct_gdp]]
+    df = df[!,[:ens,:time,:ciam_country,:segments,:segID,:category,:level,:cost,:gdp,:pct_gdp]]
     return df
 
 end
