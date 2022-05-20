@@ -64,7 +64,7 @@ the input parameter dictionary `params`.  The arguments are as fullows:
 - ssp - name of lslr file to use; location relative to data/input-data directory
 - ssp_simplified - list of segments you want
 - params - parameter dictionary you want to add lslr to
-- rgnnames - names of regions
+- rgnnames - names of regions (ciam_country)
 - segnames - names of segments
 - popinput - population density data set (0=original CIAM, 1=Jones and O'Neill 2016 (not supported), 2=Merkens et al 2016 (not supported))
 """
@@ -120,7 +120,7 @@ this modifies the input parameter dictionary `params`, and the funciton is
 specific to CIAM data so there are some hard-coded names and assumptions. The
 arguments are as fullows:
 
-- rgn_order - alphabetized lists of regions used
+- rgn_order - alphabetized lists of regions used (ciam_country)
 - seg_order - alphabetized lists of segments used
 """
 function parse_ciam_params!(params, rgn_order, seg_order)
