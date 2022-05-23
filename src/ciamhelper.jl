@@ -181,7 +181,6 @@ function parse_ciam_params!(params, rgn_order, seg_order, surgeoption)
             delete!(params, "globalparams")
 
         # surge exposure key case
-        #elseif k == "surgeexposure"
         elseif occursin("surgeexposure",k) # generalize for multiple possible surge data sets
 
             p = @from i in p begin
@@ -192,7 +191,6 @@ function parse_ciam_params!(params, rgn_order, seg_order, surgeoption)
 
             # Sort alphabetically
             sort!(p, :segments)
-            #params["surgeexposure"] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
             params[k] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
 
         # refa key case
