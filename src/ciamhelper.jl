@@ -247,9 +247,9 @@ function parse_ciam_params!(params, rgn_order, seg_order, surgeoption)
     # by default the original data file is read in as p["surgeexposure"], so in
     # that case no action needed. Otherwise...
     if surgeoption == 1
-        p["surgeexposure"] = p["surgeexposure_DC-GTSR"]
+        params["surgeexposure"] = params["surgeexposure_dc-gtsr"]
     elseif surgeoption == 2
-        p["surgeexposure"] = p["surgeexposure_GTSR"]
+        params["surgeexposure"] = params["surgeexposure_gtsr"]
     elseif surgeoption != 0
         error("The `surgeoption` argument must be 0, 1 or 2.")
     end
