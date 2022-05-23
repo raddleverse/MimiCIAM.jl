@@ -113,7 +113,7 @@ function prepssp!(ssp, ssp_simplified, params, rgnnames, segnames, popinput)
 end
 
 """
-    parse_ciam_params!(params, rgn_order, seg_order)
+    parse_ciam_params!(params, rgn_order, seg_order, surgeoption)
 
 Process CIAM data from csv to usable format and store outputs in params, note that
 this modifies the input parameter dictionary `params`, and the funciton is
@@ -122,8 +122,9 @@ arguments are as fullows:
 
 - rgn_order - alphabetized lists of regions used (ciam_country)
 - seg_order - alphabetized lists of segments used
+- surgeoption - which surge exposure data set to be used
 """
-function parse_ciam_params!(params, rgn_order, seg_order)
+function parse_ciam_params!(params, rgn_order, seg_order, surgeoption)
 
     # we need to grab the original keys so it doesn't try to recurse when we
     # make new entries into the dictionary
@@ -180,7 +181,8 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             delete!(params, "globalparams")
 
         # surge exposure key case
-        elseif k == "surgeexposure"
+        #elseif k == "surgeexposure"
+        elseif occursin("surgeexposure",k) # generalize for multiple possible surge data sets
 
             p = @from i in p begin
                 @where i.segments in seg_order
@@ -190,7 +192,8 @@ function parse_ciam_params!(params, rgn_order, seg_order)
 
             # Sort alphabetically
             sort!(p, :segments)
-            params["surgeexposure"] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
+            #params["surgeexposure"] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
+            params[k] = convert(Array{Float64,2}, Matrix(p[:,2:6]))
 
         # refa key case
         elseif k == "refa_h" || k == "refa_r"
@@ -239,6 +242,18 @@ function parse_ciam_params!(params, rgn_order, seg_order)
             params[k] = Array{Float64,1}(p[!,1])
         end
     end
+
+    # set p["surgeexposure"] to the one designated by the surgeoption argument
+    # by default the original data file is read in as p["surgeexposure"], so in
+    # that case no action needed. Otherwise...
+    if surgeoption == 1
+        p["surgeexposure"] = p["surgeexposure_DC-GTSR"]
+    elseif surgeoption == 2
+        p["surgeexposure"] = p["surgeexposure_GTSR"]
+    elseif surgeoption != 0
+        error("The `surgeoption` argument must be 0, 1 or 2.")
+    end
+
 end
 
 """
@@ -345,8 +360,9 @@ Wrapper for importing model data with the arguments:
 - ssp - SSP scenario + modeling group (specific long name)
 - ssp_simplified  - SSP scenario (1-5)
 - popinput - population density data set to be used (0=original CIAM, 1=Jones and O'Neill 2016 (not supported), 2=Merkens et al 2016 (not supported))
+- surgeoption - surge exposure data set to use (0=original CIAM/DINAS-COAST, 1=D-C corrected by GTSR/D-C bias, 2=GTSR nearest data point(s))
 """
-function import_model_data(lslfile,sub,ssp,ssp_simplified,popinput)
+function import_model_data(lslfile,sub,ssp,ssp_simplified,popinput,surgeoption)
 
     subset = (sub == "false") ? false : load_subset(sub)
 
@@ -357,7 +373,7 @@ function import_model_data(lslfile,sub,ssp,ssp_simplified,popinput)
     xsc = prepxsc(subset)
 
     # Process params using xsc and format lsl file
-    parse_ciam_params!(params, xsc[2], xsc[3])
+    parse_ciam_params!(params, xsc[2], xsc[3], surgeoption)
     preplsl!(lslfile, subset, params,xsc[3])
     prepssp!(ssp,ssp_simplified,params,xsc[2],xsc[3],popinput)
 
