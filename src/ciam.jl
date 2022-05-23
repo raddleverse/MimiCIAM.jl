@@ -86,10 +86,12 @@ the Hprev > H block commented out.  This should only be used for testing!
 """
 function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true,
                     t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = false,
-                    popinput::Int = 0, GAMSmatch::Bool = false)
+                    popinput::Int = 0, GAMSmatch::Bool = false, surgeoption::Int = 0)
 
     initparams  = init(; f = initfile)
-    params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1], initparams["ssp"][1], initparams["ssp_simplified"][1], popinput)
+    params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1],
+                                    initparams["ssp"][1], initparams["ssp_simplified"][1],
+                                    popinput, surgeoption)
 
     # clip the :at parameter based on t
     params["at"] = filter!(x -> x <= t, params["at"])
