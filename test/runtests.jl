@@ -52,7 +52,7 @@ write_MimiCIAM_comparison_files(jl_outputdir, subset = "random10.csv")
 
         # compare values
         diffs = abs.(expected[!, value_field] .- current[!, value_field])
-        @test maximum(diffs) <= 1e-9
+        @test maximum(diffs) <= 1e-8 # handles rounding errors from different Excel versions
     end
 end
 
