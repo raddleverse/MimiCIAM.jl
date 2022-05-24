@@ -1,4 +1,4 @@
-time,regions,segments,level,variable,value
+time,ciam_country,segments,level,variable,value
 1,PYF,FrenchPolynesia6421,,OptimalCost,1.2509406897818738e-5
 1,IND,India1815,,OptimalCost,0.0063340892354278484
 1,NOR,Norway9157,,OptimalCost,5.5866805319192645e-6

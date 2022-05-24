@@ -1,4 +1,4 @@
-time,regions,segments,AdaptCategory,variable,level,value
+time,ciam_country,segments,AdaptCategory,variable,level,value
 1,PYF,FrenchPolynesia6421,RetreatCost,OptimalStormCapital,1.0,0.0
 1,IND,India1815,ProtectCost,OptimalStormCapital,10.0,0.000482589814818763
 1,NOR,Norway9157,NoAdaptCost,OptimalStormCapital,0.0,0.0
