@@ -1,4 +1,4 @@
-time,ciam_country,segments,variable,level,OptimalCost
+time,regions,segments,variable,level,OptimalCost
 1,PYF,FrenchPolynesia6421,RetreatCost,1.0,1.3764258881671399e-5
 1,IND,India1815,ProtectCost,10.0,0.0038258341938335505
 1,NOR,Norway9157,NoAdaptCost,0.0,7.29807779076016e-6
