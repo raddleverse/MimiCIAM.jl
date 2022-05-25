@@ -260,7 +260,7 @@ using Mimi
                 end
                 v.areaparams[m, :] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
 
-                # Greenland segments are treated differently (RFF Model does not include Greenland)
+                # Greenland segments are treated differently
                 if isgreenland(m, p.xsc)::Int == 1
                     v.ypc_seg[t, m] = 22642 * 1.01^1   # FLAG: assumes t is an index (1-20)
                     v.coastland[t, m] = (v.land_appr[ti1, p.rgn_ind_canada] * v.landdata[p.rgn_ind_canada]) * max(0.5, log(1 + v.popdens_seg[t, m]) / log(25))

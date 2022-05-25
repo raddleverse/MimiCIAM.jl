@@ -1,3 +1,7 @@
+using DataFrames
+using CSVFiles
+using Query
+
 ## Script to reproduce data processing doen by Lisa Rennels on 05/23/2022
 
 ################################################################################
@@ -43,8 +47,6 @@
 
 # The weighted average of reference population density of the segments in this 
 # region, weighted by area 1 ie. area between 0 and 1 meter.
-
-using DataFrames, CSVFiles, Query
 
 xsc = load(joinpath(@__DIR__, "input/xsc.csv")) |> DataFrame
 data = load(joinpath(@__DIR__, "input/data.csv")) |> DataFrame
