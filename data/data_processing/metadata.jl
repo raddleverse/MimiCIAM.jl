@@ -49,8 +49,7 @@ using Query
 # This Excel spreadsheet was reconfigured to create input files pop.csv and ypcc.csv
 
 # NOTE that the MERGE model does not have data for PSE. For replication purposes
-# we substitute in the SSP2 data through 2100, and repeat after that to match
-# the process carried out with the MERGE data, sourced from models listed below 
+# we substitute in the SSP2 data, sourced from models listed below 
 # in section 4. This is only consequential for replication purposes.
 
 # These two data files are ONLY used in replication exercises of the CIAM 
