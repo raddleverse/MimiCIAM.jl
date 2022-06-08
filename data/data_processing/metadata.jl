@@ -38,12 +38,45 @@ using Query
 # gtapland(country)=gtapland(country)/0.962;
 
 ################################################################################
-## 3. SSP Data
+## 3. Population and GDP (pop.csv and ypcc.csv)
 
-# TODO
+# The initial CIAM model relied on demographic inputs from EPRI’s global IAM called 
+# MERGE (Model for Estimating the Regional and Global Effects of Greenhouse Gas 
+# Reductions). Some minor adjustments for use in CIAM (i.e., aligning time indices, 
+# extrapolating GDP growth after 2100 at a nominal rate, and converting to $2010)
+# were made and exported into a GDX and then csv file MERGEdata.xls
+
+# This Excel spreadsheet was reconfigured to create input files pop.csv and ypcc.csv
+
+# NOTE that the MERGE model does not have data for PSE. For replication purposes
+# we substitute in the SSP2 data through 2100, and repeat after that to match
+# the process carried out with the MERGE data, sourced from models listed below 
+# in section 4. This is only consequential for replication purposes.
+
+# These two data files are ONLY used in replication exercises of the CIAM 
+# (Diaz et al., 2016).
 
 ################################################################################
-## 4. Reference Population Density (refpopdens.csv)
+## 4. SSP Data (pop_IIASAGDP_SSPX_v9_130219 and ypcc_IIASAGDP_SSPX_v9_130219)
+
+# The SSP Data were downloaded from to the file SspDb_country_data_2013-06-12.csv, 
+# which was then filtered for two variables: Population and GDP|PPP. 
+
+# Starting with pop.csv and ypcc.csv, any country available in the IIASA GDP model
+# is replaced with data from the respective SSP/variable combination.
+
+# An exception is made for PSE's GDP and GDP per Capita. Since this is unavailable 
+# in MERGE, and GDP is not availabe in IIASA GDP, we use population from IIASA GDP
+# but Per Capita GDP from OECD Env-Growth, the only model for which GDP is availabe.
+# Note we calcualte Per Capita GDP from OECD Env-Growth's Population and GDP to be
+# internally consistent, although upon inspection the two sets of population values
+# match exactly except for a rounding difference.
+
+# Country data added in 06/2022 are summarized in additional_country_ssp_data_sources.csv 
+# and pulled directly from SspDb_country_data_2013-06-12.csv
+
+################################################################################
+## 5. Reference Population Density (refpopdens.csv)
 
 # The weighted average of reference population density of the segments in this 
 # region, weighted by area 1 ie. area between 0 and 1 meter.
