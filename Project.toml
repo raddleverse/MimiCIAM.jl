@@ -1,6 +1,6 @@
 name = "MimiCIAM"
 uuid = "b45ee815-fc06-4684-baf4-cf48c9e39180"
-version = "1.0.0"
+version = "1.0.1-DEV"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
