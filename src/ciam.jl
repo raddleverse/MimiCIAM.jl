@@ -110,6 +110,10 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true
         add_comp!(m, slrcost_GAMSmatch, :slrcost) # keep the name slrcost for simplicity
     else
         add_comp!(m, slrcost)
+        #add_comp!(m, lsl_mapping)
+        #connect_param!(m, :slrcost => :lslr, :lsl_mapping => :lslr)
+        # HERE is where LSL tight coupling can occur.
+        # should have a flag for whether or not connected to BRICK?
     end
 
     initciam(xsc, params, initparams, m; fixed = fixed, t = t, noRetreat = noRetreat, allowMaintain = allowMaintain, popinput = popinput)

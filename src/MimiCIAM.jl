@@ -16,6 +16,7 @@ include("slrcost.jl")
 include("slrcost_GAMSmatch.jl") # useful for testing against GAMS
 include("ciamhelper.jl")
 include("ciam.jl")
+include("lslr_mapping.jl")
 
 function __init__()
     register(DataDep(
