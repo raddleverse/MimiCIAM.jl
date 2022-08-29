@@ -110,10 +110,14 @@ function get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true
         add_comp!(m, slrcost_GAMSmatch, :slrcost) # keep the name slrcost for simplicity
     else
         add_comp!(m, slrcost)
-        #add_comp!(m, lsl_mapping)
-        #connect_param!(m, :slrcost => :lslr, :lsl_mapping => :lslr)
+        add_comp!(m, lsl_mapping, before=:slrcost)
+        connect_param!(m, :slrcost => :lslr, :lsl_mapping => :local_sea_levels)
         # HERE is where LSL tight coupling can occur.
         # should have a flag for whether or not connected to BRICK?
+        # would need to have a big long set of MimiBRICK update_param calls here
+        # a la the SNEASY_BRICK.jl coupled model creation. That'd work well enough.
+        # for now, just add a stub no-SLR component
+
     end
 
     initciam(xsc, params, initparams, m; fixed = fixed, t = t, noRetreat = noRetreat, allowMaintain = allowMaintain, popinput = popinput)

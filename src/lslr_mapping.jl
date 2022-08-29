@@ -45,18 +45,17 @@ using Mimi
     # Model Parameters
     # --------------------
 
-#    lslr = Parameter(index = [time, segments], unit = "m")                # Local sea level rise (m)
-    # slr_gsic
-    # slr_gis
-    # slr_ais
-    # slr_te
-    # slr_lws
+    # slr_gsic = Parameter(index = [time], unit = "m")        # glaciers and small ice caps sea-level rise (m)
+    # slr_gis = Parameter(index = [time], unit = "m")         # Greenland ice sheet sea-level rise (m)
+    # slr_ais = Parameter(index = [time], unit = "m")         # Antarctic ice sheet sea-level rise (m)
+    # slr_te = Parameter(index = [time], unit = "m")          # thermal expansion sea-level rise (m)
+    # slr_lws = Parameter(index = [time], unit = "m")         # land water storage sea-level rise (m)
 
     # --------------------
     # Model Variables
     # --------------------
 
-    lslr = Variable(index = [time, segments], unit = "m")                # Local sea level rise (m)
+    local_sea_levels = Variable(index = [time, segments], unit = "m")                # Local sea level rise (m)
 
     # --------------------
     # Model Equations
@@ -69,11 +68,11 @@ using Mimi
 
         if is_first(t)
             for m in d_segments
-                v.lslr[t,m] = 0.0
+                v.local_sea_levels[t,m] = 0.0
             end
         else
             for m in d_segments
-                v.lslr[t,m] = 0.0
+                v.local_sea_levels[t,m] = 0.0
             end
         end
 

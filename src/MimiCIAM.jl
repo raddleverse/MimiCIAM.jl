@@ -16,7 +16,8 @@ include("slrcost.jl")
 include("slrcost_GAMSmatch.jl") # useful for testing against GAMS
 include("ciamhelper.jl")
 include("ciam.jl")
-include("lslr_mapping.jl")
+include("lslr_mapping.jl") # currently setting all lslr = 0 for testing
+#include("stub_no_slr.jl")  # a stub all SLR=0 case for testing/hypotheticals
 
 function __init__()
     register(DataDep(
