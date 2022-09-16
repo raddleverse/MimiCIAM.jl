@@ -258,7 +258,21 @@ using Mimi
                     error("The `popinput` argument values of 1 and 2 are not supported at this time.  In the future they will indicate use of Jones and O'Neill 2016 or Merkens et al 2016 population data, respectively.")
                     # v.popdens_seg[t,m]=p.popdens_seg_merkens[ti1,m]
                 end
-                v.areaparams[m, :] = [p.area1[m] p.area2[m] p.area3[m] p.area4[m] p.area5[m] p.area6[m] p.area7[m] p.area8[m] p.area9[m] p.area10[m] p.area11[m] p.area12[m] p.area13[m] p.area14[m] p.area15[m]]
+                v.areaparams[m, 1] = p.area1[m]
+                v.areaparams[m, 2] = p.area2[m]
+                v.areaparams[m, 3] = p.area3[m]
+                v.areaparams[m, 4] = p.area4[m]
+                v.areaparams[m, 5] = p.area5[m]
+                v.areaparams[m, 6] = p.area6[m]
+                v.areaparams[m, 7] = p.area7[m]
+                v.areaparams[m, 8] = p.area8[m]
+                v.areaparams[m, 9] = p.area9[m]
+                v.areaparams[m, 10] = p.area10[m]
+                v.areaparams[m, 11] = p.area11[m]
+                v.areaparams[m, 12] = p.area12[m]
+                v.areaparams[m, 13] = p.area13[m]
+                v.areaparams[m, 14] = p.area14[m]
+                v.areaparams[m, 15] = p.area15[m]
 
                 # Greenland segments are treated differently
                 if isgreenland(m, p.xsc)::Int == 1
@@ -338,8 +352,7 @@ using Mimi
             adapt_range = collect(1:length(p.adaptoptions))
 
             # Determine length of adaptation period ("atstep")
-            g(c) = c == gettime(t)
-            at_index = findall(g, p.at)[1] # Find index corresponding to adaptation period in p.at
+            at_index = findall(isequal(gettime(t)), p.at)[1] # Find index corresponding to adaptation period in p.at
             at_index_next = at_index + 1    # Find index corresponding to next adaptation period
             at_index_prev = max(1, at_index - 1)
 
@@ -434,7 +447,7 @@ using Mimi
                     end
 
                     if is_first(t)
-                        v.NPVNoAdapt[t, m] = sum([v.discountfactor[TimestepIndex(j)] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range])
+                        v.NPVNoAdapt[t, m] = sum(v.discountfactor[TimestepIndex(j)] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range)
                     else
                         # Compute NPV Relative to planner's perspective (discounting relative to time t)
                         v.NPVNoAdapt[t, m] = sum(v.discountfactor[TimestepIndex(findind(j, t_range))] * v.NoAdaptCost[TimestepIndex(j), m] * 10 for j in t_range)
@@ -603,7 +616,7 @@ using Mimi
 
                         if p.adaptoptions[i] >= 10 || p.adaptoptions[i] == 0
                             if is_first(t)
-                                v.NPVProtect[t, m, i-1] = sum([v.discountfactor[TimestepIndex(j)] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range]) # Protect
+                                v.NPVProtect[t, m, i-1] = sum(v.discountfactor[TimestepIndex(j)] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range) # Protect
                             else
                                 # Compute NPV Relative to planner's perspective (discounting relative to time t)
                                 v.NPVProtect[t, m, i-1] = sum(v.discountfactor[TimestepIndex(findind(j, t_range))] * v.ProtectCost[TimestepIndex(j), m, i-1] * 10 for j in t_range)
@@ -631,13 +644,13 @@ using Mimi
                         # If p.fixed==F or if p.fixed==T and t==1, calculate optimal level.
                         if p.allowMaintain == true
 
-                            protectInd = findmin(view(v.NPVProtect, TimestepIndex(Int(p.at[at_index])), m, :))[2]
-                            retreatInd = findmin(view(v.NPVRetreat, TimestepIndex(Int(p.at[at_index])), m, :))[2]
+                            protectInd = argmin(view(v.NPVProtect, TimestepIndex(Int(p.at[at_index])), m, :))
+                            retreatInd = argmin(view(v.NPVRetreat, TimestepIndex(Int(p.at[at_index])), m, :))
                         else
                             protDims = size(v.NPVProtect)[3]
                             retDims = size(v.NPVRetreat)[3]
-                            protectInd = findmin(v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, 1:protDims-1])[2]
-                            retreatInd = findmin(v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, 1:retDims-1])[2]
+                            protectInd = argmin(v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, 1:protDims-1])
+                            retreatInd = argmin(v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, 1:retDims-1])
                         end
                         for j in t_range
                             v.OptimalProtectLevel[TimestepIndex(j), m] = p.adaptoptions[protectInd+1]
@@ -647,11 +660,11 @@ using Mimi
                             minLevels = Float64[p.adaptoptions[protectInd+1], 0.0]
                             choices = Union{Missing,Float64}[v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
 
-                            leastcost = -1 * findmin(choices)[2]
+                            leastcost = -1 * argmin(choices)
                             if leastcost == -2
                                 leastcost = -3 # Account for retreat being removed from choice set
                             end
-                            leastlevel = minLevels[findmin(choices)[2]]
+                            leastlevel = minLevels[argmin(choices)]
                         else
                             for j in t_range
                                 v.OptimalRetreatLevel[TimestepIndex(j), m] = p.adaptoptions[retreatInd]
@@ -659,8 +672,8 @@ using Mimi
                             minLevels = Float64[p.adaptoptions[protectInd+1], p.adaptoptions[retreatInd], 0.0]
 
                             choices = Union{Missing,Float64}[v.NPVProtect[TimestepIndex(Int(p.at[at_index])), m, protectInd], v.NPVRetreat[TimestepIndex(Int(p.at[at_index])), m, retreatInd], v.NPVNoAdapt[TimestepIndex(Int(p.at[at_index])), m]]
-                            leastcost = -1 * findmin(choices)[2]
-                            leastlevel = minLevels[findmin(choices)[2]]
+                            leastcost = -1 * argmin(choices)
+                            leastlevel = minLevels[argmin(choices)]
                         end
                         for j in t_range
                             tj = TimestepIndex(j)
@@ -673,7 +686,7 @@ using Mimi
                     if v.OptimalOption[t, m] == -1
 
                         # Protect Cost
-                        protInd = findall(i -> i == v.OptimalLevel[t, m], p.adaptoptions)[1] - 1
+                        protInd = findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1] - 1
                         for j in t_range
                             tj = TimestepIndex(j)
                             v.OptimalCost[tj, m] = v.ProtectCost[tj, m, protInd]
@@ -720,7 +733,7 @@ using Mimi
                     elseif v.OptimalOption[t, m] == -2
                         # Retreat Cost
 
-                        retInd = findall(i -> i == v.OptimalLevel[t, m], p.adaptoptions)[1]
+                        retInd = findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1]
                         for j in t_range
                             tj = TimestepIndex(j)
                             v.OptimalCost[tj, m] = v.RetreatCost[tj, m, retInd]
@@ -746,7 +759,7 @@ using Mimi
                                 v.OptimalR[ti, m] = max(0, v.R[ti, m, retInd])
                                 v.WetlandLossOptimal[ti, m] = v.wetlandloss[ti, m] * min(v.coastArea[ti, m], p.wetland[m])
                                 if i == 1
-                                    v.StormLossOptimal[ti, m] = v.StormLossRetreat[ti, m, findall(k -> k == v.OptimalLevel[t, m], p.adaptoptions)[1]]
+                                    v.StormLossOptimal[ti, m] = v.StormLossRetreat[ti, m, findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1]]
                                 else
                                     v.StormLossOptimal[ti, m] = v.StormLossOptimal[TimestepIndex(i - 1), m] + v.StormLossRetreat[ti, m, retInd]
                                 end
@@ -822,7 +835,7 @@ using Mimi
                     end
 
                     if last == 1
-                        v.NPVOptimal[m] = sum([v.discountfactor[TimestepIndex(j)] * v.OptimalCost[TimestepIndex(j), m] * 10 for j = 1:p.ntsteps])
+                        v.NPVOptimal[m] = sum(v.discountfactor[TimestepIndex(j)] * v.OptimalCost[TimestepIndex(j), m] * 10 for j = 1:p.ntsteps)
 
                     end
                 end
