@@ -352,7 +352,7 @@ using Mimi
             adapt_range = collect(1:length(p.adaptoptions))
 
             # Determine length of adaptation period ("atstep")
-            at_index = findall(isequal(gettime(t)), p.at)[1] # Find index corresponding to adaptation period in p.at
+            at_index = findfirst(isequal(gettime(t)), p.at) # Find index corresponding to adaptation period in p.at
             at_index_next = at_index + 1    # Find index corresponding to next adaptation period
             at_index_prev = max(1, at_index - 1)
 
@@ -686,7 +686,7 @@ using Mimi
                     if v.OptimalOption[t, m] == -1
 
                         # Protect Cost
-                        protInd = findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1] - 1
+                        protInd = findfirst(isequal(v.OptimalLevel[t, m]), p.adaptoptions) - 1
                         for j in t_range
                             tj = TimestepIndex(j)
                             v.OptimalCost[tj, m] = v.ProtectCost[tj, m, protInd]
@@ -733,7 +733,7 @@ using Mimi
                     elseif v.OptimalOption[t, m] == -2
                         # Retreat Cost
 
-                        retInd = findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1]
+                        retInd = findfirst(isequal(v.OptimalLevel[t, m]), p.adaptoptions)
                         for j in t_range
                             tj = TimestepIndex(j)
                             v.OptimalCost[tj, m] = v.RetreatCost[tj, m, retInd]
@@ -759,7 +759,7 @@ using Mimi
                                 v.OptimalR[ti, m] = max(0, v.R[ti, m, retInd])
                                 v.WetlandLossOptimal[ti, m] = v.wetlandloss[ti, m] * min(v.coastArea[ti, m], p.wetland[m])
                                 if i == 1
-                                    v.StormLossOptimal[ti, m] = v.StormLossRetreat[ti, m, findall(isequal(v.OptimalLevel[t, m]), p.adaptoptions)[1]]
+                                    v.StormLossOptimal[ti, m] = v.StormLossRetreat[ti, m, findfirst(isequal(v.OptimalLevel[t, m]), p.adaptoptions)]
                                 else
                                     v.StormLossOptimal[ti, m] = v.StormLossOptimal[TimestepIndex(i - 1), m] + v.StormLossRetreat[ti, m, retInd]
                                 end
