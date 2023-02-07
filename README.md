@@ -4,16 +4,16 @@ This is a work-in-progress respository for a Julia-Mimi implementation the CIAM 
 
 ## Preparing the Software Environment
 
-Your first step is to install MimiCIAM.jl itself, and to do so you need to run the following command at the julia package REPL:
+Your first step is to install MimiCIAM.jl itself, which you can do as follows in Julia:
 
 ```julia
-pkg> add https://github.com/raddleverse/MimiCIAM.jl.git
+import Pkg; Pkg.add("MimiCIAM")
 ```
 
 You probably also want to install the Mimi package into your julia environment, so that you can use some of the tools in there:
 
 ```julia
-pkg> add Mimi
+Pkg.add("Mimi")
 ```
 ## Running the Model
 
