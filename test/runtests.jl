@@ -21,7 +21,7 @@ jl_outputdir = joinpath(@__DIR__, "..", "output", "BaselineComparisonTests")
 
 # write out the current results using the same random subset of segments used
 # for the validation data
-write_MimiCIAM_comparison_files(jl_outputdir, subset = "random10.csv")
+write_MimiCIAM_comparison_files(jl_outputdir, subset="random10.csv")
 
 ##==============================================================================
 ## Baseline Comparison Tests: MimiCIAM dev to MimICIAM stable
@@ -32,7 +32,7 @@ write_MimiCIAM_comparison_files(jl_outputdir, subset = "random10.csv")
     jl_validation_outputdir = joinpath(@__DIR__, "..", "data", "validation_data", "julia")
 
     files = readdir(jl_validation_outputdir)
-    filter!(i->(i!="desktop.ini" && i!=".DS_Store" && i!="xsc.csv"), files)
+    filter!(i -> (i != "desktop.ini" && i != ".DS_Store" && i != "xsc.csv"), files)
 
     for (i, file) in enumerate(files)
 

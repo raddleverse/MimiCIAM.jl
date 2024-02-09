@@ -3,7 +3,7 @@ using CSV
 ##==============================================================================
 ## Write Comparison Files
 
-function write_MimiCIAM_comparison_files(outputdir; subset = false)
+function write_MimiCIAM_comparison_files(outputdir; subset=false)
 
     isdir(outputdir) || mkpath(outputdir)
 
@@ -15,33 +15,33 @@ function write_MimiCIAM_comparison_files(outputdir; subset = false)
     run_name = "ctrl+noConstrFix"
 
     init_settings = Dict(
-        :init_filename   => string("$run_name", "_init.csv"),
-        :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => subset,
-        :ssp             => 0,
-        :ssp_simplified  => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
+        :init_filename => string("$run_name", "_init.csv"),
+        :lslrfile => "lsl_rcp85_p50.csv",
+        :subset => subset,
+        :ssp => 0,
+        :ssp_simplified => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
     )
 
     model_settings = Dict(
-        :fixed          => true,
-        :t              => 20,
-        :noRetreat      => false,
-        :allowMaintain  => false,
-        :popinput       => 0,
-        :GAMSmatch      => true
+        :fixed => true,
+        :t => 20,
+        :noRetreat => false,
+        :allowMaintain => false,
+        :popinput => 0,
+        :GAMSmatch => true
     )
 
     # write files
     MimiCIAM.write_init_file(run_name, outputdir, init_settings)
 
     m = MimiCIAM.get_model(
-        initfile        = joinpath(outputdir, init_settings[:init_filename]),
-        fixed           = model_settings[:fixed],
-        t               = model_settings[:t],
-        noRetreat       = model_settings[:noRetreat],
-        allowMaintain   = model_settings[:allowMaintain],
-        popinput        = model_settings[:popinput],
-        GAMSmatch       = model_settings[:GAMSmatch]
+        initfile=joinpath(outputdir, init_settings[:init_filename]),
+        fixed=model_settings[:fixed],
+        t=model_settings[:t],
+        noRetreat=model_settings[:noRetreat],
+        allowMaintain=model_settings[:allowMaintain],
+        popinput=model_settings[:popinput],
+        GAMSmatch=model_settings[:GAMSmatch]
     )
     run(m)
 
@@ -53,32 +53,32 @@ function write_MimiCIAM_comparison_files(outputdir; subset = false)
     run_name = "ctrl"
 
     init_settings = Dict(
-        :init_filename   => string("$run_name", "_init.csv"),
-        :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => subset,
-        :ssp             => 0,
-        :ssp_simplified  => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
+        :init_filename => string("$run_name", "_init.csv"),
+        :lslrfile => "lsl_rcp85_p50.csv",
+        :subset => subset,
+        :ssp => 0,
+        :ssp_simplified => 2 # won't matter, just to get defaults for the popdens_seg_jones and _merkens arrays.
     )
 
     model_settings = Dict(
-        :fixed          => true,
-        :t              => 15,
-        :noRetreat      => false,
-        :allowMaintain  => false,
-        :popinput       => 0,
-        :GAMSmatch      => false
+        :fixed => true,
+        :t => 15,
+        :noRetreat => false,
+        :allowMaintain => false,
+        :popinput => 0,
+        :GAMSmatch => false
     )
 
     MimiCIAM.write_init_file(run_name, outputdir, init_settings)
 
     m = MimiCIAM.get_model(
-        initfile        = joinpath(outputdir, init_settings[:init_filename]),
-        fixed           = model_settings[:fixed],
-        t               = model_settings[:t],
-        noRetreat       = model_settings[:noRetreat],
-        allowMaintain   = model_settings[:allowMaintain],
-        popinput        = model_settings[:popinput],
-        GAMSmatch       = model_settings[:GAMSmatch]
+        initfile=joinpath(outputdir, init_settings[:init_filename]),
+        fixed=model_settings[:fixed],
+        t=model_settings[:t],
+        noRetreat=model_settings[:noRetreat],
+        allowMaintain=model_settings[:allowMaintain],
+        popinput=model_settings[:popinput],
+        GAMSmatch=model_settings[:GAMSmatch]
     )
     run(m)
 
@@ -90,32 +90,32 @@ function write_MimiCIAM_comparison_files(outputdir; subset = false)
     run_name = "ctrl+SSP5"
 
     init_settings = Dict(
-        :init_filename   => string("$run_name", "_init.csv"),
-        :lslrfile        => "lsl_rcp85_p50.csv",
-        :subset          => subset,
-        :ssp             => "IIASAGDP_SSP5_v9_130219",
-        :ssp_simplified  => 5
+        :init_filename => string("$run_name", "_init.csv"),
+        :lslrfile => "lsl_rcp85_p50.csv",
+        :subset => subset,
+        :ssp => "IIASAGDP_SSP5_v9_130219",
+        :ssp_simplified => 5
     )
 
     model_settings = Dict(
-        :fixed          => true,
-        :t              => 15,
-        :noRetreat      => false,
-        :allowMaintain  => false,
-        :popinput       => 0,
-        :GAMSmatch      => false
+        :fixed => true,
+        :t => 15,
+        :noRetreat => false,
+        :allowMaintain => false,
+        :popinput => 0,
+        :GAMSmatch => false
     )
 
     MimiCIAM.write_init_file(run_name, outputdir, init_settings)
 
     m = MimiCIAM.get_model(
-        initfile        = joinpath(outputdir, init_settings[:init_filename]),
-        fixed           = model_settings[:fixed],
-        t               = model_settings[:t],
-        noRetreat       = model_settings[:noRetreat],
-        allowMaintain   = model_settings[:allowMaintain],
-        popinput        = model_settings[:popinput],
-        GAMSmatch       = model_settings[:GAMSmatch]
+        initfile=joinpath(outputdir, init_settings[:init_filename]),
+        fixed=model_settings[:fixed],
+        t=model_settings[:t],
+        noRetreat=model_settings[:noRetreat],
+        allowMaintain=model_settings[:allowMaintain],
+        popinput=model_settings[:popinput],
+        GAMSmatch=model_settings[:GAMSmatch]
     )
     run(m)
 

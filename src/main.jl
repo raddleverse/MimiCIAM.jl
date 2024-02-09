@@ -33,18 +33,18 @@ for file in lsl_files
     isdir(run_outputdir) || mkpath(run_outputdir)
 
     init_settings = Dict(
-        :init_filename   => string("$run_name", "_init.csv"),
-        :lslrfile        => file,
-        :subset          => false,
-        :ssp             => "IIASAGDP_SSP5_v9_130219",
-        :ssp_simplified  => 5
+        :init_filename => string("$run_name", "_init.csv"),
+        :lslrfile => file,
+        :subset => false,
+        :ssp => "IIASAGDP_SSP5_v9_130219",
+        :ssp_simplified => 5
     )
 
     MimiCIAM.write_init_file(run_name, run_outputdir, init_settings)
-    m = MimiCIAM.get_model(initfile = joinpath(run_outputdir, init_settings[:init_filename]))
+    m = MimiCIAM.get_model(initfile=joinpath(run_outputdir, init_settings[:init_filename]))
     run(m)
 
-    MimiCIAM.write_optimal_costs(m; outputdir = run_outputdir, runname = run_name)
+    MimiCIAM.write_optimal_costs(m; outputdir=run_outputdir, runname=run_name)
     # MimiCIAM.write_output_files(m; outputdir = outputdir, run_name = run_name) # writes three files
 
 end
