@@ -11,7 +11,7 @@ using Mimi
 # end
 
 @defcomp slrcost_GAMSmatch begin
-   # Define all variables, parameters and indices used by this module
+    # Define all variables, parameters and indices used by this module
 
     # --- Indices ---
     ciam_country = Index()
@@ -19,7 +19,7 @@ using Mimi
     adaptPers = Index()
 
     # --- Region / segment mapping ---
-    segID = Parameter(index = [segments])   # Unique segment numeric identifier
+    segID = Parameter(index=[segments])   # Unique segment numeric identifier
     xsc = Parameter{Dict{Int,Tuple{Int,Int,Int}}}()  # Region to segment mapping (dictionary) to keep track of which segments belong to each region
     rcp = Parameter{Int}()                   # RCP being run (metadata; not used in run)
     percentile = Parameter{Int}()            # Percentile of RCP being run (metadata; not used in run)
@@ -27,7 +27,7 @@ using Mimi
 
     # ---Time-related Parameters---
     tstep = Parameter()                     # Length of individual time-step (years)
-    at = Parameter(index = [adaptPers])    # Array of time indices that mark starts of adaptation periods
+    at = Parameter(index=[adaptPers])    # Array of time indices that mark starts of adaptation periods
     ntsteps = Parameter{Int}()              # Number of time-steps
 
     # ---Model Parameters ---
@@ -37,51 +37,51 @@ using Mimi
 
     # ---Socioeconomic Parameters---
     popinput = Parameter{Int}()           # Input for population data source: 0 (default), 1 (Jones & O'Neill, 2016), 2 (Merkens et al, 2016)
-    pop = Parameter(index = [time, ciam_country], unit = "million")           # Population of region (million people) (from MERGE or SSPs)
-    refpopdens = Parameter(index = [ciam_country], unit = "persons/km2")         # Reference population density of region (people / km^2)
+    pop = Parameter(index=[time, ciam_country], unit="million")           # Population of region (million people) (from MERGE or SSPs)
+    refpopdens = Parameter(index=[ciam_country], unit="persons/km2")         # Reference population density of region (people / km^2)
     rgn_ind_usa = Parameter{Int}()                     # Lookup parameter for USA region index, used in refpopdens and ypc
     #    for USA benchmark in vsl, rho and fundland calculations
-    popdens = Parameter(index = [segments], unit = "persons/km2")           # Pop density of segment in time t = 1 (people/km^2)
-    ypcc = Parameter(index = [time, ciam_country], unit = "US\$2010/yr/person")          # GDP per capita per region ($2010 per capita)
+    popdens = Parameter(index=[segments], unit="persons/km2")           # Pop density of segment in time t = 1 (people/km^2)
+    ypcc = Parameter(index=[time, ciam_country], unit="US\$2010/yr/person")          # GDP per capita per region ($2010 per capita)
 
-    popdens_seg = Variable(index = [time, segments], unit = "persons/km2")          # Population density of segment extrapolated forward in time (people / km^2)
+    popdens_seg = Variable(index=[time, segments], unit="persons/km2")          # Population density of segment extrapolated forward in time (people / km^2)
     #popdens_seg_jones = Parameter(index=[time,segments], unit = "persons/km2")      # Holder for Jones and O'Neill population density (not currently supported)
     #popdens_seg_merkens = Parameter(index=[time,segments], unit = "persons/km2")    # Holder for Merkens et al population density (not currently supported)
-    ypc_seg = Variable(index = [time, segments], unit = "US\$2010/yr/person")              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
-    refA_R = Parameter(index = [segments])                # Reference retreat level of adaptation in 0 period
-    refA_H = Parameter(index = [segments])                # Reference height for adaptation in 0 period
+    ypc_seg = Variable(index=[time, segments], unit="US\$2010/yr/person")              # GDP per capita by segment ($2010 per capita) (multiplied by scaling factor)
+    refA_R = Parameter(index=[segments])                # Reference retreat level of adaptation in 0 period
+    refA_H = Parameter(index=[segments])                # Reference height for adaptation in 0 period
 
     # ---Land Parameters---
     landinput = Parameter{Bool}()                   # Set to T for FUND or F for GTAP
 
-    gtapland = Parameter(index = [ciam_country], unit = "million US\$2010/km2")        # GTAP land value in 2007 (million 2010$ / km^2)
-    dvbm = Parameter(unit = "million US\$2010/km2")                            # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
+    gtapland = Parameter(index=[ciam_country], unit="million US\$2010/km2")        # GTAP land value in 2007 (million 2010$ / km^2)
+    dvbm = Parameter(unit="million US\$2010/km2")                            # FUND value of OECD dryland per Darwin et al 1995 converted from $1995 ($2010M per sqkm) (5.376)
     kgdp = Parameter()                              # Capital output ratio (per MERGE) (3 by default)
     discountrate = Parameter()                      # Discount rate (0.04 by default)
     depr = Parameter()                              # Fraction of capital that has not been depreciated over adaptation period (retreat cases)
 
 
-    landdata = Variable(index = [ciam_country], unit = "million US\$2010/km2")         # Takes on value of either fundland or gtapland
-    fundland = Variable(index = [ciam_country], unit = "million US\$2010/km2")         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2),
+    landdata = Variable(index=[ciam_country], unit="million US\$2010/km2")         # Takes on value of either fundland or gtapland
+    fundland = Variable(index=[ciam_country], unit="million US\$2010/km2")         # FUND land value in 1995 (calculated in run_timestep) (million 2010$ / km^2),
 
     rgn_ind_canada = Parameter{Int}()               # Region index for Canada (Used as reference for Greenland land appreciation)
-    land_appr = Variable(index = [time, ciam_country])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott)
-    coastland = Variable(index = [time, segments], unit = "million US\$2010/km2")  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
-    landvalue = Variable(index = [time, segments], unit = "million US\$2010/km2")  # Total endowment value of land ($2010M per sqkm)
-    landrent = Variable(index = [time, segments], unit = "million US\$2010/km2/yr")      # Annual rental value of land ($2010M/sqkm/year)
+    land_appr = Variable(index=[time, ciam_country])   # Land appreciation rate (calculated as regression by Yohe ref Abraham and Hendershott)
+    coastland = Variable(index=[time, segments], unit="million US\$2010/km2")  # Coastal land value (function of interior land value * scaling factor) ($2010M per sqkm)
+    landvalue = Variable(index=[time, segments], unit="million US\$2010/km2")  # Total endowment value of land ($2010M per sqkm)
+    landrent = Variable(index=[time, segments], unit="million US\$2010/km2/yr")      # Annual rental value of land ($2010M/sqkm/year)
 
-    ρ = Variable(index = [time, ciam_country])           # Country-wide resilience parameter (logistic function related to GDP)
-    capital = Variable(index = [time, segments], unit = "million US\$2010/km2")    # Total endowment value of capital stock (million $2010 / km^2)
-    discountfactor = Variable(index = [time])         # Discount factor (derived from discount rate)
+    ρ = Variable(index=[time, ciam_country])           # Country-wide resilience parameter (logistic function related to GDP)
+    capital = Variable(index=[time, segments], unit="million US\$2010/km2")    # Total endowment value of capital stock (million $2010 / km^2)
+    discountfactor = Variable(index=[time])         # Discount factor (derived from discount rate)
 
     # ---Coastal Parameters---
-    length = Parameter(index = [segments], unit = "km")          # Segment length (km)
+    length = Parameter(index=[segments], unit="km")          # Segment length (km)
 
     # ---Protection Parameters---
-    cci = Parameter(index = [ciam_country])
+    cci = Parameter(index=[ciam_country])
     pcfixed = Parameter()                   # Fraction of protection cost that is fixed (not variable in height) (0.3)
     mc = Parameter()                        # Maintenance cost (Hillen et al, 2010) (2%/yr)
-    pc0 = Parameter(unit = "million US\$2010/km/m2")                       # Reference cost of protection (million 2010$ / km / vert m^2) (6.02 by default)
+    pc0 = Parameter(unit="million US\$2010/km/m2")                       # Reference cost of protection (million 2010$ / km / vert m^2) (6.02 by default)
 
     # ---Retreat / No Adapt Parameters---
     mobcapfrac = Parameter()                # Fraction of capital that is mobile (0.25)
@@ -91,129 +91,129 @@ using Mimi
 
     # # ---Surge Exposure Parameters---
     # Protection case
-    psig0 = Parameter(index = [segments])
-    psig0coef = Parameter(index = [segments])
-    psigA = Parameter(index = [segments])                       # psigA in GAMS code
-    psigB = Parameter(index = [segments])                       # psigB in GAMS code
+    psig0 = Parameter(index=[segments])
+    psig0coef = Parameter(index=[segments])
+    psigA = Parameter(index=[segments])                       # psigA in GAMS code
+    psigB = Parameter(index=[segments])                       # psigB in GAMS code
 
     # Retreat / No Adapt Cases
-    rsig0 = Parameter(index = [segments])
-    rsigA = Parameter(index = [segments])                       # rsigA in GAMS code
-    rsigB = Parameter(index = [segments])                       # rsigB in GAMS code
+    rsig0 = Parameter(index=[segments])
+    rsigA = Parameter(index=[segments])                       # rsigA in GAMS code
+    rsigB = Parameter(index=[segments])                       # rsigB in GAMS code
 
     # ---Storm damage parameters---
     floodmortality = Parameter()                # Flood deaths as percent of exposed population; (Jonkman Vrijling 2008) (0.01)
 
     # if TRUE, then VSL is exogenously calculated for each country and set in vsl_ciam_country, then each segment is set by looking up its country
     # if FALSE, then VSL is endogenously calculated using vslel and vslmult as well as other endogenous socioeconomics for each segment
-    vsl_exogenous = Parameter{Bool}(default=true) 
+    vsl_exogenous = Parameter{Bool}(default=true)
 
-    vsl_ciam_country = Parameter(index = [time, ciam_country], unit = "million US\$2010/yr") # Value of statistical life (million 2010$) (only used for exogenous calculation of vsl)
-    vslel = Parameter(default = 0.5)    # Elasticity of vsl (0.5) (only used for endogenous calculation of vsl)
-    vslmult = Parameter(default = 216)  # multiplier on USA GDP (216)(only used for endogenous calculation of vsl)
+    vsl_ciam_country = Parameter(index=[time, ciam_country], unit="million US\$2010/yr") # Value of statistical life (million 2010$) (only used for exogenous calculation of vsl)
+    vslel = Parameter(default=0.5)    # Elasticity of vsl (0.5) (only used for endogenous calculation of vsl)
+    vslmult = Parameter(default=216)  # multiplier on USA GDP (216)(only used for endogenous calculation of vsl)
 
-    vsl = Variable(index = [time, segments], unit = "million US\$2010/yr")     # Value of statistical life (million 2010$)
+    vsl = Variable(index=[time, segments], unit="million US\$2010/yr")     # Value of statistical life (million 2010$)
 
     # ---Wetland Loss Parameters---
-    wvbm = Parameter(default = 0.376, unit = "million US\$2010/km2/yr")                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376)
-    wetland = Parameter(index = [segments], unit = "km2")                # Initial wetland area in coastal segment (km^2)
-    wmaxrate = Parameter(default = 0.01, unit = "m/yr")                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
-    wvel = Parameter(default = 1.16)                                      # income elasticity of wetland value (1.16) (Brander et al, 2006)
-    wvpdl = Parameter(default = 0.47)                                     # Population density elasticity of wetland value (0.47) (Brander et al, 2006)
+    wvbm = Parameter(default=0.376, unit="million US\$2010/km2/yr")                                      # Annual value of wetland services (million 2010$ / km^2 / yr); (Brander et al 2006)  (0.376)
+    wetland = Parameter(index=[segments], unit="km2")                # Initial wetland area in coastal segment (km^2)
+    wmaxrate = Parameter(default=0.01, unit="m/yr")                                  # Maximum rate of wetland accretion (m per yr) per Kirwan et al 2010 (0.01)
+    wvel = Parameter(default=1.16)                                      # income elasticity of wetland value (1.16) (Brander et al, 2006)
+    wvpdl = Parameter(default=0.47)                                     # Population density elasticity of wetland value (0.47) (Brander et al, 2006)
 
-    wetlandservice = Variable(index = [time, ciam_country])      # Annual value of wetland services adjusted for income and density (Brander et al 2006) ($2010M/km^2/year)
-    wetlandloss = Variable(index = [time, segments])        # Fractional loss of wetland due to slr
+    wetlandservice = Variable(index=[time, ciam_country])      # Annual value of wetland services adjusted for income and density (Brander et al 2006) ($2010M/km^2/year)
+    wetlandloss = Variable(index=[time, segments])        # Fractional loss of wetland due to slr
 
 
     # ---Sea Level Rise Parameters---
-    lslr = Parameter(index = [time, segments], unit = "m")                # Local sea level rise (m)
-    adaptoptions = Parameter(index = [6])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
-    surgeexposure = Parameter{Float64}(index = [segments, 5])# Storm surge exposure levels (corresponding to each designated adaptation option)
+    lslr = Parameter(index=[time, segments], unit="m")                # Local sea level rise (m)
+    adaptoptions = Parameter(index=[6])                     # Index of available adaptation levels for protect and retreat (0 is no adaptation)
+    surgeexposure = Parameter{Float64}(index=[segments, 5])# Storm surge exposure levels (corresponding to each designated adaptation option)
 
 
     # ---Coastal Area Parameters---
-    area1 = Parameter(index = [segments])
-    area2 = Parameter(index = [segments])
-    area3 = Parameter(index = [segments])
-    area4 = Parameter(index = [segments])
-    area5 = Parameter(index = [segments])
-    area6 = Parameter(index = [segments])
-    area7 = Parameter(index = [segments])
-    area8 = Parameter(index = [segments])
-    area9 = Parameter(index = [segments])
-    area10 = Parameter(index = [segments])
-    area11 = Parameter(index = [segments])
-    area12 = Parameter(index = [segments])
-    area13 = Parameter(index = [segments])
-    area14 = Parameter(index = [segments])
-    area15 = Parameter(index = [segments])
-    areaparams = Variable(index = [segments, 15])           # Nothing is computed; this is just a convenient container for area params
+    area1 = Parameter(index=[segments])
+    area2 = Parameter(index=[segments])
+    area3 = Parameter(index=[segments])
+    area4 = Parameter(index=[segments])
+    area5 = Parameter(index=[segments])
+    area6 = Parameter(index=[segments])
+    area7 = Parameter(index=[segments])
+    area8 = Parameter(index=[segments])
+    area9 = Parameter(index=[segments])
+    area10 = Parameter(index=[segments])
+    area11 = Parameter(index=[segments])
+    area12 = Parameter(index=[segments])
+    area13 = Parameter(index=[segments])
+    area14 = Parameter(index=[segments])
+    area15 = Parameter(index=[segments])
+    areaparams = Variable(index=[segments, 15])           # Nothing is computed; this is just a convenient container for area params
 
-    coastArea = Variable(index = [time, segments], unit = "km2")            # Coast area inundated (km^2)
+    coastArea = Variable(index=[time, segments], unit="km2")            # Coast area inundated (km^2)
 
     # ---Intermediate Variables---
-    WetlandNoAdapt = Variable(index = [time, segments])
-    FloodNoAdapt = Variable(index = [time, segments])
-    StormCapitalNoAdapt = Variable(index = [time, segments])
-    StormPopNoAdapt = Variable(index = [time, segments])
-    RelocateNoAdapt = Variable(index = [time, segments])
-    StormLossNoAdapt = Variable(index = [time, segments])
-    DryLandLossNoAdapt = Variable(index = [time, segments])
+    WetlandNoAdapt = Variable(index=[time, segments])
+    FloodNoAdapt = Variable(index=[time, segments])
+    StormCapitalNoAdapt = Variable(index=[time, segments])
+    StormPopNoAdapt = Variable(index=[time, segments])
+    RelocateNoAdapt = Variable(index=[time, segments])
+    StormLossNoAdapt = Variable(index=[time, segments])
+    DryLandLossNoAdapt = Variable(index=[time, segments])
 
-    Construct = Variable(index = [time, segments, 5])
-    WetlandProtect = Variable(index = [time, segments])
-    StormCapitalProtect = Variable(index = [time, segments, 5])
-    StormPopProtect = Variable(index = [time, segments, 5])
-    StormLossProtect = Variable(index = [time, segments, 5])
-    FloodProtect = Variable(index = [time, segments])
+    Construct = Variable(index=[time, segments, 5])
+    WetlandProtect = Variable(index=[time, segments])
+    StormCapitalProtect = Variable(index=[time, segments, 5])
+    StormPopProtect = Variable(index=[time, segments, 5])
+    StormLossProtect = Variable(index=[time, segments, 5])
+    FloodProtect = Variable(index=[time, segments])
 
-    WetlandRetreat = Variable(index = [time, segments])
-    StormCapitalRetreat = Variable(index = [time, segments, 6])
-    StormPopRetreat = Variable(index = [time, segments, 6])
-    StormLossRetreat = Variable(index = [time, segments, 6])
-    FloodRetreat = Variable(index = [time, segments, 6])
-    RelocateRetreat = Variable(index = [time, segments, 6])
-    DryLandLossRetreat = Variable(index = [time, segments, 6])
-    coastAreaRetreat = Variable(index = [time, segments, 6])
-    coastAreaNoAdapt = Variable(index = [time, segments])
+    WetlandRetreat = Variable(index=[time, segments])
+    StormCapitalRetreat = Variable(index=[time, segments, 6])
+    StormPopRetreat = Variable(index=[time, segments, 6])
+    StormLossRetreat = Variable(index=[time, segments, 6])
+    FloodRetreat = Variable(index=[time, segments, 6])
+    RelocateRetreat = Variable(index=[time, segments, 6])
+    DryLandLossRetreat = Variable(index=[time, segments, 6])
+    coastAreaRetreat = Variable(index=[time, segments, 6])
+    coastAreaNoAdapt = Variable(index=[time, segments])
 
     # --- Decision Variables --- (evaluated brute force)
-    H = Variable(index = [time, segments, 5], unit = "m")       # Height of current sea wall, no retreat (m)
-    R = Variable(index = [time, segments, 6], unit = "m")       # Retreat perimeter (m)
-    SIGMA = Variable(index = [time, segments, 12])  # Expected value of effective exposure area for over-topping surge (all cases)
+    H = Variable(index=[time, segments, 5], unit="m")       # Height of current sea wall, no retreat (m)
+    R = Variable(index=[time, segments, 6], unit="m")       # Retreat perimeter (m)
+    SIGMA = Variable(index=[time, segments, 12])  # Expected value of effective exposure area for over-topping surge (all cases)
     # Order of sigma values: 1 no adapt case, 6 retreat cases, 5 protect cases in ascending order
 
     # ---Outcome Variables---
-    OptimalH = Variable(index = [time, segments], unit = "m")               # m; Holder to track height built across timesteps (cumulative)
-    OptimalR = Variable(index = [time, segments], unit = "m")               # m; Holder to track retreat radius across timesteps (cumulative)
-    WetlandLossOptimal = Variable(index = [time, segments], unit = "km2")  # km2; Cumulative wetland loss from optimal decision
-    DryLandLossOptimal = Variable(index = [time, segments], unit = "km2") # km2; Cumulative loss of dry land from optimal decision
+    OptimalH = Variable(index=[time, segments], unit="m")               # m; Holder to track height built across timesteps (cumulative)
+    OptimalR = Variable(index=[time, segments], unit="m")               # m; Holder to track retreat radius across timesteps (cumulative)
+    WetlandLossOptimal = Variable(index=[time, segments], unit="km2")  # km2; Cumulative wetland loss from optimal decision
+    DryLandLossOptimal = Variable(index=[time, segments], unit="km2") # km2; Cumulative loss of dry land from optimal decision
 
     # DrylandLost = Variable(index=[time,segments])            # km2; container to track cumulative lost dryland
-    WetlandLost = Variable(index = [time, segments], unit = "km2")            # km2; container to track cumulative lost wetland
+    WetlandLost = Variable(index=[time, segments], unit="km2")            # km2; container to track cumulative lost wetland
 
-    NoAdaptCost = Variable(index = [time, segments], unit = "billion US\$2010/yr")         # Cost of not adapting (e.g. reactive retreat) (2010$)
-    ProtectCost = Variable(index = [time, segments, 5], unit = "billion US\$2010/yr")      # Total cost of protection at each level
-    RetreatCost = Variable(index = [time, segments, 6], unit = "billion US\$2010/yr")      # Total cost of retreat at each level
-    OptimalRetreatLevel = Variable(index = [time, segments])
-    OptimalProtectLevel = Variable(index = [time, segments])
-    OptimalCost = Variable(index = [time, segments], unit = "billion US\$2010/yr")          # Optimal cost based on NPV relative to start of adaptation period
-    OptimalLevel = Variable(index = [time, segments])         # Fixed optimal level (1,10,100,1000,10000)
-    OptimalOption = Variable(index = [time, segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt)
-    NPVRetreat = Variable(index = [time, segments, 6])
-    NPVProtect = Variable(index = [time, segments, 5])
-    NPVNoAdapt = Variable(index = [time, segments])
-    NPVOptimal = Variable(index = [segments])               # NPV of cost of optimal decisions relative to t=1
+    NoAdaptCost = Variable(index=[time, segments], unit="billion US\$2010/yr")         # Cost of not adapting (e.g. reactive retreat) (2010$)
+    ProtectCost = Variable(index=[time, segments, 5], unit="billion US\$2010/yr")      # Total cost of protection at each level
+    RetreatCost = Variable(index=[time, segments, 6], unit="billion US\$2010/yr")      # Total cost of retreat at each level
+    OptimalRetreatLevel = Variable(index=[time, segments])
+    OptimalProtectLevel = Variable(index=[time, segments])
+    OptimalCost = Variable(index=[time, segments], unit="billion US\$2010/yr")          # Optimal cost based on NPV relative to start of adaptation period
+    OptimalLevel = Variable(index=[time, segments])         # Fixed optimal level (1,10,100,1000,10000)
+    OptimalOption = Variable(index=[time, segments])        # Fixed adaptation decision (-1 - protect, -2 - retreat, -3 - no adapt)
+    NPVRetreat = Variable(index=[time, segments, 6])
+    NPVProtect = Variable(index=[time, segments, 5])
+    NPVNoAdapt = Variable(index=[time, segments])
+    NPVOptimal = Variable(index=[segments])               # NPV of cost of optimal decisions relative to t=1
     NPVOptimalTotal = Variable()                            # Total NPV of all segments from optimal decision
-    StormLossOptimal = Variable(index = [time, segments], unit = "persons")  # Cumulative expected loss of life (num people) from storm surges from optimal decision
+    StormLossOptimal = Variable(index=[time, segments], unit="persons")  # Cumulative expected loss of life (num people) from storm surges from optimal decision
 
     # ---Subcategories of Optimal Choice----
-    OptimalStormCapital = Variable(index = [time, segments])
-    OptimalStormPop = Variable(index = [time, segments])
-    OptimalConstruct = Variable(index = [time, segments])
-    OptimalWetland = Variable(index = [time, segments])
-    OptimalFlood = Variable(index = [time, segments])
-    OptimalRelocate = Variable(index = [time, segments])
+    OptimalStormCapital = Variable(index=[time, segments])
+    OptimalStormPop = Variable(index=[time, segments])
+    OptimalConstruct = Variable(index=[time, segments])
+    OptimalWetland = Variable(index=[time, segments])
+    OptimalFlood = Variable(index=[time, segments])
+    OptimalRelocate = Variable(index=[time, segments])
 
 
     function run_timestep(p, v, d, t)
@@ -326,9 +326,9 @@ using Mimi
                         v.vsl[ti, m] = p.vsl_ciam_country[ti, rgn_ind]
                     else # endogenously calculate VSL
                         if isgreenland(m, p.xsc)::Int == 1  # Special treatment for Greenland segments
-                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (v.ypc_seg[ti, m] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel   
+                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (v.ypc_seg[ti, m] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel
                         else
-                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (p.ypcc[ti, rgn_ind] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel   
+                            v.vsl[ti, m] = 1e-6 * p.vslmult * p.ypcc[ti, p.rgn_ind_usa] * (p.ypcc[ti, rgn_ind] / p.ypcc[ti, p.rgn_ind_usa])^p.vslel
                         end
                     end
 
