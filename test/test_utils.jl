@@ -28,7 +28,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         :noRetreat => false,
         :allowMaintain => false,
         :popinput => 0,
-        :GAMSmatch => true
+        :GAMSmatch => true,
+        :origforc => true
     )
 
     # write files
@@ -41,7 +42,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         noRetreat=model_settings[:noRetreat],
         allowMaintain=model_settings[:allowMaintain],
         popinput=model_settings[:popinput],
-        GAMSmatch=model_settings[:GAMSmatch]
+        GAMSmatch=model_settings[:GAMSmatch],
+        origforc=model_settings[:origforc]
     )
     run(m)
 
@@ -66,7 +68,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         :noRetreat => false,
         :allowMaintain => false,
         :popinput => 0,
-        :GAMSmatch => false
+        :GAMSmatch => false,
+        :origforc => true
     )
 
     MimiCIAM.write_init_file(run_name, outputdir, init_settings)
@@ -78,7 +81,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         noRetreat=model_settings[:noRetreat],
         allowMaintain=model_settings[:allowMaintain],
         popinput=model_settings[:popinput],
-        GAMSmatch=model_settings[:GAMSmatch]
+        GAMSmatch=model_settings[:GAMSmatch],
+        origforc=model_settings[:origforc]
     )
     run(m)
 
@@ -103,7 +107,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         :noRetreat => false,
         :allowMaintain => false,
         :popinput => 0,
-        :GAMSmatch => false
+        :GAMSmatch => false,
+        :origforc => true
     )
 
     MimiCIAM.write_init_file(run_name, outputdir, init_settings)
@@ -115,7 +120,8 @@ function write_MimiCIAM_comparison_files(outputdir; subset=false)
         noRetreat=model_settings[:noRetreat],
         allowMaintain=model_settings[:allowMaintain],
         popinput=model_settings[:popinput],
-        GAMSmatch=model_settings[:GAMSmatch]
+        GAMSmatch=model_settings[:GAMSmatch],
+        origforc=model_settings[:origforc]
     )
     run(m)
 

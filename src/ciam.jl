@@ -78,7 +78,7 @@ end
 """
     get_model(;initfile::Union{String, Nothing} = nothing, fixed::Bool=true,
                 t::Int = 20, noRetreat::Bool = false, allowMaintain::Bool = false,
-                popinput::Int = 0, GAMSmatch::Bool = false)
+                popinput::Int = 0, GAMSmatch::Bool = false, origforc::Bool=false, surgeoption::Int=0)
 Return a initialized and built CIAM model with the given arguments.
 
 Note that the GAMSmatch optional argument uses a different slrcost component with
@@ -86,7 +86,7 @@ the Hprev > H block commented out.  This should only be used for testing!
 """
 function get_model(; initfile::Union{String,Nothing}=nothing, fixed::Bool=true,
     t::Int=20, noRetreat::Bool=false, allowMaintain::Bool=false,
-    popinput::Int=0, GAMSmatch::Bool=false, surgeoption::Int=0)
+    popinput::Int=0, GAMSmatch::Bool=false, origforc::Bool=false, surgeoption::Int=0)
 
     initparams = init(; f=initfile)
     params, xsc = import_model_data(initparams["lslr"][1], initparams["subset"][1],
@@ -114,11 +114,10 @@ function get_model(; initfile::Union{String,Nothing}=nothing, fixed::Bool=true,
 
     initciam(xsc, params, initparams, m; fixed=fixed, t=t, noRetreat=noRetreat, allowMaintain=allowMaintain, popinput=popinput)
 
-    if GAMSmatch
+    if origforc
+        # read construction cost index data
         @warn "Using 2011 World Bank construction cost index"
-        # TODO: read construction cost index data
-        cci_2011 = CSV.read(joinpath(@__DIR__, "..", "data", "input", "cci_2011.csv"), DataFrame) |> DataFrame
-        update_param!(m, :slrcost, :cci, cci_2011)
+        update_param!(m, :slrcost, :cci, params["cci_2011"])
     end
 
     return m
