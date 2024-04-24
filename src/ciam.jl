@@ -114,6 +114,13 @@ function get_model(; initfile::Union{String,Nothing}=nothing, fixed::Bool=true,
 
     initciam(xsc, params, initparams, m; fixed=fixed, t=t, noRetreat=noRetreat, allowMaintain=allowMaintain, popinput=popinput)
 
+    if GAMSmatch
+        @warn "Using 2011 World Bank construction cost index"
+        # TODO: read construction cost index data
+        cci_2011 = CSV.read(joinpath(@__DIR__, "..", "data", "input", "cci_2011.csv"), DataFrame) |> DataFrame
+        update_param!(m, :slrcost, :cci, cci_2011)
+    end
+
     return m
 
 end
