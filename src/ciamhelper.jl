@@ -449,6 +449,7 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
     for i in 1:length(vargroup1)
         temp = getdataframe(model, :slrcost, vargroup1[i])
         missing_names = [j for j in common_order if !(String(j) in names(temp))]
+        println("HERE02-5-1 ",i, " - ", vargroup1[i])
 
         if length(missing_names) >= 1
             for name in missing_names
@@ -456,8 +457,21 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
             end
         end
 
+        # have the segments names (`segments`) but missing some/all 
+        # of the country names (`ciam_country`)
         if :ciam_country in missing_names && !(:segments in missing_names)
-            temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
+            println("HERE02-5-2-1")
+            println("temp")
+            display(temp)
+            println("segRgnDict")
+            display(segRgnDict)
+            #temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
+            #^-- broken in v1.6 -> v1.10 Julia update
+            #v-- works in v1.10 for `missing` cases...?
+            temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]] for i in axes(temp, 1)])
+            println("HERE02-5-2-2")
+            println("temp")
+            display(temp)
         end
 
         temp[!, :variable] = fill(String(vargroup1[i]), nrow(temp))
@@ -475,10 +489,14 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
     ntime = model[:slrcost, :ntsteps]
     segID = model[:slrcost, :segID]
     colnames = Symbol.(segID_to_seg(Int64.(segID), segmap))
-
+    
+    println(colnames)
+    
     for j in 1:length(vargroup2)
 
         ndim1 = size(model[:slrcost, vargroup2[j]])[3]
+
+        println("HERE02-6-1 ",vargroup2[j])
 
         for k in 1:ndim1
 
@@ -504,6 +522,11 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
             temp[!, :variable] = fill(String(vargroup2[j]), nrow(temp))
 
             temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
+            #^-- broken in v1.6 -> v1.10 Julia update
+            #v-- works in v1.10 need to modify for addition as opposed to missing...?
+            #temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]] for i in axes(temp, 1)])
+            #CHECK THAT THIS WASN'T SUPPOSED TO BE SOMETHING ELSE AND I ACCIDENTALLY REMOVED THE ORIGINAL CONTEXT
+
             temp = temp[!, [:time, :ciam_country, :segments, :level, :variable, :value]]
 
             if j == 1 && k == 1
@@ -514,6 +537,7 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
         end
     end
 
+    println("HERE02-7")
     # Sum to either region-level, global-level, or leave as seg-level
     outdf = [df; df2]
     outfile = tag ? "$(runname)_$(sumsegs)_$(rcp_str)_$(tag).csv" : "$(runname)_$(sumsegs)_$(rcp_str).csv"
@@ -566,6 +590,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
     # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0 => "RetreatCost", -1.0 => "ProtectCost", -3.0 => "NoAdaptCost")
     out = out |> @map(merge(_, {variable = lookup[_.OptimalOption]})) |> DataFrame
+
     rename!(out, Dict(:OptimalLevel => :level))
     out = out[!, [:time, :ciam_country, :segments, :variable, :level, :OptimalCost]]
 
@@ -581,7 +606,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
 
         temp = getdataframe(model, :slrcost => vars[i])
         temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
-
+        
         temp[!, :variable] = fill(String(vars[i]), nrow(temp))
 
         temp2 = getdataframe(model, :slrcost => :OptimalLevel)
@@ -594,6 +619,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0 => "RetreatCost", -1.0 => "ProtectCost", -3.0 => "NoAdaptCost")
         out = out |> @map(merge(_, {AdaptCategory = lookup[_.OptimalOption]})) |> DataFrame
+        
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out, vars[i] => :value)
         out = out[!, [:time, :ciam_country, :segments, :AdaptCategory, :variable, :level, :value]]
@@ -710,7 +736,13 @@ function getTimeSeries(model, ensnum; segIDs=false, rgns=false, sumsegs="global"
     for i in 1:length(vars)
 
         temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
-        temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments][1], segID = segRgnDict[_.segments][2]})) |> DataFrame
+        #temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments][1], segID = segRgnDict[_.segments][2]})) |> DataFrame
+        # ^-- breaking in v1.6->v1.10 switch. Try:
+        temp[!,:ciam_country] .= missing
+        temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]][1] for i in axes(temp,1)])
+        temp[!,:segID] .= missing
+        temp.segID .= coalesce.(temp.segID, [segRgnDict[temp.segments[i]][2] for i in axes(temp,1)])
+        
         #temp[!,:costtype]= String(vars[i])
 
         temp2 = MimiCIAM.getdataframe(model, :slrcost => :OptimalLevel)
@@ -726,7 +758,11 @@ function getTimeSeries(model, ensnum; segIDs=false, rgns=false, sumsegs="global"
 
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0 => "Retreat", -1.0 => "Protection", -3.0 => "No Adaptation")
-        out = out |> @map(merge(_, {category = lookup[_.OptimalOption]})) |> DataFrame
+        #out = out |> @map(merge(_, {category = lookup[_.OptimalOption]})) |> DataFrame
+        # ^-- breaking in v1.6->v1.10 swithc. Try:
+        out[!,:category] .= missing
+        out.category .= coalesce.(out.category, [lookup[out.OptimalOption[i]] for i in axes(out,1)])
+
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out, vars[i] => :cost)
 
