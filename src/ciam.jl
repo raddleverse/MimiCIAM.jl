@@ -114,14 +114,10 @@ function get_model(; initfile::Union{String,Nothing}=nothing, fixed::Bool=true,
 
     initciam(xsc, params, initparams, m; fixed=fixed, t=t, noRetreat=noRetreat, allowMaintain=allowMaintain, popinput=popinput)
 
-    println("HERE01")
-
     if origforc
         # read construction cost index data
-        println("HERE02")
         @warn "Using 2011 World Bank construction cost index"
         update_param!(m, :slrcost, :cci, params["cci_2011"])
-        println("HERE03")
     end
 
     return m
