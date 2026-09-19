@@ -463,7 +463,7 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
             #^-- broken in v1.6 -> v1.10 Julia update
             #v-- works in v1.10 for `missing` cases...?
             temp[!, :ciam_country] .= missing
-            temp[!, :ciam_country] .= coalesce.(temp[!, :ciam_country], [get(segRgnDict, temp.segments[i], missing) for i in axes(temp, 1)])            
+            temp[!, :ciam_country] .= coalesce.(temp[!, :ciam_country], [get(segRgnDict, temp.segments[i], missing) for i in axes(temp, 1)])
             #temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]] for i in axes(temp, 1)])
         end
 
@@ -482,8 +482,8 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
     ntime = model[:slrcost, :ntsteps]
     segID = model[:slrcost, :segID]
     colnames = Symbol.(segID_to_seg(Int64.(segID), segmap))
-    
-   
+
+
     for j in 1:length(vargroup2)
 
         ndim1 = size(model[:slrcost, vargroup2[j]])[3]
@@ -514,10 +514,10 @@ function write_ciam(model; outputdir::String=joinpath(@__DIR__, "..", "output"),
             #temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
             #^-- broken in v1.6 -> v1.10 Julia update
             #v-- works in v1.10 need to modify for addition as opposed to missing...?
-            temp[!,:ciam_country] .= missing
-            temp[!, :ciam_country] .= coalesce.(temp[!, :ciam_country], [get(segRgnDict, temp.segments[i], missing) for i in axes(temp, 1)])            
+            temp[!, :ciam_country] .= missing
+            temp[!, :ciam_country] .= coalesce.(temp[!, :ciam_country], [get(segRgnDict, temp.segments[i], missing) for i in axes(temp, 1)])
             #temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]] for i in axes(temp,1)])
-    
+
             temp = temp[!, [:time, :ciam_country, :segments, :level, :variable, :value]]
 
             if j == 1 && k == 1
@@ -567,10 +567,10 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
     # 1. Create aggregate adaptation decision DF
     temp1 = getdataframe(model, :slrcost => :OptimalCost)
     #temp1 = temp1 |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
-    temp1[!,:ciam_country] .= missing
+    temp1[!, :ciam_country] .= missing
     temp1[!, :ciam_country] .= coalesce.(temp1[!, :ciam_country], [get(segRgnDict, temp1.segments[i], missing) for i in axes(temp1, 1)])
     #temp1.ciam_country .= coalesce.(temp1.ciam_country, [segRgnDict[temp1.segments[i]] for i in axes(temp1,1)])
-    
+
     temp2 = getdataframe(model, :slrcost => :OptimalLevel)
     temp3 = getdataframe(model, :slrcost => :OptimalOption)
 
@@ -583,7 +583,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
     # Replace OptimalOption numeric value with string
     lookup = Dict{Any,Any}(-2.0 => "RetreatCost", -1.0 => "ProtectCost", -3.0 => "NoAdaptCost")
     #out = out |> @map(merge(_, {variable = lookup[_.OptimalOption]})) |> DataFrame
-    out[!,:variable] .= missing
+    out[!, :variable] .= missing
     out[!, :variable] .= coalesce.(out[!, :variable], [get(lookup, out.OptimalOption[i], missing) for i in axes(out, 1)])
 
     rename!(out, Dict(:OptimalLevel => :level))
@@ -601,7 +601,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
 
         temp = getdataframe(model, :slrcost => vars[i])
         #temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments]})) |> DataFrame
-        temp[!,:ciam_country] .= missing
+        temp[!, :ciam_country] .= missing
         temp[!, :ciam_country] .= coalesce.(temp[!, :ciam_country], [get(segRgnDict, temp.segments[i], missing) for i in axes(temp, 1)])
 
         temp[!, :variable] = fill(String(vars[i]), nrow(temp))
@@ -616,7 +616,7 @@ function write_optimal_costs(model; outputdir::String=joinpath(@__DIR__, "..", "
         # Replace OptimalOption numeric value with string
         lookup = Dict{Any,Any}(-2.0 => "RetreatCost", -1.0 => "ProtectCost", -3.0 => "NoAdaptCost")
         #out = out |> @map(merge(_, {AdaptCategory = lookup[_.OptimalOption]})) |> DataFrame
-        out[!,:AdaptCategory] .= missing
+        out[!, :AdaptCategory] .= missing
         out[!, :AdaptCategory] .= coalesce.(out[!, :AdaptCategory], [get(lookup, out.OptimalOption[i], missing) for i in axes(out, 1)])
 
         rename!(out, Dict(:OptimalLevel => :level))
@@ -737,12 +737,12 @@ function getTimeSeries(model, ensnum; segIDs=false, rgns=false, sumsegs="global"
         temp = MimiCIAM.getdataframe(model, :slrcost => vars[i])
         #temp = temp |> @map(merge(_, {ciam_country = segRgnDict[_.segments][1], segID = segRgnDict[_.segments][2]})) |> DataFrame
         # ^-- breaking in v1.6->v1.10 switch. Try:
-        temp[!,:ciam_country] .= missing
-        temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]][1] for i in axes(temp,1)])
+        temp[!, :ciam_country] .= missing
+        temp.ciam_country .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]][1] for i in axes(temp, 1)])
         #temp[!,:ciam_country] .= coalesce.(temp.ciam_country, [segRgnDict[temp.segments[i]][1] for i in axes(temp, 1)])
-        temp[!,:segID] .= missing
-        temp.segID .= coalesce.(temp.segID, [segRgnDict[temp.segments[i]][2] for i in axes(temp,1)])
-        
+        temp[!, :segID] .= missing
+        temp.segID .= coalesce.(temp.segID, [segRgnDict[temp.segments[i]][2] for i in axes(temp, 1)])
+
         #temp[!,:costtype]= String(vars[i])
 
         temp2 = MimiCIAM.getdataframe(model, :slrcost => :OptimalLevel)
@@ -760,8 +760,8 @@ function getTimeSeries(model, ensnum; segIDs=false, rgns=false, sumsegs="global"
         lookup = Dict{Any,Any}(-2.0 => "Retreat", -1.0 => "Protection", -3.0 => "No Adaptation")
         #out = out |> @map(merge(_, {category = lookup[_.OptimalOption]})) |> DataFrame
         # ^-- breaking in v1.6->v1.10 swithc. Try:
-        out[!,:category] .= missing
-        out.category .= coalesce.(out.category, [lookup[out.OptimalOption[i]] for i in axes(out,1)])
+        out[!, :category] .= missing
+        out.category .= coalesce.(out.category, [lookup[out.OptimalOption[i]] for i in axes(out, 1)])
 
         rename!(out, Dict(:OptimalLevel => :level))
         rename!(out, vars[i] => :cost)
